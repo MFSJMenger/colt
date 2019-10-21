@@ -117,6 +117,8 @@ class AskQuestions(object):
                 AskQuestions._create_config(config, f"{name}::{entry.name}({entry.value})", entry)
             elif isinstance(entry, dict):
                 AskQuestions._create_config(config, f"{name::key}", entry)
+            elif isinstance(entry, list):
+                config[name][key] = ", ".join(str(ele) for ele in entry)
             else:
                 config[name][key] = entry
 
@@ -146,6 +148,7 @@ class _ConcreteQuestion(_QuestionBase):
             'str': str,
             'float': float,
             'int': int,
+            'ilist': LineParser.ilist_parser,
             'bool': LineParser.bool_parser,
     }
 

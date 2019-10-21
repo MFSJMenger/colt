@@ -14,10 +14,11 @@ gaussian = {
         'functional': Question('Which functional?'),
 }
 
-qm_software = ConditionalQuestion("code",
+qm_software = {'code': ConditionalQuestion("code",
             Question("What qm method do you want to use?", 'str', "qchem"),
-            {'qchem': qchem, 'gaussian': gaussian})
+            {'qchem': qchem, 'gaussian': gaussian}),
+            'qmregion': Question("What are the qm atoms?", "ilist"),}
 
 
-questions = AskQuestions("sh", qm_software, config="test.ini")
-questions.ask('test_out.ini')
+questions = AskQuestions("sh", qm_software, config="example.ini")
+questions.ask('example_out.ini')
