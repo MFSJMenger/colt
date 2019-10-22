@@ -15,6 +15,10 @@ Features
 
 Simple tool to create command line questions in Python.
 
+The user can answer the question on demand, or give a set of default answers
+via a config-file.
+
+
 The API consists of three classes and one functions:
 
 1. Question: namedtuple to contain the Question
