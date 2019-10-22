@@ -6,7 +6,7 @@ from .answers import SubquestionsAnswer
 import configparser
 
 
-__all__ = ["Question", "ConditionalQuestion", "AskQuestions", "parse_question"]
+__all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 
 Question = namedtuple("Question", ("question", "typ", "default"),
