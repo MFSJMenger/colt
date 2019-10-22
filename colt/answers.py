@@ -6,9 +6,19 @@ class SubquestionsAnswer(object):
         self.name = name
         self._main_answer = main_answer
         self._subquestion_answers = subquestion_answers
+        if isinstance(self._subquestion_answers, SubquestionsAnswer):
+            self.is_subquestion = True
+        else:
+            self.is_subquestion = False
 
     def __getitem__(self, key):
-        return self._subquestion_answers.get(key, None)
+        return self.get(key)
+
+    def get(self, key, default=None):
+        if self.is_subquestion is True:
+            if key == self._subquestion_answers.name:
+                return self.subquestion_answers
+        return self._subquestion_answers.get(key, default)
 
     def __contains__(self, key):
         return key in self._subquestion_answers
@@ -22,11 +32,15 @@ class SubquestionsAnswer(object):
         return ((self._main_answer, self._subquestion_answers), )
 
     @property
+    def subquestion_answers(self):
+        return self._subquestion_answers
+
+    @property
     def value(self):
         return self._main_answer
 
     def __str__(self):
-        return 'Subquestions(' + str({self._main_answer: self._subquestion_answers}) + ')'
+        return 'Subquestions(' + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')'
 
     def __repr__(self):
-        return 'Subquestions(' + str({self._main_answer: self._subquestion_answers}) + ')'
+        return 'Subquestions(' + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')'

@@ -14,6 +14,17 @@ Question = namedtuple("Question", ("question", "typ", "default"),
 ConditionalQuestion = namedtuple("ConcreteQuestion", ("name", "main", "subquestions"))
 
 
+def register_parser(key, function):
+    """register a parser for the Questions class
+       
+       The parser function needs to take  a single
+       argument which is a string and return a
+       single python object, which should not be a 
+       **dict**!
+    """
+    _ConcreteQuestion.register_parser(key, function)
+
+
 def parse_question(question):
 
     if isinstance(question, dict):
@@ -40,6 +51,7 @@ class AskQuestions(object):
             self.create_config(self.configparser, self.name, answers)
             self._write(filename)
         self.answers = answers
+        return answers
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
