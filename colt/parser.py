@@ -29,7 +29,7 @@ class LineParser(object):
         for number in answer.split(','):
             numbers += LineParser.parse_integer_numbers(number)
         return numbers
-        
+
     @staticmethod
     def parse_integer_numbers(number):
         # check if tilde in line
@@ -38,4 +38,3 @@ class LineParser(object):
             return list(range(int(number[0]), int(number[2])+1))
         else:
             return [int(number)]
-            

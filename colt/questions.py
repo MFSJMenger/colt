@@ -36,7 +36,7 @@ class AskQuestions(object):
 
     def ask(self, filename=None):
         answers = self.questions.ask()
-        if filename is  not None:
+        if filename is not None:
             self.create_config(self.configparser, self.name, answers)
             self._write(filename)
         self.answers = answers
@@ -116,7 +116,7 @@ class AskQuestions(object):
                 config[name][entry.name] = entry.value
                 AskQuestions._create_config(config, f"{name}::{entry.name}({entry.value})", entry)
             elif isinstance(entry, dict):
-                AskQuestions._create_config(config, f"{name::key}", entry)
+                AskQuestions._create_config(config, f"{name}::{key}", entry)
             elif isinstance(entry, list):
                 config[name][key] = ", ".join(str(ele) for ele in entry)
             else:

@@ -4,7 +4,9 @@ from colt import Question, ConditionalQuestion
 
 qchem = ConditionalQuestion("method",
             Question("Which method do you want to use?", 'str', "cc2"),
-            {'tddft': {'basis': Question('Which basisset?'),
+            {'tddft': {'basis':
+                {'dft': Question('Which basisset?'),
+                  'hf': Question("what functional?"),},
                        'functional': Question('Which functional?')},
             'cc2': {'basis': Question('Which basisset?')},
         })
