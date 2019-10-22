@@ -25,19 +25,6 @@ def register_parser(key, function):
     _ConcreteQuestion.register_parser(key, function)
 
 
-def parse_question(question):
-
-    if isinstance(question, dict):
-        result = _Questions(question)
-    elif isinstance(question, Question):
-        result = _ConcreteQuestion(question)
-    elif isinstance(question, ConditionalQuestion):
-        result = _Subquestions(question.name, question.main, question.subquestions)
-    else:
-        raise TypeError("Type of question not known!", question)
-    return result
-
-
 class AskQuestions(object):
 
     def __init__(self, name, questions, config=None):
@@ -55,7 +42,7 @@ class AskQuestions(object):
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
-        questions = parse_question(questions)
+        questions = _parse_question(questions)
 
         if config is not None:
             cparser = configparser.ConfigParser(allow_no_value=True)
@@ -243,7 +230,7 @@ class _Questions(_QuestionBase):
 
     def __init__(self, questions):
         _QuestionBase.__init__(self)
-        self.questions = {name: parse_question(question) for (name, question) in questions.items()}
+        self.questions = {name: _parse_question(question) for (name, question) in questions.items()}
 
     def items(self):
         return self.questions.items()
@@ -272,7 +259,7 @@ class _Subquestions(_QuestionBase):
         self.name = name
         self.main_question = _ConcreteQuestion(main_question)
         # subquestions
-        self.subquestions = {name: parse_question(question) for name, question in questions.items()}
+        self.subquestions = {name: _parse_question(question) for name, question in questions.items()}
 
     def set_answer(self, value):
         """set answer for main question"""
@@ -291,3 +278,16 @@ class _Subquestions(_QuestionBase):
             return main_answer
         else:
             return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
+
+
+def _parse_question(question):
+
+    if isinstance(question, dict):
+        result = _Questions(question)
+    elif isinstance(question, Question):
+        result = _ConcreteQuestion(question)
+    elif isinstance(question, ConditionalQuestion):
+        result = _Subquestions(question.name, question.main, question.subquestions)
+    else:
+        raise TypeError("Type of question not known!", question)
+    return result
