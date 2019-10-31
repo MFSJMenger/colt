@@ -40,7 +40,9 @@ class SubquestionsAnswer(object):
         return self._main_answer
 
     def __str__(self):
-        return 'Subquestions(' + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')'
+        return ('Subquestions('
+                + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')')
 
     def __repr__(self):
-        return 'Subquestions(' + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')'
+        return ('Subquestions('
+                + str({f"{self.name} = {self._main_answer}": self._subquestion_answers}) + ')')

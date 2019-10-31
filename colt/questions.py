@@ -16,10 +16,10 @@ ConditionalQuestion = namedtuple("ConcreteQuestion", ("name", "main", "subquesti
 
 def register_parser(key, function):
     """register a parser for the Questions class
-       
+
        The parser function needs to take  a single
        argument which is a string and return a
-       single python object, which should not be a 
+       single python object, which should not be a
        **dict**!
     """
     _ConcreteQuestion.register_parser(key, function)
@@ -147,15 +147,16 @@ class _ConcreteQuestion(_QuestionBase):
             'str': str,
             'float': float,
             'int': int,
-            'ilist': LineParser.ilist_parser,
             'bool': LineParser.bool_parser,
+            'ilist': LineParser.ilist_parser,
+            'flist': LineParser.flist_parser,
     }
 
     def __init__(self, question):
         # setup
         _QuestionBase.__init__(self)
+        self._parse = self._select_parser(question.typ)
         self._setup(question)
-        self._parser = self._select_parser(question.typ)
         # generate the question
         self.question = self._generate_question(question)
 
@@ -180,34 +181,42 @@ class _ConcreteQuestion(_QuestionBase):
         self._accept_enter = False
         if question.default is not None:
             self._accept_enter = True
-            self.default = question.default
+            try:
+                self.default = self._parse(question.default)
+                return
+            except Exception as e:
+                print(e)
+            # either alread returned, or raise exception!
+            raise Exception(f"For parser '{question.typ}' "
+                            f"default '{question.default}' cannot be used!")
 
     def _print(self):
         return f"{self.question}\n"
 
     def _ask_question(self):
         #
-        default = False
+        is_set = False
         if self._set_answer is not None:
             answer = self._set_answer
+            is_set = True
         else:
-            answer = input(self.question).strip()
+            answer = input(self.question).strip()  # strip is important!
             if answer == "":
                 if self._accept_enter:
                     answer = self.default
-                    default = True
+                    is_set = True
         #
-        return answer, default
+        return _Answer(answer, is_set)
 
     def _ask(self):
-        answer, default = self._ask_question()
-        if default is True:
-            return answer
+        answer = self._ask_question()
+        if answer.is_set is True:
+            return answer.value
         #
         try:
-            if answer == "":
+            if answer.value == "":
                 raise Exception("No default set, empty string not allowed!")
-            result = self._parser(answer)
+            result = self._parse(answer)
         except Exception:
             print(f"Unkown input '{answer}', redo")
             result = self._ask()
@@ -224,6 +233,14 @@ class _ConcreteQuestion(_QuestionBase):
         if not callable(value):
             raise TypeError("Parser needs to be a single argument function!")
         cls._known_parsers[key] = value
+
+    @classmethod
+    def get_parsers(cls):
+        return cls._known_parsers
+
+
+# Used to save status of a concrete answer
+_Answer = namedtuple("_Answer", ("value", "is_set"))
 
 
 class _Questions(_QuestionBase):
@@ -259,7 +276,8 @@ class _Subquestions(_QuestionBase):
         self.name = name
         self.main_question = _ConcreteQuestion(main_question)
         # subquestions
-        self.subquestions = {name: _parse_question(question) for name, question in questions.items()}
+        self.subquestions = {name: _parse_question(question)
+                             for name, question in questions.items()}
 
     def set_answer(self, value):
         """set answer for main question"""

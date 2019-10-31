@@ -1,6 +1,6 @@
 from colt import AskQuestions
 from colt import Question, ConditionalQuestion
-
+from colt.questions import _ConcreteQuestion
 
 qchem = ConditionalQuestion("method",
             Question("Which method do you want to use?", 'str', "cc2"),

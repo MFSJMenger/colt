@@ -21,9 +21,13 @@ class LineParser(object):
                             % (", ".join(_positive), ", ".join(_negative)))
 
     @staticmethod
+    def flist_parser(answer):
+        return [float(ele) for ele in answer.split(',')]
+
+    @staticmethod
     def ilist_parser(answer):
         if '~' not in answer:
-            return list(map(int, answer.split(',')))
+            return [int(ele) for ele in answer.split(',')]
 
         numbers = []
         for number in answer.split(','):
