@@ -3,6 +3,7 @@ from collections import namedtuple
 
 from .parser import LineParser
 from .answers import SubquestionsAnswer
+from .context_utils import ExitOnException
 import configparser
 
 
@@ -29,20 +30,39 @@ class AskQuestions(object):
 
     def __init__(self, name, questions, config=None):
         self.name = name
+        self._config = config
         self.questions = self._setup(questions, config)
         self.configparser = configparser.ConfigParser(allow_no_value=True)
+        #
+        self.only_check = False
+        self._check_failed = False
 
     def ask(self, filename=None):
         answers = self.questions.ask()
         if filename is not None:
-            self.create_config(self.configparser, self.name, answers)
+            self._create_config_start(self.configparser, self.name, answers)
             self._write(filename)
         self.answers = answers
         return answers
 
+    def check_only(self, filename):
+        self.only_check = True
+        answers = self.questions.ask()
+        if self._check_failed is True:
+            self._create_config_start(self.configparser, self.name, answers)
+            self._write(filename)
+            raise Exception(f"Input not complete, check file '{filename}' for missing values!")
+        self.only_check = False
+
+    def __getitem__(self, key):
+        return self.questions.get(key, None)
+
+    def __repr__(self):
+        return f"AskQuestions({self.name}, config='{self._config}')"
+
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
-        questions = _parse_question(questions)
+        questions = _parse_question(questions, parent=self)
 
         if config is not None:
             cparser = configparser.ConfigParser(allow_no_value=True)
@@ -56,20 +76,22 @@ class AskQuestions(object):
         with open(filename, 'w') as configfile:
             self.configparser.write(configfile)
 
-    @staticmethod
-    def _modify(name, config, questions):
+    def _actual_modifyer(self, question, answer):
+        _ConcreteQuestion.set_answer(question, answer)
+
+    def _modify(self, name, config, questions):
         """set answers depending on the config file!"""
         if isinstance(questions, _Subquestions):
             if config[name].get(questions.name, None) is not None:
-                questions.set_answer(config[name][questions.name])
-                AskQuestions._modify_questions(
+                self._actual_modifyer(questions, config[name][questions.name])
+#                questions.set_answer(config[name][questions.name])
+                self._modify_questions(
                         f"{name}::{questions.name}({config[name][questions.name]})",
                         config, questions.subquestions)
         else:
-            AskQuestions._modify_questions(name, config, questions)
+            self._modify_questions(name, config, questions)
 
-    @staticmethod
-    def _modify_questions(name, config, questions):
+    def _modify_questions(self, name, config, questions):
         """ recusive function to set answer depending on the config file!"""
         # check that config[name] is defined!
         try:
@@ -79,22 +101,22 @@ class AskQuestions(object):
         #
         for key, question in questions.items():
             if isinstance(question, _Questions):
-                AskQuestions._modify_questions(f"{name}", config, question.questions)
+                self._modify_questions(f"{name}", config, question.questions)
             elif isinstance(question, _ConcreteQuestion):
                 if config[name].get(key, None) is not None:
                     question.set_answer(config[name][key])
             elif isinstance(question, _Subquestions):
                 if config[name].get(question.name, None) is not None:
                     question.set_answer(config[name][question.name])
-                    AskQuestions._modify_questions(
+                    self._modify_questions(
                             f"{name}::{question.name}({config[name][question.name]})",
                             config, question.subquestions)
             else:
-                raise TypeError("Type of question not known!", question)
+                raise TypeError(f"Type of question not known! {type(question)}")
 
     @staticmethod
-    def create_config(config, name, entries):
-        """create config file"""
+    def _create_config_start(config, name, entries):
+        """Starting routine to create config file"""
         if isinstance(entries, SubquestionsAnswer):
             config[name] = {}
             config[name][entries.name] = entries.value
@@ -124,8 +146,9 @@ class AskQuestions(object):
 
 class _QuestionBase(ABC):
 
-    def __init__(self):
+    def __init__(self, parent):
         self._set_answer = None
+        self.parent = parent
 
     @abstractmethod
     def set_answer(self, value):
@@ -152,9 +175,9 @@ class _ConcreteQuestion(_QuestionBase):
             'flist': LineParser.flist_parser,
     }
 
-    def __init__(self, question):
+    def __init__(self, question, parent=None):
         # setup
-        _QuestionBase.__init__(self)
+        _QuestionBase.__init__(self, parent)
         self._parse = self._select_parser(question.typ)
         self._setup(question)
         # generate the question
@@ -167,7 +190,16 @@ class _ConcreteQuestion(_QuestionBase):
         return f"{self.question}\n"
 
     def set_answer(self, value):
-        self._set_answer = value
+        """set the answer to a suitable value, also here parse is called!
+           only consistent inputs values are accepted 
+        """
+
+        # also kinda useless, as the question is never ask, but conceptionally correct ;)
+        self._accept_enter = True
+        # this is kinda a hack to ensure that the provided config 
+        # file is correct, 
+        with ExitOnException():
+            self._set_answer = self._parse(f"{value}")
 
     def _generate_question(self, question):
         txt = question.question.strip()
@@ -177,24 +209,31 @@ class _ConcreteQuestion(_QuestionBase):
         return txt + ": "
 
     def _setup(self, question):
-        self.default = None
+        self._default = None
         self._accept_enter = False
         if question.default is not None:
             self._accept_enter = True
             try:
-                self.default = self._parse(question.default)
+                self._default = self._parse(question.default)
                 return
             except Exception as e:
                 print(e)
-            # either alread returned, or raise exception!
+            # either already returned, or raise exception!
             raise Exception(f"For parser '{question.typ}' "
                             f"default '{question.default}' cannot be used!")
 
     def _print(self):
         return f"{self.question}\n"
 
+    @property
+    def default(self):
+        """if answer is set, return set answer, alse return default"""
+        if self._set_answer is not None:
+            return self._set_answer
+        return self._default
+
     def _ask_question(self):
-        #
+        """Helper routine which asks the actual question"""
         is_set = False
         if self._set_answer is not None:
             answer = self._set_answer
@@ -208,19 +247,44 @@ class _ConcreteQuestion(_QuestionBase):
         #
         return _Answer(answer, is_set)
 
-    def _ask(self):
+    def _ask_implementation(self):
+        """Helper routine that checks if an answer is set,
+           else, tries to parse the answer, if that fails
+           the question is ask again
+        """
         answer = self._ask_question()
         if answer.is_set is True:
+            # if answer is set, return unparsed answer
             return answer.value
         #
         try:
             if answer.value == "":
                 raise Exception("No default set, empty string not allowed!")
-            result = self._parse(answer)
+            result = self._parse(answer.value)
         except Exception:
             print(f"Unkown input '{answer}', redo")
-            result = self._ask()
+            result = self._ask_implementation()
         return result
+
+    def _check_only(self):
+        """Check if the answer is set, or a default is
+           available, if not notify parent and return
+           "NEEDS_TO_BE_SET"
+        """
+        if self._set_answer is not None:
+            return self._set_answer
+        elif self.default is not None:
+            return self.default
+        else:
+            if self.parent is not None:
+                self.parent._check_failed = True
+            return "NEEDS_TO_BE_SET"
+
+    def _ask(self):
+        if self.parent is not None:
+            if self.parent.only_check is True:
+                return self._check_only()
+        return self._ask_implementation()
 
     def _select_parser(self, key):
         parser = self._known_parsers.get(key, None)
@@ -245,12 +309,21 @@ _Answer = namedtuple("_Answer", ("value", "is_set"))
 
 class _Questions(_QuestionBase):
 
-    def __init__(self, questions):
-        _QuestionBase.__init__(self)
-        self.questions = {name: _parse_question(question) for (name, question) in questions.items()}
+    def __init__(self, questions, parent=None):
+        _QuestionBase.__init__(self, parent)
+        self.questions = {name: _parse_question(question, parent=self.parent) for (name, question) in questions.items()}
 
     def items(self):
         return self.questions.items()
+    
+    def __getitem__(self, key):
+        return self.questions.get(key, None)
+
+    def get(self, key, default=None):
+        return self.questions.get(key, None)
+
+    def __contains__(self, key):
+        return key in self.questions
 
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer possible at the moment!")
@@ -270,14 +343,20 @@ class _Questions(_QuestionBase):
 
 class _Subquestions(_QuestionBase):
 
-    def __init__(self, name, main_question, questions):
-        _QuestionBase.__init__(self)
+    def __init__(self, name, main_question, questions, parent=None):
+        _QuestionBase.__init__(self, parent)
         # main question
         self.name = name
-        self.main_question = _ConcreteQuestion(main_question)
+        self.main_question = _ConcreteQuestion(main_question, parent=self.parent)
         # subquestions
-        self.subquestions = {name: _parse_question(question)
+        self.subquestions = {name: _parse_question(question, parent=self.parent)
                              for name, question in questions.items()}
+
+    def __getitem__(self, key):
+        return self.subquestions.get(key, None)
+
+    def get(self, key, default=None):
+        return self.subquestions.get(key, None)
 
     def set_answer(self, value):
         """set answer for main question"""
@@ -298,14 +377,14 @@ class _Subquestions(_QuestionBase):
             return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
 
 
-def _parse_question(question):
+def _parse_question(question, parent=None):
 
     if isinstance(question, dict):
-        result = _Questions(question)
+        result = _Questions(question, parent=parent)
     elif isinstance(question, Question):
-        result = _ConcreteQuestion(question)
+        result = _ConcreteQuestion(question, parent=parent)
     elif isinstance(question, ConditionalQuestion):
-        result = _Subquestions(question.name, question.main, question.subquestions)
+        result = _Subquestions(question.name, question.main, question.subquestions, parent=parent)
     else:
         raise TypeError("Type of question not known!", question)
     return result

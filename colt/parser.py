@@ -9,8 +9,8 @@ class LineParser(object):
     @staticmethod
     def bool_parser(answer):
         #
-        _positive = ('y', 'yes')
-        _negative = ('n', 'no')
+        _positive = ('y', 'yes', 'True', 'true')
+        _negative = ('n', 'no', 'False', 'false')
         #
         if answer in _positive:
             return True
@@ -20,19 +20,26 @@ class LineParser(object):
             raise Exception("Answer can only be [%s] or [%s]"
                             % (", ".join(_positive), ", ".join(_negative)))
 
-    @staticmethod
-    def flist_parser(answer):
+    @classmethod
+    def flist_parser(cls, answer):
+        answer = cls.remove_brackets(answer)
         return [float(ele) for ele in answer.split(',')]
 
-    @staticmethod
-    def ilist_parser(answer):
+    @classmethod
+    def ilist_parser(cls, answer):
+        answer = cls.remove_brackets(answer)
         if '~' not in answer:
             return [int(ele) for ele in answer.split(',')]
 
         numbers = []
         for number in answer.split(','):
-            numbers += LineParser.parse_integer_numbers(number)
+            numbers += cls.parse_integer_numbers(number)
         return numbers
+
+    @staticmethod
+    def remove_brackets(string):
+        """remove brackets from string"""
+        return string.replace("[","").replace("]","")
 
     @staticmethod
     def parse_integer_numbers(number):
