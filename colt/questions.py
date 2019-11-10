@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from collections import namedtuple
 
@@ -12,7 +13,36 @@ __all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 Question = namedtuple("Question", ("question", "typ", "default"),
                       defaults=("", "str", None))
-ConditionalQuestion = namedtuple("ConcreteQuestion", ("name", "main", "subquestions"))
+
+class ConditionalQuestion(object):
+
+    def __init__(self, name, main, subquestions):
+        self.name = name
+        self.main = main
+        self.subquestions = subquestions
+
+    def get(self, key, default=None):
+        return self.subquestions.get(key, default)
+
+    def items(self):
+        return self.subquestions.items()
+
+    def keys(self):
+        return self.subquestions.keys()
+
+    def __getitem__(self, key):
+        return self.subquestions[key]
+
+    def __contains__(self, key):
+        return key in self.subquestions
+
+    def __str__(self):
+        return f"ConditionalQuestion(name = {self.name}, main = {self.main}, subquestions = {self.subquestions}"
+
+    def __repr__(self):
+        return f"ConditionalQuestion(name = {self.name}, main = {self.main}, subquestions = {self.subquestions}"
+
+# ConditionalQuestion = namedtuple("ConditionalQuestion", ("name", "main", "subquestions"))
 
 
 def register_parser(key, function):
@@ -32,7 +62,7 @@ class AskQuestions(object):
         self.name = name
         self._config = config
         self.questions = self._setup(questions, config)
-        self.configparser = configparser.ConfigParser(allow_no_value=True)
+        self.configparser = self._fileparser()
         #
         self.only_check = False
         self._check_failed = False
@@ -62,14 +92,56 @@ class AskQuestions(object):
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
-        questions = _parse_question(questions, parent=self)
-
+        self.questions = _parse_question(questions, parent=self)
         if config is not None:
-            cparser = configparser.ConfigParser(allow_no_value=True)
-            cparser.read(config)
-            #
-            self._modify(self.name, cparser, questions)
-        return questions
+            self.set_answers_from_file(config)
+        return self.questions
+
+    _parse_conditionals_helper = re.compile(r"(?P<key>.*)\((?P<decission>.*)\)")
+
+    _Conditionals = namedtuple("Conditionals", ["key", "decission"])
+
+    @classmethod
+    def _parse_conditionals(cls, block):
+        """check if conditional block, else return name of the key and the decission"""
+        result = cls._parse_conditionals_helper.match(block)
+        if result is None:
+            return None
+        return cls._Conditionals(result.group("key"), result.group("decission"))
+
+    @classmethod
+    def _get_question_block(cls, questions, block):
+        """Parse down the abstraction tree to extract
+           particular questions based on their
+           block name in the config file
+        """
+        old_block, delim, new_block = block.partition('::')
+        if new_block == "":
+            # end of the recursive function
+            return questions, old_block
+        # Check for conditionals
+        block_key, _, _ = new_block.partition('::')
+        conditionals = cls._parse_conditionals(block_key)
+        # 
+        if conditionals is None:
+            return cls._get_question_block(questions[block_key], new_block)
+        # Handle conditionals
+        code, decission = conditionals
+        return cls._get_question_block(questions[code][decission], new_block)
+
+    def set_answers_from_file(self, filename):
+        """Set answers from a given file"""
+        parsed = self._fileparser(filename)
+        for section in parsed.sections():
+            question, se = self._get_question_block(self.questions, section)
+            if question is None:
+                print(f"""Section = {section} unkown, maybe typo?""")
+                continue
+            for key, value in parsed[section].items():
+                try:
+                    question[key].set_answer(value)
+                except:
+                    print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
 
     def _write(self, filename):
         """write output to file"""
@@ -113,6 +185,14 @@ class AskQuestions(object):
                             config, question.subquestions)
             else:
                 raise TypeError(f"Type of question not known! {type(question)}")
+
+    @classmethod
+    def _fileparser(cls, filename=None):
+        if filename is None:
+            return configparser.ConfigParser(allow_no_value=True)
+        parser = configparser.ConfigParser(allow_no_value=True)
+        parser.read(filename)
+        return parser
 
     @staticmethod
     def _create_config_start(config, name, entries):
