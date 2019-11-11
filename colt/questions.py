@@ -11,8 +11,8 @@ import configparser
 __all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 
-Question = namedtuple("Question", ("question", "typ", "default"),
-                      defaults=("", "str", None))
+Question = namedtuple("Question", ("question", "typ", "default"), defaults=("", "str", None))
+
 
 class ConditionalQuestion(object):
 
@@ -42,8 +42,6 @@ class ConditionalQuestion(object):
     def __repr__(self):
         return f"ConditionalQuestion(name = {self.name}, main = {self.main}, subquestions = {self.subquestions}"
 
-# ConditionalQuestion = namedtuple("ConditionalQuestion", ("name", "main", "subquestions"))
-
 
 def register_parser(key, function):
     """register a parser for the Questions class
@@ -66,6 +64,16 @@ class AskQuestions(object):
         #
         self.only_check = False
         self._check_failed = False
+
+    @classmethod
+    def from_string(cls, name, question_string, config=None):
+        questions = QuestionGenerator.questions_from_string(question_string)
+        return cls(name, questions, config)
+
+    @classmethod
+    def from_questionfile(cls, name, filename, config=None):
+        questions = QuestionGenerator.questions_from_file(filename)
+        return cls(name, questions, config)
 
     def ask(self, filename=None):
         """ask the actual question"""
@@ -98,18 +106,6 @@ class AskQuestions(object):
             self.set_answers_from_file(config)
         return self.questions
 
-    _parse_conditionals_helper = re.compile(r"(?P<key>.*)\((?P<decission>.*)\)")
-
-    _Conditionals = namedtuple("Conditionals", ["key", "decission"])
-
-    @classmethod
-    def _parse_conditionals(cls, block):
-        """check if conditional block, else return name of the key and the decission"""
-        result = cls._parse_conditionals_helper.match(block)
-        if result is None:
-            return None
-        return cls._Conditionals(result.group("key"), result.group("decission"))
-
     @classmethod
     def _get_question_block(cls, questions, block):
         """Parse down the abstraction tree to extract
@@ -117,21 +113,27 @@ class AskQuestions(object):
            block name in the config file
         """
         if questions is None:
-            print(f"block = {block}")
             return None, None
-        old_block, delim, new_block = block.partition('::')
+        old_block, delim, new_block = block.partition(QuestionGenerator.seperator)
         if new_block == "":
             # end of the recursive function
             return questions, old_block
         # Check for conditionals
-        block_key, _, _ = new_block.partition('::')
-        conditionals = cls._parse_conditionals(block_key)
+        block_key, _, _ = new_block.partition(QuestionGenerator.seperator)
+        conditionals = QuestionGenerator.is_decission(block_key)
         # 
-        if conditionals is None:
+        if conditionals is False:
             return cls._get_question_block(questions[block_key], new_block)
         # Handle conditionals
         key, decission = conditionals
-        return cls._get_question_block(questions[key][decission], new_block)
+        try:
+            if isinstance(questions, _Subquestions):
+                questions = questions[decission]
+            else:
+                questions = questions[key][decission]
+            return cls._get_question_block(questions, new_block)
+        except Exception: 
+            return None, None
 
     def set_answers_from_file(self, filename):
         """Set answers from a given file"""
@@ -140,6 +142,21 @@ class AskQuestions(object):
             question, se = self._get_question_block(self.questions, section)
             if question is None:
                 print(f"""Section = {section} unkown, maybe typo?""")
+                continue
+            if isinstance(question, _Subquestions):
+                if len(parsed[section].items()) == 1:
+                    for key, value in parsed[section].items():
+                        if key == question.name:
+                            question.set_answer(value)
+                        else:
+                            print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
+                else:
+                    for key, value in parsed[section].items():
+                        if key == question.name:
+                            question.set_answer(value)
+                        else:
+                            print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
+                    print(f"""question instance is ConditionalQuestion, but multiple values are defined? input error?""")
                 continue
             for key, value in parsed[section].items():
                 try:
@@ -346,7 +363,7 @@ class _ConcreteQuestion(_QuestionBase):
                 raise Exception("No default set, empty string not allowed!")
             result = self._parse(answer.value)
         except Exception:
-            print(f"Unkown input '{answer}', redo")
+            print(f"Unkown input '{answer.value}', redo")
             result = self._ask_implementation()
         return result
 
@@ -475,3 +492,144 @@ def _parse_question(question, parent=None):
     else:
         raise TypeError("Type of question not known!", question)
     return result
+
+class QuestionGenerator(object):
+    """Contains all tools to automatically generate questions from
+       a given file
+    """
+    
+    seperator = "::"
+    default = '__QUESTIONS__'
+
+    parse_conditionals_helper = re.compile(r"(?P<key>.*)\((?P<decission>.*)\)")
+    Conditionals = namedtuple("Conditionals", ["key", "decission"])
+
+    @classmethod
+    def questions_from_string(cls, string):
+        config = cls._setup(string)
+        return cls.generate_questions(config)
+
+    @classmethod
+    def questions_from_file(cls, filename):
+        with open(filename, "r") as f:
+            string = f.read()
+        return cls.questions_from_string(string)
+
+    @classmethod
+    def generate_questions(cls, config):
+        # linear parser
+        questions = {}
+    
+        for key, value in config[cls.default].items():
+            questions[key] = cls._parse_question_line(key, value)
+    
+        afterwards = [section for section in config.sections() if cls.is_subblock(section)]
+    
+        for section in config.sections():
+            if section == cls.default:
+                continue
+            if cls.is_subblock(section):
+                continue
+            subquestions = {}
+            for key, value in config[section].items():
+                subquestions[key] = cls._parse_question_line(key, value)
+            questions[section] = subquestions
+    
+        for section in afterwards:
+            subquestions = cls._get_section(questions, section)
+            if subquestions is None:
+                continue
+            for key, value in config[section].items():
+                subquestions[key] = cls._parse_question_line(key, value)
+        return questions
+
+    @classmethod
+    def is_subblock(cls, block):
+        if any(key in block for key in (cls.seperator, '(', ')')):
+            return True
+        return False
+
+    @classmethod
+    def is_decission(cls, key):
+        conditions = cls.parse_conditionals_helper.match(key)
+        if conditions is None:
+            return False
+        return cls.Conditionals(conditions.group("key"), conditions.group("decission"))
+
+    @staticmethod
+    def _parse_default(default):
+        if default.lower() == 'none':
+            return None
+        return default
+
+    @classmethod
+    def _parse_question_line(cls, name, line):
+        """Convert string to Question"""
+        #
+        line = [ele.strip() for ele in line.split(cls.seperator)]
+        len_line = len(line)
+        default = cls._parse_default(line[0])
+        #
+        if len_line == 1:
+            return Question(question=name, default=default)
+        if len_line == 2:
+            return Question(question=name, default=default, typ=line[1]) 
+        if len_line == 3:
+            return Question(default=default, typ=line[1], question=line[2]) 
+
+    @classmethod
+    def _setup(cls, string):
+        # add [DEFAULT] for easier parsing!
+        if not string.lstrip().startswith(f'[{cls.default}]'):
+            string = f'[{cls.default}]\n' + string
+        #
+        config = configparser.ConfigParser()
+        config.read_string(string)
+        return config
+
+    @classmethod
+    def _get_next_section(cls, sections, key):
+        """ """
+        conditions = cls.is_decission(key)
+        if conditions is False:
+            return sections.get(key, None)
+
+        key, decission = conditions
+        sections = sections.get(key, None)
+        if sections is not None:
+            return sections.get(decission, None)
+        return sections
+
+    @classmethod
+    def _get_section(cls, sections, block):
+        keys = block.split('::')
+        #
+        final_key = keys[-1]
+        # we are not at the end!
+        for key in keys[:-1]:
+            sections = cls._get_next_section(sections, key)
+            if sections is None:
+                return
+        # do this
+        conditions = cls.is_decission(final_key)
+        if conditions is False:
+            sections[final_key] = {}
+            return sections[final_key]
+    
+        key, decission = conditions
+        argument = sections.get(key, None)
+        if argument is None:
+            # no default question defined, should also give warning?
+            questions = ConditionalQuestion(key, Question(key), {decission: {}})
+            sections[key] = questions
+            return questions.subquestions[decission]
+        if isinstance(argument, Question):
+            # default question defined, but first found case
+            questions = ConditionalQuestion(key, argument, {decission: {}})
+            sections[key] = questions
+            return questions.subquestions[decission]
+        if isinstance(argument, ConditionalQuestion):
+            # another found case
+            argument.subquestions[decission] = {}
+            return argument.subquestions[decission]
+        raise Exception("cannot handle anything else")
