@@ -11,6 +11,7 @@ __all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 Question = namedtuple("Question", ("question", "typ", "default"),
                       defaults=("", "str", None))
+
 ConditionalQuestion = namedtuple("ConcreteQuestion", ("name", "main", "subquestions"))
 
 
@@ -33,6 +34,7 @@ class AskQuestions(object):
         self.configparser = configparser.ConfigParser(allow_no_value=True)
 
     def ask(self, filename=None):
+        """ask the actual question"""
         answers = self.questions.ask()
         if filename is not None:
             self.create_config(self.configparser, self.name, answers)
@@ -253,7 +255,7 @@ class _Questions(_QuestionBase):
         return self.questions.items()
 
     def set_answer(self, value):
-        raise Exception("For _Questions class no set_answer possible at the moment!")
+        raise Exception("For _Questions class no set_answer is possible at the moment!")
 
     def _print(self):
         string = ""
