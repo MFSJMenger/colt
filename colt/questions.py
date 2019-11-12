@@ -642,8 +642,28 @@ class QuestionGenerator(object):
                             choices=cls._parse_choices(line[1], line[2]), 
                             question=line[3], comment=comment) 
 
+    @staticmethod                
+    def _preprocess_string(string):
+
+        parsed_string = []
+        comment_lines = []
+        for line in string.splitlines():
+            line = line.strip()
+            if line == "":
+                continue
+            if line.startswith('#'):
+                comment_lines.append(line[1:])
+                continue
+            if comment_lines != []:
+                line += "###" + "#n".join(comment_lines)
+                comment_lines = []
+            parsed_string.append(line)
+        return "\n".join(parsed_string)
+
     @classmethod
     def _setup(cls, string):
+        """Prepare setup"""
+        string = cls._preprocess_string(string)
         # add [DEFAULT] for easier parsing!
         if not string.lstrip().startswith(f'[{cls.default}]'):
             string = f'[{cls.default}]\n' + string
