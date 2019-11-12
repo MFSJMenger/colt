@@ -92,7 +92,7 @@ class AskQuestions(object):
             self._write(filename)
             raise Exception(f"Input not complete, check file '{filename}' for missing values!")
         self.only_check = False
-        return answer
+        return answers
 
     def __getitem__(self, key):
         return self.questions.get(key, None)
