@@ -252,7 +252,7 @@ class AskQuestions(object):
             elif isinstance(entry, list):
                 config[name][key] = ", ".join(str(ele) for ele in entry)
             else:
-                config[name][key] = entry
+                config[name][key] = str(entry)
 
 
 class _QuestionBase(ABC):
