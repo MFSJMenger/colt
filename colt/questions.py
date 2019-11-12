@@ -11,7 +11,7 @@ import configparser
 __all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 
-Question = namedtuple("Question", ("question", "typ", "default", "comment"), defaults=("", "str", None, None))
+Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"), defaults=("", "str", None, None, None))
 
 
 class ConditionalQuestion(object):
@@ -317,11 +317,20 @@ class _ConcreteQuestion(_QuestionBase):
         # add default option
         if question.default is not None:
             txt += " [%s]" % (str(self.default))
+        if question.choices is not None:
+            txt += ", choices = (%s)" %  (", ".join(question.choices))
         return txt + ": "
 
     def _setup(self, question):
         self._default = None
         self._accept_enter = False
+        self._comment = question.comment
+        # Try to set choices
+        try:
+            self._choices = [self._parse(choice) for choice in question.choices]
+        except:
+            self._choices = None
+
         if question.default is not None:
             self._accept_enter = True
             try:
@@ -358,12 +367,21 @@ class _ConcreteQuestion(_QuestionBase):
         #
         return _Answer(answer, is_set)
 
+    def _perform_questions(self):
+        answer = self._ask_question()
+        if any(answer.value == helper for helper in (":help", ":h")):
+            print(self._comment)
+            # reask
+            answer = self._perform_questions()
+        return answer 
+
     def _ask_implementation(self):
         """Helper routine that checks if an answer is set,
            else, tries to parse the answer, if that fails
            the question is ask again
         """
-        answer = self._ask_question()
+        answer = self._perform_questions()
+
         if answer.is_set is True:
             # if answer is set, return unparsed answer
             return answer.value
@@ -373,8 +391,15 @@ class _ConcreteQuestion(_QuestionBase):
                 raise Exception("No default set, empty string not allowed!")
             result = self._parse(answer.value)
         except Exception:
-            print(f"Unkown input '{answer.value}', redo")
+            print(f"Unknown input '{answer.value}', redo")
+            # reask
             result = self._ask_implementation()
+
+        if self._choices is not None:
+            if result not in self._choices:
+                print(f"answer({result}) has to be ({', '.join(self._choices)})")
+                # reask
+                result = self._ask_implementation()
         return result
 
     def _check_only(self):
@@ -509,7 +534,9 @@ class QuestionGenerator(object):
     """
     
     seperator = "::"
+    comment_char = "###"
     default = '__QUESTIONS__'
+    _allowed_choices_types = ['int', 'str', 'float', 'bool']
 
     parse_conditionals_helper = re.compile(r"(?P<key>.*)\((?P<decission>.*)\)")
     Conditionals = namedtuple("Conditionals", ["key", "decission"])
@@ -568,24 +595,52 @@ class QuestionGenerator(object):
 
     @staticmethod
     def _parse_default(default):
-        if default.lower() == 'none':
+        """ """
+        if default.lower() == 'none' or default == "":
             return None
         return default
 
     @classmethod
+    def _parse_comment(cls, line):
+        line, _, comment = line.partition(cls.comment_char)
+        if comment == "":
+            comment = None
+        else:
+            comment = comment.replace("#n", "\n")
+        return line, comment
+
+    @classmethod
+    def _parse_choices(cls, typ, line):
+        "replace "
+        if typ not in cls._allowed_choices_types:
+            return None
+        line = line.replace("[","").replace("]","")
+        return [choice.strip() for choice in line.split(",")]
+         
+
+    @classmethod
     def _parse_question_line(cls, name, line):
         """Convert string to Question"""
-        #
+        # handle comment
+        line, comment = cls._parse_comment(line)
+
         line = [ele.strip() for ele in line.split(cls.seperator)]
         len_line = len(line)
         default = cls._parse_default(line[0])
         #
         if len_line == 1:
-            return Question(question=name, default=default)
+            return Question(question=name, default=default, comment=comment)
         if len_line == 2:
-            return Question(question=name, default=default, typ=line[1]) 
+            return Question(question=name, default=default, typ=line[1], comment=comment) 
         if len_line == 3:
-            return Question(default=default, typ=line[1], question=line[2]) 
+            return Question(question=name,
+                            default=default, typ=line[1],
+                            choices=cls._parse_choices(line[1], line[2]), 
+                            comment=comment) 
+        if len_line == 4:
+            return Question(default=default, typ=line[1], 
+                            choices=cls._parse_choices(line[1], line[2]), 
+                            question=line[3], comment=comment) 
 
     @classmethod
     def _setup(cls, string):
