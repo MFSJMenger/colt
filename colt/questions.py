@@ -57,6 +57,7 @@ def register_parser(key, function):
 class AskQuestions(object):
 
     def __init__(self, name, questions, config=None):
+        self.answers = None
         self.name = name
         self._config = config
         self.questions = self._setup(questions, config)
@@ -83,6 +84,14 @@ class AskQuestions(object):
             self._write(filename)
         self.answers = answers
         return answers
+
+    def create_config_from_answers(self, filename):
+        if self.answers is None:
+            self.ask(filename)
+            return
+        self._create_config_start(self.configparser, self.name, self.answers)
+        self._write(filename)
+
 
     def check_only(self, filename):
         self.only_check = True
