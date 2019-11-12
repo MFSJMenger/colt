@@ -11,7 +11,7 @@ import configparser
 __all__ = ["Question", "ConditionalQuestion", "AskQuestions", "register_parser"]
 
 
-Question = namedtuple("Question", ("question", "typ", "default"), defaults=("", "str", None))
+Question = namedtuple("Question", ("question", "typ", "default", "comment"), defaults=("", "str", None, None))
 
 
 class ConditionalQuestion(object):

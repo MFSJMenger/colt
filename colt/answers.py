@@ -23,6 +23,16 @@ class SubquestionsAnswer(object):
     def __contains__(self, key):
         return key in self._subquestion_answers
 
+    def __eq__(self, other):
+        if self._main_answer == other:
+            return True
+        return False
+
+    def __ne__(self, other):
+        if self._main_answer != other:
+            return True
+        return False
+
     def __iter__(self):
         return iter(self._subquestion_answers)
 
