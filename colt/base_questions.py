@@ -150,19 +150,17 @@ class _ConcreteQuestion(_QuestionBase):
     def _ask_question(self):
         """Helper routine which asks the actual question"""
         is_set = False
-        if self._set_answer is not None:
-            answer = self._set_answer
-            is_set = True
-        else:
-            answer = input(self.question).strip()  # strip is important!
-            if answer == "":
-                if self._accept_enter:
-                    answer = self.default
-                    is_set = True
+        answer = input(self.question).strip()  # strip is important!
+        if answer == "":
+            if self._accept_enter:
+                answer = self.default
+                is_set = True
         #
         return _Answer(answer, is_set)
 
     def _perform_questions(self):
+        if self._set_answer is not None:
+            return self._set_answer
         answer = self._ask_question()
         if any(answer.value == helper for helper in (":help", ":h")):
             print(self._comment)
