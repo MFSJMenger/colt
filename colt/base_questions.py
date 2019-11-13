@@ -70,7 +70,9 @@ class _ConcreteQuestion(_QuestionBase):
             'int': int,
             'bool': LineParser.bool_parser,
             'ilist': LineParser.ilist_parser,
+            'ilist_np': LineParser.ilist_np_parser,
             'flist': LineParser.flist_parser,
+            'flist_np': LineParser.flist_np_parser,
     }
 
     def __init__(self, question, parent=None):

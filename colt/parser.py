@@ -1,3 +1,5 @@
+import numpy as np
+
 
 __all__ = ["LineParser"]
 
@@ -25,6 +27,10 @@ class LineParser(object):
         return [float(ele) for ele in answer.split(',')]
 
     @classmethod
+    def flist_np_parser(cls, answer):
+        return np.array(cls.flist_parser(answer))
+
+    @classmethod
     def ilist_parser(cls, answer):
         answer = cls.remove_brackets(answer)
         if '~' not in answer:
@@ -34,6 +40,10 @@ class LineParser(object):
         for number in answer.split(','):
             numbers += cls.parse_integer_numbers(number)
         return numbers
+
+    @classmethod
+    def ilist_np_parser(cls, answer):
+        return np.array(cls.ilist_parser(answer))
 
     @staticmethod
     def remove_brackets(string):
