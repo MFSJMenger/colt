@@ -160,7 +160,7 @@ class _ConcreteQuestion(_QuestionBase):
 
     def _perform_questions(self):
         if self._set_answer is not None:
-            return self._set_answer
+            return _Answer(self._set_answer, True)
         answer = self._ask_question()
         if any(answer.value == helper for helper in (":help", ":h")):
             print(self._comment)
