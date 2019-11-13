@@ -159,8 +159,6 @@ class _ConcreteQuestion(_QuestionBase):
         return _Answer(answer, is_set)
 
     def _perform_questions(self):
-        if self._set_answer is not None:
-            return _Answer(self._set_answer, True)
         answer = self._ask_question()
         if any(answer.value == helper for helper in (":help", ":h")):
             print(self._comment)
@@ -173,6 +171,10 @@ class _ConcreteQuestion(_QuestionBase):
            else, tries to parse the answer, if that fails
            the question is ask again
         """
+        #
+        if self._set_answer is not None:
+            return self._set_answer
+        #
         answer = self._perform_questions()
 
         if answer.is_set is True:
