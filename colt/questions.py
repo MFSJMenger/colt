@@ -67,12 +67,12 @@ class AskQuestions(object):
         self._check_failed = False
 
     @classmethod
-    def from_string(cls, name, question_string, config=None):
+    def questions_from_string(cls, name, question_string, config=None):
         questions = QuestionGenerator.questions_from_string(question_string)
         return cls(name, questions, config)
 
     @classmethod
-    def from_questionfile(cls, name, filename, config=None):
+    def questions_from_file(cls, name, filename, config=None):
         questions = QuestionGenerator.questions_from_file(filename)
         return cls(name, questions, config)
 
