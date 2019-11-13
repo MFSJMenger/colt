@@ -23,22 +23,27 @@ class LineParser(object):
 
     @classmethod
     def flist_parser(cls, answer):
+        if ',' in answer:
+            split_char = ","
+        else:
+            split_char = "\s+"
         answer = cls.remove_brackets(answer)
-        return [float(ele) for ele in answer.split(',')]
+        return [float(ele) for ele in answer.split(split_char)]
 
     @classmethod
     def flist_np_parser(cls, answer):
-        answer = cls.remove_brackets(answer)
-        if ',' in answer:
-            return np.array([float(ele) for ele in answer.split('\s+')])
-        else:
-            return np.array([float(ele) for ele in answer.split(',')])
+        return np.array(cls.flist_parser(answer))
 
     @classmethod
     def ilist_parser(cls, answer):
+        if ',' in answer:
+            split_char = ","
+        else:
+            split_char = "\s+"
+
         answer = cls.remove_brackets(answer)
         if '~' not in answer:
-            return [int(ele) for ele in answer.split(',')]
+            return [int(ele) for ele in answer.split(split_char)]
 
         numbers = []
         for number in answer.split(','):
@@ -47,17 +52,7 @@ class LineParser(object):
 
     @classmethod
     def ilist_np_parser(cls, answer):
-        if ',' in answer:
-            return np.array(cls.ilist_parser(answer))
-
-        answer = cls.remove_brackets(answer)
-        if '~' not in answer:
-            return [int(ele) for ele in answer.split('\s+')]
-
-        numbers = []
-        for number in answer.split('\s+'):
-            numbers += cls.parse_integer_numbers(number)
-        return np.array(numbers)
+        return np.array(cls.ilist_parser(answer))
 
     @staticmethod
     def remove_brackets(string):
