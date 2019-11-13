@@ -26,7 +26,7 @@ class LineParser(object):
         if ',' in answer:
             split_char = ","
         else:
-            split_char = "\s+"
+            split_char = None
         answer = cls.remove_brackets(answer)
         return [float(ele) for ele in answer.split(split_char)]
 
@@ -39,14 +39,14 @@ class LineParser(object):
         if ',' in answer:
             split_char = ","
         else:
-            split_char = "\s+"
+            split_char = None
 
         answer = cls.remove_brackets(answer)
         if '~' not in answer:
             return [int(ele) for ele in answer.split(split_char)]
 
         numbers = []
-        for number in answer.split(','):
+        for number in answer.split(split_char):
             numbers += cls.parse_integer_numbers(number)
         return numbers
 

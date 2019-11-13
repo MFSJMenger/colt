@@ -138,7 +138,7 @@ class AskQuestions(object):
                 try:
                     question[key].set_answer(value)
                 except:
-                    print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
+                    print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
 
     def _write(self, filename):
         """write output to file"""
