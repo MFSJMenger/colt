@@ -2,8 +2,8 @@ import re
 from collections import namedtuple
 import configparser
 #
-from colt.base_questions import Question, ConditionalQuestion
-from colt.base_questions import _Subquestions
+from .base_questions import Question, ConditionalQuestion
+from .base_questions import _Subquestions
 
 class QuestionGenerator(object):
     """Contains all tools to automatically generate questions from
