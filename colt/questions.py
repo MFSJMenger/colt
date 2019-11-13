@@ -58,7 +58,6 @@ class AskQuestions(object):
         self._create_config_start(self.configparser, self.name, self.answers)
         self._write(filename)
 
-
     def check_only(self, filename):
         self.only_check = True
         answers = self.questions.ask()
@@ -97,7 +96,7 @@ class AskQuestions(object):
         # Check for conditionals
         block_key, _, _ = new_block.partition(QuestionGenerator.seperator)
         conditionals = QuestionGenerator.is_decission(block_key)
-        # 
+        #
         if conditionals is False:
             return cls._get_question_block(questions[block_key], new_block)
         # Handle conditionals
@@ -108,7 +107,7 @@ class AskQuestions(object):
             else:
                 questions = questions[key][decission]
             return cls._get_question_block(questions, new_block)
-        except Exception: 
+        except Exception:
             return None, None
 
     def set_answers_from_file(self, filename):
@@ -132,7 +131,8 @@ class AskQuestions(object):
                             question.set_answer(value)
                         else:
                             print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
-                    print(f"""question instance is ConditionalQuestion, but multiple values are defined? input error?""")
+                    print(f"question instance is ConditionalQuestion, "
+                          f"but multiple values are defined? input error?")
                 continue
             for key, value in parsed[section].items():
                 try:

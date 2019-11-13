@@ -5,11 +5,12 @@ import configparser
 from .base_questions import Question, ConditionalQuestion
 from .base_questions import _Subquestions
 
+
 class QuestionGenerator(object):
     """Contains all tools to automatically generate questions from
        a given file
     """
-    
+
     seperator = "::"
     comment_char = "###"
     default = '__QUESTIONS__'
@@ -29,23 +30,23 @@ class QuestionGenerator(object):
 
         questions = self._setup(questions)
         self.questions = self.generate_questions(questions)
-    
+
     def generate_cases(self, block, key, subblocks):
         subblocks = {name: QuestionGenerator(value).questions
                      for name, value in subblocks.items()}
         questions, _ = self.get_question_block(self.questions, block)
-        
+
         if questions is None:
             raise Exception(f"block {block} unknown")
-        
+
         if questions[key] is None:
-            questions[key]  = ConditionalQuestion(key, Question(key), subblocks)
+            questions[key] = ConditionalQuestion(key, Question(key), subblocks)
         elif isinstance(questions[key], ConditionalQuestion):
             for name, item in subblocks.items():
                 questions[key][name] = item
         elif isinstance(questions[key], Question):
-            questions[key]  = ConditionalQuestion(key, questions[key], subblocks)
-        else: 
+            questions[key] = ConditionalQuestion(key, questions[key], subblocks)
+        else:
             raise Exception("something wronge in generate cases")
 
     def is_question(self, questions):
@@ -57,7 +58,6 @@ class QuestionGenerator(object):
             return True
         else:
             return False
-
 
     @classmethod
     def questions_from_string(cls, string):
@@ -77,9 +77,9 @@ class QuestionGenerator(object):
 
         for key, value in config[cls.default].items():
             questions[key] = cls._parse_question_line(key, value)
-    
+
         afterwards = [section for section in config.sections() if cls.is_subblock(section)]
-    
+
         for section in config.sections():
             if section == cls.default:
                 continue
@@ -89,7 +89,7 @@ class QuestionGenerator(object):
             for key, value in config[section].items():
                 subquestions[key] = cls._parse_question_line(key, value)
             questions[section] = subquestions
-    
+
         for section in afterwards:
             subquestions = cls._get_section(questions, section)
             if subquestions is None:
@@ -132,7 +132,7 @@ class QuestionGenerator(object):
         "replace "
         if typ not in cls._allowed_choices_types:
             return None
-        line = line.replace("[","").replace("]","")
+        line = line.replace("[", "").replace("]", "")
         return [choice.strip() for choice in line.split(",")]
 
     @classmethod
@@ -148,18 +148,18 @@ class QuestionGenerator(object):
         if len_line == 1:
             return Question(question=name, default=default, comment=comment)
         if len_line == 2:
-            return Question(question=name, default=default, typ=line[1], comment=comment) 
+            return Question(question=name, default=default, typ=line[1], comment=comment)
         if len_line == 3:
             return Question(question=name,
                             default=default, typ=line[1],
-                            choices=cls._parse_choices(line[1], line[2]), 
-                            comment=comment) 
+                            choices=cls._parse_choices(line[1], line[2]),
+                            comment=comment)
         if len_line == 4:
-            return Question(default=default, typ=line[1], 
-                            choices=cls._parse_choices(line[1], line[2]), 
-                            question=line[3], comment=comment) 
+            return Question(default=default, typ=line[1],
+                            choices=cls._parse_choices(line[1], line[2]),
+                            question=line[3], comment=comment)
 
-    @staticmethod                
+    @staticmethod
     def _preprocess_string(string):
 
         parsed_string = []
@@ -217,7 +217,7 @@ class QuestionGenerator(object):
         if conditions is False:
             sections[final_key] = {}
             return sections[final_key]
-    
+
         key, decission = conditions
         argument = sections.get(key, None)
         if argument is None:
@@ -251,7 +251,7 @@ class QuestionGenerator(object):
         # Check for conditionals
         block_key, _, _ = new_block.partition(cls.seperator)
         conditionals = cls.is_decission(block_key)
-        # 
+        #
         if conditionals is False:
             return cls.get_question_block(questions[block_key], new_block)
         # Handle conditionals
@@ -263,5 +263,5 @@ class QuestionGenerator(object):
             else:
                 questions = questions[key][decission]
             return cls.get_question_block(questions, new_block)
-        except Exception: 
+        except Exception:
             return None, None

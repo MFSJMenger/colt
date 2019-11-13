@@ -1,5 +1,4 @@
 
-
 __all__ = ["LineParser"]
 
 
@@ -39,7 +38,7 @@ class LineParser(object):
     @staticmethod
     def remove_brackets(string):
         """remove brackets from string"""
-        return string.replace("[","").replace("]","")
+        return string.replace("[", "").replace("]", "")
 
     @staticmethod
     def parse_integer_numbers(number):

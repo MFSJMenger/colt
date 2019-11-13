@@ -4,7 +4,8 @@ from .context_utils import ExitOnException
 from .parser import LineParser
 from abc import ABC, abstractmethod
 
-Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"), defaults=("", "str", None, None, None))
+Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
+                      defaults=("", "str", None, None, None))
 
 
 class ConditionalQuestion(object):
@@ -33,10 +34,12 @@ class ConditionalQuestion(object):
         return key in self.subquestions
 
     def __str__(self):
-        return f"ConditionalQuestion(name = {self.name}, main = {self.main}, subquestions = {self.subquestions}"
+        return (f"ConditionalQuestion(name = {self.name},"
+                f" main = {self.main}, subquestions = {self.subquestions}")
 
     def __repr__(self):
-        return f"ConditionalQuestion(name = {self.name}, main = {self.main}, subquestions = {self.subquestions}"
+        return (f"ConditionalQuestion(name = {self.name},"
+                f" main = {self.main}, subquestions = {self.subquestions}")
 
 
 class _QuestionBase(ABC):
@@ -86,13 +89,13 @@ class _ConcreteQuestion(_QuestionBase):
 
     def set_answer(self, value):
         """set the answer to a suitable value, also here parse is called!
-           only consistent inputs values are accepted 
+           only consistent inputs values are accepted
         """
 
         # also kinda useless, as the question is never ask, but conceptionally correct ;)
         self._accept_enter = True
-        # this is kinda a hack to ensure that the provided config 
-        # file is correct, 
+        # this is kinda a hack to ensure that the provided config
+        # file is correct,
         with ExitOnException():
             self._set_answer = self._parse(f"{value}")
 
@@ -102,7 +105,7 @@ class _ConcreteQuestion(_QuestionBase):
         if question.default is not None:
             txt += " [%s]" % (str(self.default))
         if question.choices is not None:
-            txt += ", choices = (%s)" %  (", ".join(question.choices))
+            txt += ", choices = (%s)" % (", ".join(question.choices))
         return txt + ": "
 
     def set_choices(self, choices):
@@ -163,7 +166,7 @@ class _ConcreteQuestion(_QuestionBase):
             print(self._comment)
             # reask
             answer = self._perform_questions()
-        return answer 
+        return answer
 
     def _ask_implementation(self):
         """Helper routine that checks if an answer is set,
@@ -237,11 +240,12 @@ class _Questions(_QuestionBase):
 
     def __init__(self, questions, parent=None):
         _QuestionBase.__init__(self, parent)
-        self.questions = {name: parse_question(question, parent=self.parent) for (name, question) in questions.items()}
+        self.questions = {name: parse_question(question, parent=self.parent)
+                          for (name, question) in questions.items()}
 
     def items(self):
         return self.questions.items()
-    
+
     def __getitem__(self, key):
         return self.questions.get(key, None)
 
@@ -276,8 +280,10 @@ class _Subquestions(_QuestionBase):
         # subquestions
         self.subquestions = {name: parse_question(question, parent=self.parent)
                              for name, question in questions.items()}
-        main_question = Question(question=main_question.question, typ=main_question.typ, 
-                                 default=main_question.default, choices=self.subquestions.keys(), comment=main_question.comment)
+        main_question = Question(question=main_question.question, typ=main_question.typ,
+                                 default=main_question.default,
+                                 choices=self.subquestions.keys(),
+                                 comment=main_question.comment)
         self.main_question = _ConcreteQuestion(main_question, parent=self.parent)
 
     def __getitem__(self, key):
@@ -306,7 +312,7 @@ class _Subquestions(_QuestionBase):
             return main_answer
         else:
             return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
-        
+
 
 def parse_question(question, parent=None):
 

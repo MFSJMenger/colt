@@ -21,8 +21,10 @@ class _BaseContextDecorator(object):
 
         return _wrapper
 
+
 def _pass():
     pass
+
 
 class DoOnException(_BaseContextDecorator):
     """Performs fallback function, if exception is raised"""
@@ -38,6 +40,7 @@ class DoOnException(_BaseContextDecorator):
         if exception_type is not None:
             self._fallback(*self._args, **self._kwargs)
             return True
+
 
 class TryOnException(_BaseContextDecorator):
 
@@ -74,7 +77,7 @@ class ExitOnException(_BaseContextDecorator):
 
     def __exit__(self, exception_type, exception_value, tb):
         if exception_type is not None:
-            #traceback.extract_tb(exception_type, exception_value, tb)
+            # traceback.extract_tb(exception_type, exception_value, tb)
             stack = traceback.extract_tb(tb)
             for line in traceback.format_list(stack):
                 print(line, end='')
