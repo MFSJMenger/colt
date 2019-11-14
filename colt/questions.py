@@ -116,7 +116,7 @@ class AskQuestions(object):
         for section in parsed.sections():
             question, se = self._get_question_block(self.questions, section)
             if question is None:
-                print(f"""Section = {section} unkown, maybe typo?""")
+                print(f"""Section = {section} unknown, maybe typo?""")
                 continue
             if isinstance(question, _Subquestions):
                 if len(parsed[section].items()) == 1:
@@ -124,13 +124,13 @@ class AskQuestions(object):
                         if key == question.name:
                             question.set_answer(value)
                         else:
-                            print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
+                            print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
                 else:
                     for key, value in parsed[section].items():
                         if key == question.name:
                             question.set_answer(value)
                         else:
-                            print(f"""In Section({section}) key({key}) unkown, maybe typo?""")
+                            print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
                     print(f"question instance is ConditionalQuestion, "
                           f"but multiple values are defined? input error?")
                 continue
