@@ -2,8 +2,8 @@ import re
 from collections import namedtuple
 import configparser
 #
-from .base_questions import Question, ConditionalQuestion
-from .base_questions import _Subquestions
+from .questions import Question, ConditionalQuestion
+from .questions import _Subquestions
 
 
 class QuestionGenerator(object):

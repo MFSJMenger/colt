@@ -6,6 +6,6 @@ __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
 __version__ = '0.1.0'
 
-from .questions import AskQuestions
+from .colt import AskQuestions
+from .colt import Colt
 from .generator import QuestionGenerator
-from .questions_meta import Colt
