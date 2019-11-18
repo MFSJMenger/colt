@@ -20,14 +20,16 @@ class QuestionGenerator(object):
     Conditionals = namedtuple("Conditionals", ["key", "decission"])
 
     def __init__(self, questions, isfile=False):
+        # if is questions
         if self.is_question(questions):
             self.questions = questions
             return
+        # if is file
         if isfile is True:
             # read file
             with open(questions, "r") as f:
                 questions = f.read()
-
+        # is string
         questions = self._setup(questions)
         self.questions = self.generate_questions(questions)
 

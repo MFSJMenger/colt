@@ -22,6 +22,15 @@ class LineParser(object):
                             % (", ".join(_positive), ", ".join(_negative)))
 
     @classmethod
+    def list_parser(cls, answer):
+        if ',' in answer:
+            split_char = ","
+        else:
+            split_char = None
+        answer = cls.remove_brackets(answer)
+        return [ele for ele in answer.split(split_char)]
+
+    @classmethod
     def flist_parser(cls, answer):
         if ',' in answer:
             split_char = ","

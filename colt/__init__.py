@@ -6,6 +6,11 @@ __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
 __version__ = '0.1.0'
 
-from .colt import AskQuestions
+# Helper class to handle easily questions with classes
 from .colt import Colt
+# If Questions should be asked without Colt use AskQuestions
+from .colt import AskQuestions
+# Generate questions from a reference config file
 from .generator import QuestionGenerator
+# base classes to store the meta info for questions
+from .questions import Question, ConditionalQuestion
