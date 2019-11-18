@@ -291,11 +291,11 @@ class Colt(metaclass=_QuestionsHandlerMeta):
     @classmethod
     def from_commandline(cls, description=None):
         """Initialize file from commandline options"""
-        answers = cls.commandline_args(description=description)
+        answers = cls.get_commandline_args(description=description)
         return cls.from_config(answers)
 
     @classmethod
-    def commandline_args(cls, description=None):
+    def get_commandline_args(cls, description=None):
         """for the moment we accept only linear trees!"""
 
         parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
