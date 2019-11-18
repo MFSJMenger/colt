@@ -12,20 +12,21 @@ from .questions import Question, parse_question
 __all__ = ["Colt", "AskQuestions"]
 
 
-class AskQuestions(object):
+class AskQuestions:
+    """Main Object to handle question request"""
 
     def __init__(self, name, questions, config=None):
-        """Main Routine to handle question request
+        """Main Object to handle question request
 
         Args:
             name (str): Name of the questions name, will be added to each block
-                        of the corresponding config 
+                        of the corresponding config
 
             questions:  Questions object, can be
                           1) Dict, dictionary object
                           2) ConditionalQuestion, a conditional question
                           3) Question, a concrete question
-                          From there the real questions will be generated! 
+                          From there the real questions will be generated!
 
         Kwargs:
             config (str): None, a single or multiple configfiles
@@ -98,7 +99,7 @@ class AskQuestions(object):
         """
         if questions is None:
             return None, None
-        old_block, delim, new_block = block.partition(QuestionGenerator.seperator)
+        old_block, _, new_block = block.partition(QuestionGenerator.seperator)
         if new_block == "":
             # end of the recursive function
             return questions, old_block
@@ -123,7 +124,7 @@ class AskQuestions(object):
         """Set answers from a given file"""
         parsed = self._fileparser(filename)
         for section in parsed.sections():
-            question, se = self._get_question_block(self.questions, section)
+            question, _ = self._get_question_block(self.questions, section)
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")
                 continue
@@ -286,7 +287,8 @@ class Colt(metaclass=_QuestionsHandlerMeta):
 
     @classmethod
     def from_config(cls, answer):
-        raise Exception("Cannot load from_config, as it is not implemented!, also from_questions depend on that!")
+        raise Exception("Cannot load from_config, as it is not implemented!, "
+                        "also from_questions depend on that!")
 
     @classmethod
     def from_commandline(cls, description=None):
@@ -298,16 +300,21 @@ class Colt(metaclass=_QuestionsHandlerMeta):
     def get_commandline_args(cls, description=None):
         """for the moment we accept only linear trees!"""
 
-        parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(description=description,
+                                         formatter_class=argparse.RawTextHelpFormatter)
+        #
+        type_parser = _ConcreteQuestion.get_parsers()
 
         for key, question in cls.questions.items():
             if not isinstance(question, Question):
                 raise ValueError("Only linear trees allowed!")
-            if question.default != None:
-                parser.add_argument(f'--{key}', metavar=key, default=question.default, help=question.comment)
+            if question.default is not None:
+                parser.add_argument(f'--{key}', metavar=key, type=type_parser[question.typ],
+                                    default=question.default, help=question.comment)
             else:
-                parser.add_argument(f'{key}', metavar=key, help=question.comment)
+                parser.add_argument(f'{key}', metavar=key, type=type_parser[question.typ],
+                                    help=question.comment)
 
         results = parser.parse_args()
-        
+
         return {key: getattr(results, key) for key in cls.questions.keys()}

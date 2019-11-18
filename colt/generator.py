@@ -20,6 +20,19 @@ class QuestionGenerator(object):
     Conditionals = namedtuple("Conditionals", ["key", "decission"])
 
     def __init__(self, questions, isfile=False):
+        """Main Object to generate questions from string/file
+
+        Args:
+            questions:  Questions object, can
+                        1) Question Object, just save questions
+                        2) file, read file and parse input
+                        3) string, parse string
+
+        Kwargs:
+            isfile (bool): True, `questions` is a file
+                           False, `questions` is a string
+
+        """
         # if is questions
         if self.is_question(questions):
             self.questions = questions
@@ -33,9 +46,25 @@ class QuestionGenerator(object):
         questions = self._setup(questions)
         self.questions = self.generate_questions(questions)
 
-    def generate_cases(self, block, key, subblocks):
+    def generate_cases(self, key, subquestions, block=""):
+        """Register `subquestions` at a given `key` in given `block`
+
+        Args:
+            key (str): name of the variable that should be overwritten as a subquestion
+
+            subquestions (dict): Dict of Questions corresponding to the subquestions
+                                 one wants to register
+
+        Kwargs:
+            block (str):  The name of the block, the given `key` is in
+
+        Example:
+            >>> _question = "sampling = "
+            >>> questions.generate_cases("sampling", {name: sampling.questions for name, sampling
+                                                      in cls._sampling_methods.items()})
+        """
         subblocks = {name: QuestionGenerator(value).questions
-                     for name, value in subblocks.items()}
+                     for name, value in subquestions.items()}
         questions, _ = self.get_question_block(self.questions, block)
 
         if questions is None:
@@ -49,17 +78,61 @@ class QuestionGenerator(object):
         elif isinstance(questions[key], Question):
             questions[key] = ConditionalQuestion(key, questions[key], subblocks)
         else:
-            raise Exception("something wronge in generate cases")
+            raise Exception("something wrong in generate cases")
+
+    def generate_block(self, key, questions, block=""):
+        """Register `questions` at a given `key` in given `block`
+
+        Args:
+            key (str): name of the variable that should be overwritten as a subquestion
+
+            uestions (dict): Dict of Questions corresponding to the subquestions
+                             one wants to register
+
+        Kwargs:
+            block (str):  The name of the block, the given `key` is in
+
+        Raises:
+            ValueError: If the `key` in `block` already exist it raises an ValueError,
+                        blocks can only be new created, and cannot overwrite existing
+                        blocks!
+
+        Example:
+            >>> _question = "sampling = "
+            >>> questions.generate_block("software", {name: software.questions for name, software
+                                                      in cls._softwares.items()})
+        """
+        subblocks = {name: QuestionGenerator(value).questions for name, value in questions.items()}
+        questions, _ = self.get_question_block(self.questions, block)
+        if questions is None:
+            raise Exception(f"block {block} unknown")
+
+        if questions[key] is None:
+            questions[key] = subblocks
+        else:
+            raise ValueError(f"{key} in [{block}] should not be given")
 
     def is_question(self, questions):
+        """Check if a given obj counts as a Question Object
+
+        Args:
+            questions: QuestionObject, can be
+                    1) dict
+                    2) Question
+                    3) ConditionalQuestion
+
+        Returns:
+            True: if quesition is QuestionObject
+            False: otherwise
+
+        """
         if isinstance(questions, dict):
             return True
-        elif isinstance(questions, Question):
+        if isinstance(questions, Question):
             return True
-        elif isinstance(questions, ConditionalQuestion):
+        if isinstance(questions, ConditionalQuestion):
             return True
-        else:
-            return False
+        return False
 
     @classmethod
     def questions_from_string(cls, string):
@@ -74,6 +147,16 @@ class QuestionGenerator(object):
 
     @classmethod
     def generate_questions(cls, config):
+        """Main Routine to generate questions from a parsed config file
+
+        Args:
+            name (str): Name of the questions name, will be added to each block
+                        of the corresponding config
+
+        Returns:
+            questions: Question Object, containing all questions defined in config!
+
+        """
         # linear parser
         questions = {}
 
@@ -102,12 +185,14 @@ class QuestionGenerator(object):
 
     @classmethod
     def is_subblock(cls, block):
+        """Is the block a subquestions block or not"""
         if any(key in block for key in (cls.seperator, '(', ')')):
             return True
         return False
 
     @classmethod
     def is_decission(cls, key):
+        """is the key a decission key"""
         conditions = cls.parse_conditionals_helper.match(key)
         if conditions is None:
             return False
@@ -115,13 +200,14 @@ class QuestionGenerator(object):
 
     @staticmethod
     def _parse_default(default):
-        """ """
+        """Handle default value"""
         if default.lower() == 'none' or default == "":
             return None
         return default
 
     @classmethod
     def _parse_comment(cls, line):
+        """Handle Comment section"""
         line, _, comment = line.partition(cls.comment_char)
         if comment == "":
             comment = None
@@ -131,7 +217,7 @@ class QuestionGenerator(object):
 
     @classmethod
     def _parse_choices(cls, typ, line):
-        "replace "
+        """Handle choices"""
         if typ not in cls._allowed_choices_types:
             return None
         line = line.replace("[", "").replace("]", "")
@@ -139,7 +225,20 @@ class QuestionGenerator(object):
 
     @classmethod
     def _parse_question_line(cls, name, line):
-        """Convert string to Question"""
+        """Convert string to Question
+
+        Args:
+            name (str): name of the question
+
+            line (str): value of the question
+
+        Returns:
+            Question, basic namedtuple which contains all info
+                      needed to construct a question
+        Raises:
+            Exception: If line does not fit standard format, raise exception!
+        """
+        original_line = line
         # handle comment
         line, comment = cls._parse_comment(line)
 
@@ -160,9 +259,12 @@ class QuestionGenerator(object):
             return Question(default=default, typ=line[1],
                             choices=cls._parse_choices(line[1], line[2]),
                             question=line[3], comment=comment)
+        # raise Exception
+        raise Exception(f"Cannot parse line `{original_line}`")
 
     @staticmethod
     def _preprocess_string(string):
+        """Basic Preprocessor to handle in file comments!"""
 
         parsed_string = []
         comment_lines = []
@@ -193,7 +295,8 @@ class QuestionGenerator(object):
 
     @classmethod
     def _get_next_section(cls, sections, key):
-        """ """
+        """Get the next section using the current section and
+           the key to the next question!"""
         conditions = cls.is_decission(key)
         if conditions is False:
             return sections.get(key, None)
@@ -206,6 +309,10 @@ class QuestionGenerator(object):
 
     @classmethod
     def _get_section(cls, sections, block):
+        """Get a section from a given block,
+           iterative loop over the sections till the last
+           section block is reached
+        """
         keys = block.split('::')
         #
         final_key = keys[-1]
@@ -258,7 +365,6 @@ class QuestionGenerator(object):
             return cls.get_question_block(questions[block_key], new_block)
         # Handle conditionals
         key, decission = conditionals
-        print(key, decission)
         try:
             if isinstance(questions, _Subquestions):
                 questions = questions[decission]

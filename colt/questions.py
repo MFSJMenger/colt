@@ -77,15 +77,15 @@ class _QuestionBase(ABC):
 class _ConcreteQuestion(_QuestionBase):
 
     _known_parsers = {
-            'str': str,
-            'float': float,
-            'int': int,
-            'bool': LineParser.bool_parser,
-            'list': LineParser.list_parser,
-            'ilist': LineParser.ilist_parser,
-            'ilist_np': LineParser.ilist_np_parser,
-            'flist': LineParser.flist_parser,
-            'flist_np': LineParser.flist_np_parser,
+                      'str': str,
+                      'float': float,
+                      'int': int,
+                      'bool': LineParser.bool_parser,
+                      'list': LineParser.list_parser,
+                      'ilist': LineParser.ilist_parser,
+                      'ilist_np': LineParser.ilist_np_parser,
+                      'flist': LineParser.flist_parser,
+                      'flist_np': LineParser.flist_np_parser,
     }
 
     def __init__(self, question, parent=None):
