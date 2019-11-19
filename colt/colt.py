@@ -254,30 +254,23 @@ def _get_private_variable_name(clsobj, name):
 def get_private_variable(clsobj, name):
     return getattr(clsobj, _get_private_variable_name(clsobj, name), None)
 
-def _setup(clsdict):
+def meta_setup(clsdict):
     """add empty _generate_subqeustions, to avoid inheritance problems"""
     if '_generate_subquestions' not in clsdict:
-        clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: print("HI"))
+        clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: 0)
+    # also add empty _questions text
+    if '_questions' not in clsdict:
+        clsdict['_questions'] = "" 
 
 class ColtMeta(ABCMeta):
     """Metaclass to handle hierarchical generation of questions"""
 
     def __new__(cls, name, bases, clsdict):
-        _setup(clsdict)
+        meta_setup(clsdict)
         return ABCMeta.__new__(cls, name, bases, clsdict)
-
-    def _setup(cls, clsdict):
-        """_step to avoid inheritance problems"""
-        # add useless _generate_subquestions
-        if '_generate_subquestions' not in clsdict:
-            clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: 0)
-        # also add empty _questions text
-        if '_questions' not in clsdict:
-            clsdict['_questions'] = "" 
 
     @property
     def questions(cls):
-        print(f"cls = {cls}")
         return cls._generate_questions()
 
     def _generate_questions(cls):

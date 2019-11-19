@@ -104,7 +104,7 @@ class QuestionGenerator(object):
         Args:
             key (str): name of the variable that should be overwritten as a subquestion
 
-            uestions (dict): Dict of Questions corresponding to the subquestions
+            questions (dict): Dict of Questions corresponding to the subquestions
                              one wants to register
 
         Kwargs:
