@@ -1,3 +1,4 @@
+import sys
 import argparse
 import configparser
 #
@@ -247,12 +248,36 @@ class AskQuestions:
             else:
                 config[name][key] = str(entry)
 
+def _get_private_variable_name(clsobj, name):
+    return f'_{clsobj.__name__}__{name}'
 
-class _QuestionsHandlerMeta(ABCMeta):
+def get_private_variable(clsobj, name):
+    return getattr(clsobj, _get_private_variable_name(clsobj, name), None)
+
+def _setup(clsdict):
+    """add empty _generate_subqeustions, to avoid inheritance problems"""
+    if '_generate_subquestions' not in clsdict:
+        clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: print("HI"))
+
+class ColtMeta(ABCMeta):
     """Metaclass to handle hierarchical generation of questions"""
+
+    def __new__(cls, name, bases, clsdict):
+        _setup(clsdict)
+        return ABCMeta.__new__(cls, name, bases, clsdict)
+
+    def _setup(cls, clsdict):
+        """_step to avoid inheritance problems"""
+        # add useless _generate_subquestions
+        if '_generate_subquestions' not in clsdict:
+            clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: 0)
+        # also add empty _questions text
+        if '_questions' not in clsdict:
+            clsdict['_questions'] = "" 
 
     @property
     def questions(cls):
+        print(f"cls = {cls}")
         return cls._generate_questions()
 
     def _generate_questions(cls):
@@ -262,15 +287,15 @@ class _QuestionsHandlerMeta(ABCMeta):
         return questions.questions
 
     def _generate_subquestions(cls, questions):
+        """This class will not be inherited"""
         pass
 
 
-class Colt(metaclass=_QuestionsHandlerMeta):
+class Colt(metaclass=ColtMeta):
     """Basic Class to manage colts question routines"""
 
     @property
     def questions(self):
-        """Return questions, which are generated via the metaclass options"""
         return self.__class__.questions
 
     @classmethod

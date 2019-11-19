@@ -80,6 +80,24 @@ class QuestionGenerator(object):
         else:
             raise Exception("something wrong in generate cases")
 
+    def add_questions_to_block(self, questions, block="", overwrite=True):
+        """add questions to a particular block """
+        block_questions, _ = self.get_question_block(self.questions, block)
+        if questions is None:
+            raise Exception(f"block {block} unknown")
+
+        if not isinstance(block_questions, dict):
+            raise Exception(f"block questions {block} should be a dict!")
+
+        # just update the dict
+        if overwrite is True:
+            block_questions.update(questions)
+            return
+        # overwrite it
+        for key, item in questions.items():
+            if key not in block_questions:
+                block_questions[key] = item
+
     def generate_block(self, key, questions, block=""):
         """Register `questions` at a given `key` in given `block`
 
