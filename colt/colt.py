@@ -248,18 +248,26 @@ class AskQuestions:
             else:
                 config[name][key] = str(entry)
 
+def add_defaults_to_dict(clsdict, defaults):
+    """ add defaults to dict """
+    for key, default in defaults.items():
+        if key not in clsdict:
+            clsdict[key] = default
+
+def delete_inherited_keys(keys, clsdict):
+    for key in keys:
+        if clsdict[key] == 'inherited':
+            del clsdict[key]
 
 def colt_meta_setup(clsdict):
     """setup the clsdict in colt to avoid inheritance problems"""
-
-    if '_generate_subquestions' not in clsdict:
-        clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: 0)
-    # also add empty _questions text
-    if '_questions' not in clsdict:
-        clsdict['_questions'] = "" 
-    else:
-        if clsdict['_questions'] == "inherited": 
-            del clsdict['_questions']
+    colt_defaults = {
+            '_generate_subquestions': classmethod(lambda cls, questions: 0),
+            '_questions': "",
+    }
+    
+    add_defaults_to_dict(clsdict, colt_defaults)
+    delete_inherited_keys(["_questions"], clsdict)
 
 
 class ColtMeta(ABCMeta):

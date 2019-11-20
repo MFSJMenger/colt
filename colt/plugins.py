@@ -1,27 +1,32 @@
 from .colt import Colt, ColtMeta
-
-def _get_private_variable_name(clsobj, name):
-    return f'_{clsobj.__name__}__{name}'
-
-def get_private_variable(clsobj, name):
-    return getattr(clsobj, _get_private_variable_name(clsobj, name), None)
+from .colt import add_defaults_to_dict, delete_inherited_keys
 
 
-# def plugin_meta_setup(clsdict):
+def plugin_meta_setup(clsdict):
+    plugin_defaults = { 
+            '_register_plugin': True,
+            '_is_plugin_factory': False,
+            '_is_plugin_specialisation': False,
+            '_plugins_storage': 'inherited'
+    }
 
+    add_defaults_to_dict(clsdict, plugin_defaults)
+    delete_inherited_keys(['_plugins_storage'], clsdict)
+             
 
 class PluginMeta(ColtMeta):
     """Meta class to keep subclasshooks to handle plugins in a very simple manner
        (It also supports Colts question routines)
     """
 
- #   def __new__(cls, name, bases, clsdict):
- #       plugin_meta_setup(clsdict)
- #       return ColtMeta.__new__(cls, name, bases, clsdict)
+    def __new__(cls, name, bases, clsdict):
+        plugin_meta_setup(clsdict)
+        return ColtMeta.__new__(cls, name, bases, clsdict)
 
     def __init__(cls, name, bases, clsdict):
         # 
         cls.__store_subclass(name)
+        cls._plugin_storage = cls.__plugins_storage_name
         type.__init__(cls, name, bases, clsdict)
 
     def __store_subclass(cls, name):
@@ -43,9 +48,11 @@ class PluginMeta(ColtMeta):
 
     def __store_plugin(cls, name, plugin_storage_classes):
         """store plugin in the plugin_storage_classes it inherits from"""
-        if get_private_variable(cls, 'register_plugin') is not False:
-            for storage_class in plugin_storage_classes:
-                storage_class.add_plugin(name, cls)
+        if getattr(cls, '_register_plugin', True) is False:
+            return
+        # store plugin in all stoarge classes
+        for storage_class in plugin_storage_classes:
+            storage_class.add_plugin(name, cls)
 
     def __get_storage_classes(cls):
         """return all relevant storage classes"""
@@ -55,12 +62,13 @@ class PluginMeta(ColtMeta):
         idx = []
         #
         for i, plugin_class in enumerate(mro):
-            if get_private_variable(plugin_class, 'is_plugin_factory') is True:
+            if getattr(plugin_class, '_is_plugin_factory', False) is True:
                 storage_classes.append(plugin_class)
                 idx.append(i)
                 # stop if it is just a plugin specialisation
-                if get_private_variable(plugin_class, 'is_plugin_specialisation') is not True: 
+                if getattr(plugin_class, '_is_plugin_specialisation', False) is not True: 
                     break
+
         if idx == []:
             idx = -1
         else:
@@ -69,10 +77,7 @@ class PluginMeta(ColtMeta):
 
     @property
     def __plugins_storage_name(cls):
-        name = get_private_variable(cls, 'plugins_storage')
-        if name is None:
-            name = '_plugins'
-        return name
+        return getattr(cls, '_plugins_storage', '_plugins')
 
     @property
     def plugins(cls):
