@@ -62,12 +62,10 @@ class AskQuestions:
         self.answers = answers
         return answers
 
-    def create_config_from_answers(self, filename):
-        if self.answers is None:
-            self.ask(filename)
-            return
-        self._create_config_start(self.configparser, self.name, self.answers)
-        self._write(filename)
+    def create_config_from_answers(self, filename, answers=None):
+        if answers is not None:
+            self._create_config_start(self.configparser, self.name, answers)
+            self._write(filename)
 
     def check_only(self, filename):
         self.only_check = True
