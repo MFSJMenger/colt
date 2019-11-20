@@ -1,3 +1,5 @@
+import sys
+import argparse
 import configparser
 #
 from abc import ABCMeta
@@ -5,15 +7,33 @@ from abc import ABCMeta
 from .answers import SubquestionsAnswer
 from .generator import QuestionGenerator
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
-from .questions import parse_question
+from .questions import Question, parse_question
 
 
 __all__ = ["Colt", "AskQuestions"]
 
 
-class AskQuestions(object):
+class AskQuestions:
+    """Main Object to handle question request"""
 
     def __init__(self, name, questions, config=None):
+        """Main Object to handle question request
+
+        Args:
+            name (str): Name of the questions name, will be added to each block
+                        of the corresponding config
+
+            questions:  Questions object, can be
+                          1) Dict, dictionary object
+                          2) ConditionalQuestion, a conditional question
+                          3) Question, a concrete question
+                          From there the real questions will be generated!
+
+        Kwargs:
+            config (str): None, a single or multiple configfiles
+                          from which default answers are set!
+
+        """
         self.answers = None
         self.name = name
         self._config = config
@@ -42,12 +62,10 @@ class AskQuestions(object):
         self.answers = answers
         return answers
 
-    def create_config_from_answers(self, filename):
-        if self.answers is None:
-            self.ask(filename)
-            return
-        self._create_config_start(self.configparser, self.name, self.answers)
-        self._write(filename)
+    def create_config_from_answers(self, filename, answers=None):
+        if answers is not None:
+            self._create_config_start(self.configparser, self.name, answers)
+            self._write(filename)
 
     def check_only(self, filename):
         self.only_check = True
@@ -80,7 +98,7 @@ class AskQuestions(object):
         """
         if questions is None:
             return None, None
-        old_block, delim, new_block = block.partition(QuestionGenerator.seperator)
+        old_block, _, new_block = block.partition(QuestionGenerator.seperator)
         if new_block == "":
             # end of the recursive function
             return questions, old_block
@@ -105,7 +123,7 @@ class AskQuestions(object):
         """Set answers from a given file"""
         parsed = self._fileparser(filename)
         for section in parsed.sections():
-            question, se = self._get_question_block(self.questions, section)
+            question, _ = self._get_question_block(self.questions, section)
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")
                 continue
@@ -145,11 +163,27 @@ class AskQuestions(object):
             if config[name].get(questions.name, None) is not None:
                 self._actual_modifyer(questions, config[name][questions.name])
 #                questions.set_answer(config[name][questions.name])
-                self._modify_questions(
-                        f"{name}::{questions.name}({config[name][questions.name]})",
-                        config, questions.subquestions)
+                self._modify_questions(f"{name}::{questions.name}({config[name][questions.name]})",
+                                       config, questions.subquestions)
         else:
             self._modify_questions(name, config, questions)
+
+    def _modify_selection(self, name, key, question, config):
+        if isinstance(question, _Questions):
+            self._modify_questions(name, config, question.questions)
+        elif isinstance(question, _Subquestions):
+            if config[name].get(question.name, None) is not None:
+                question.set_answer(config[name][question.name])
+                self._modify_questions((f"{name}::{question.name}"
+                                        f"({config[name][question.name]})"),
+                                       config, question.subquestions)
+        elif isinstance(question, dict):
+            self._modify_questions(name, config, question)
+        elif isinstance(question, _ConcreteQuestion):
+            if config[name].get(key, None) is not None:
+                question.set_answer(config[name][key])
+        else:
+            raise TypeError(f"Type of question not known! {type(question)}")
 
     def _modify_questions(self, name, config, questions):
         """ recusive function to set answer depending on the config file!"""
@@ -160,19 +194,20 @@ class AskQuestions(object):
             return questions
         #
         for key, question in questions.items():
-            if isinstance(question, _Questions):
-                self._modify_questions(f"{name}", config, question.questions)
-            elif isinstance(question, _ConcreteQuestion):
-                if config[name].get(key, None) is not None:
-                    question.set_answer(config[name][key])
-            elif isinstance(question, _Subquestions):
-                if config[name].get(question.name, None) is not None:
-                    question.set_answer(config[name][question.name])
-                    self._modify_questions(
-                            f"{name}::{question.name}({config[name][question.name]})",
-                            config, question.subquestions)
-            else:
-                raise TypeError(f"Type of question not known! {type(question)}")
+            self._modify_selection(name, key, question, config)
+#            if isinstance(question, _Questions):
+#                self._modify_questions(f"{name}", config, question.questions)
+#            elif isinstance(question, _ConcreteQuestion):
+#                if config[name].get(key, None) is not None:
+#                    question.set_answer(config[name][key])
+#            elif isinstance(question, _Subquestions):
+#                if config[name].get(question.name, None) is not None:
+#                    question.set_answer(config[name][question.name])
+#                    self._modify_questions((f"{name}::{question.name}"
+#                                            f"({config[name][question.name]})"),
+#                                           config, question.subquestions)
+#            else:
+#                raise TypeError(f"Type of question not known! {type(question)}")
 
     @classmethod
     def _fileparser(cls, filename=None):
@@ -182,18 +217,18 @@ class AskQuestions(object):
         parser.read(filename)
         return parser
 
-    @staticmethod
-    def _create_config_start(config, name, entries):
+    @classmethod
+    def _create_config_start(cls, config, name, entries):
         """Starting routine to create config file"""
         if isinstance(entries, SubquestionsAnswer):
             config[name] = {}
             config[name][entries.name] = entries.value
-            AskQuestions._create_config(config, f"{name}::{entries.name}({entries.value})", entries)
+            cls._create_config(config, f"{name}::{entries.name}({entries.value})", entries)
         else:
-            AskQuestions._create_config(config, name, entries)
+            cls._create_config(config, name, entries)
 
-    @staticmethod
-    def _create_config(config, name, entries):
+    @classmethod
+    def _create_config(cls, config, name, entries):
         # sanity check!
         if not (isinstance(entries, SubquestionsAnswer) or isinstance(entries, dict)):
             return
@@ -203,17 +238,46 @@ class AskQuestions(object):
         for key, entry in entries.items():
             if isinstance(entry, SubquestionsAnswer):
                 config[name][entry.name] = entry.value
-                AskQuestions._create_config(config, f"{name}::{entry.name}({entry.value})", entry)
+                cls._create_config(config, f"{name}::{entry.name}({entry.value})", entry)
             elif isinstance(entry, dict):
-                AskQuestions._create_config(config, f"{name}::{key}", entry)
+                cls._create_config(config, f"{name}::{key}", entry)
             elif isinstance(entry, list):
                 config[name][key] = ", ".join(str(ele) for ele in entry)
             else:
                 config[name][key] = str(entry)
 
+def add_defaults_to_dict(clsdict, defaults):
+    """ add defaults to dict """
+    for key, default in defaults.items():
+        if key not in clsdict:
+            clsdict[key] = default
 
-class _QuestionsHandlerMeta(ABCMeta):
+def delete_inherited_keys(keys, clsdict):
+    for key in keys:
+        if clsdict[key] == 'inherited':
+            del clsdict[key]
+
+def colt_meta_setup(clsdict):
+    """setup the clsdict in colt to avoid inheritance problems"""
+    colt_defaults = {
+            '_generate_subquestions': classmethod(lambda cls, questions: 0),
+            '_questions': "",
+    }
+    
+    add_defaults_to_dict(clsdict, colt_defaults)
+    delete_inherited_keys(["_questions"], clsdict)
+
+
+class ColtMeta(ABCMeta):
     """Metaclass to handle hierarchical generation of questions"""
+
+    def __new__(cls, name, bases, clsdict):
+        colt_meta_setup(clsdict)
+        return ABCMeta.__new__(cls, name, bases, clsdict)
+
+    @property
+    def questions(cls):
+        return cls._generate_questions()
 
     def _generate_questions(cls):
         """generate questions"""
@@ -221,16 +285,17 @@ class _QuestionsHandlerMeta(ABCMeta):
         cls._generate_subquestions(questions)
         return questions.questions
 
-    @property
-    def questions(cls):
-        return cls._generate_questions()
-
     def _generate_subquestions(cls, questions):
+        """This class will not be inherited"""
         pass
 
 
-class Colt(metaclass=_QuestionsHandlerMeta):
+class Colt(metaclass=ColtMeta):
     """Basic Class to manage colts question routines"""
+
+    @property
+    def questions(self):
+        return self.__class__.questions
 
     @classmethod
     def generate_questions(cls, name, config=None):
@@ -238,12 +303,42 @@ class Colt(metaclass=_QuestionsHandlerMeta):
 
     @classmethod
     def from_questions(cls, name, check_only=False, config=None, savefile=None):
-        questions = AskQuestions(name, cls.questions, config=config)
+        questions = cls.generate_questions(name, config=config)
         if check_only is True:
             return questions.check_only(savefile)
         answers = questions.ask(savefile)
         return cls.from_config(answers)
 
-    @property
-    def questions(self):
-        return self.__class__.questions
+    @classmethod
+    def from_config(cls, answer):
+        raise Exception("Cannot load from_config, as it is not implemented!, "
+                        "also from_questions depend on that!")
+
+    @classmethod
+    def from_commandline(cls, description=None):
+        """Initialize file from commandline options"""
+        answers = cls.get_commandline_args(description=description)
+        return cls.from_config(answers)
+
+    @classmethod
+    def get_commandline_args(cls, description=None):
+        """for the moment we accept only linear trees!"""
+
+        parser = argparse.ArgumentParser(description=description,
+                                         formatter_class=argparse.RawTextHelpFormatter)
+        #
+        type_parser = _ConcreteQuestion.get_parsers()
+
+        for key, question in cls.questions.items():
+            if not isinstance(question, Question):
+                raise ValueError("Only linear trees allowed!")
+            if question.default is not None:
+                parser.add_argument(f'--{key}', metavar=key, type=type_parser[question.typ],
+                                    default=question.default, help=question.comment)
+            else:
+                parser.add_argument(f'{key}', metavar=key, type=type_parser[question.typ],
+                                    help=question.comment)
+
+        results = parser.parse_args()
+
+        return {key: getattr(results, key) for key in cls.questions.keys()}
