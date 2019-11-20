@@ -4,25 +4,26 @@ import numpy as np
 __all__ = ["LineParser"]
 
 
-class LineParser(object):
+class LineParser:
     """Namespace to store line parsers"""
 
     @staticmethod
     def bool_parser(answer):
-        #
+        """convert string into a bool"""
         _positive = ('y', 'yes', 'True', 'true')
         _negative = ('n', 'no', 'False', 'false')
         #
         if answer in _positive:
             return True
-        elif answer in _negative:
+        if answer in _negative:
             return False
-        else:
-            raise Exception("Answer can only be [%s] or [%s]"
-                            % (", ".join(_positive), ", ".join(_negative)))
+
+        raise Exception("Answer can only be [%s] or [%s]"
+                        % (", ".join(_positive), ", ".join(_negative)))
 
     @classmethod
     def flist_parser(cls, answer):
+        """Transfers a string into a list of float"""
         if ',' in answer:
             split_char = ","
         else:
@@ -32,10 +33,12 @@ class LineParser(object):
 
     @classmethod
     def flist_np_parser(cls, answer):
+        """Transfers a string into a numpy array of floats"""
         return np.array(cls.flist_parser(answer))
 
     @classmethod
     def ilist_parser(cls, answer):
+        """Transfers a string into a list of integers"""
         if ',' in answer:
             split_char = ","
         else:
@@ -52,6 +55,7 @@ class LineParser(object):
 
     @classmethod
     def ilist_np_parser(cls, answer):
+        """returns a numpy list of integers"""
         return np.array(cls.ilist_parser(answer))
 
     @staticmethod
@@ -61,9 +65,9 @@ class LineParser(object):
 
     @staticmethod
     def parse_integer_numbers(number):
+        """transforms a string into a list of integer numbers"""
         # check if tilde in line
         if '~' in number:
             number = number.partition('~')
             return list(range(int(number[0]), int(number[2])+1))
-        else:
-            return [int(number)]
+        return [int(number)]
