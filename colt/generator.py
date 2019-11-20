@@ -43,8 +43,9 @@ class QuestionGenerator(object):
             with open(questions, "r") as f:
                 questions = f.read()
         # is string
-        questions = self._setup(questions)
-        self.questions = self.generate_questions(questions)
+        self.questions = self.string_to_questions(questions)
+#        questions = self._setup(questions)
+#        self.questions = self.generate_questions(questions)
 
     def generate_cases(self, key, subquestions, block=""):
         """Register `subquestions` at a given `key` in given `block`
@@ -89,6 +90,8 @@ class QuestionGenerator(object):
         if not isinstance(block_questions, dict):
             raise Exception(f"block questions {block} should be a dict!")
 
+        if not self.is_question(questions): # assume is string!
+            questions = self.string_to_questions(questions)
         # just update the dict
         if overwrite is True:
             block_questions.update(questions)
@@ -279,6 +282,10 @@ class QuestionGenerator(object):
                             question=line[3], comment=comment)
         # raise Exception
         raise Exception(f"Cannot parse line `{original_line}`")
+
+    def string_to_questions(self, string):
+        questions = self._setup(string)
+        return self.generate_questions(questions)
 
     @staticmethod
     def _preprocess_string(string):

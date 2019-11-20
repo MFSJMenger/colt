@@ -248,25 +248,25 @@ class AskQuestions:
             else:
                 config[name][key] = str(entry)
 
-def _get_private_variable_name(clsobj, name):
-    return f'_{clsobj.__name__}__{name}'
 
-def get_private_variable(clsobj, name):
-    return getattr(clsobj, _get_private_variable_name(clsobj, name), None)
+def colt_meta_setup(clsdict):
+    """setup the clsdict in colt to avoid inheritance problems"""
 
-def meta_setup(clsdict):
-    """add empty _generate_subqeustions, to avoid inheritance problems"""
     if '_generate_subquestions' not in clsdict:
         clsdict['_generate_subquestions'] = classmethod(lambda cls, questions: 0)
     # also add empty _questions text
     if '_questions' not in clsdict:
         clsdict['_questions'] = "" 
+    else:
+        if clsdict['_questions'] == "inherited": 
+            del clsdict['_questions']
+
 
 class ColtMeta(ABCMeta):
     """Metaclass to handle hierarchical generation of questions"""
 
     def __new__(cls, name, bases, clsdict):
-        meta_setup(clsdict)
+        colt_meta_setup(clsdict)
         return ABCMeta.__new__(cls, name, bases, clsdict)
 
     @property
