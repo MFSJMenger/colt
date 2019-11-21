@@ -19,14 +19,13 @@ class QuestionGenerator(object):
     parse_conditionals_helper = re.compile(r"(?P<key>.*)\((?P<decission>.*)\)")
     Conditionals = namedtuple("Conditionals", ["key", "decission"])
 
-    def __init__(self, questions, isfile=False):
-        """Main Object to generate questions from string/file
+    def __init__(self, questions):
+        """Main Object to generate questions from string
 
         Args:
             questions:  Questions object, can
                         1) Question Object, just save questions
                         2) file, read file and parse input
-                        3) string, parse string
 
         Kwargs:
             isfile (bool): True, `questions` is a file
@@ -37,12 +36,7 @@ class QuestionGenerator(object):
         if self.is_question(questions):
             self.questions = questions
             return
-        # if is file
-        if isfile is True:
-            # read file
-            with open(questions, "r") as f:
-                questions = f.read()
-        # is string
+        #
         self.questions = self.string_to_questions(questions)
 
     def generate_cases(self, key, subquestions, block=""):
@@ -154,15 +148,10 @@ class QuestionGenerator(object):
         return False
 
     @classmethod
-    def questions_from_string(cls, string):
-        config = cls._setup(string)
-        return cls.generate_questions(config)
-
-    @classmethod
     def questions_from_file(cls, filename):
         with open(filename, "r") as f:
             string = f.read()
-        return cls.questions_from_string(string)
+        return cls(string)
 
     @classmethod
     def generate_questions(cls, config):

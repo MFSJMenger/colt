@@ -19,14 +19,14 @@ class LineParser:
         if answer in _negative:
             return False
 
-        raise Exception("Answer can only be [%s] or [%s]"
+        raise ValueError("Answer can only be [%s] or [%s]"
                         % (", ".join(_positive), ", ".join(_negative)))
 
     @classmethod
     def list_parser(cls, answer):
         """convert string to list of strings"""
         split_char, answer = cls._prepare_list_parsing(answer)
-        return [ele for ele in answer.split(split_char)]
+        return [ele.strip() for ele in answer.split(split_char)]
 
     @classmethod
     def flist_parser(cls, answer):
@@ -80,7 +80,7 @@ class LineParser:
     def _prepare_list_parsing(cls, answer):
         """setup string for list parsing"""
         split_char = cls.choose_split_char(answer)
-        answer = cls.remove_brackets(answer)
+        answer = cls.remove_brackets_and_quotes(answer)
         return split_char, answer
 
     @staticmethod
@@ -93,6 +93,6 @@ class LineParser:
         return split_char
 
     @staticmethod
-    def remove_brackets(string):
+    def remove_brackets_and_quotes(string):
         """remove brackets from string"""
-        return string.replace("[", "").replace("]", "")
+        return string.replace("[", "").replace("]", "").replace("'", "").replace('"',"")

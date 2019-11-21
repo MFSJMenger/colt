@@ -27,6 +27,7 @@ class AskQuestions:
                           from which default answers are set!
 
         """
+        questions = QuestionGenerator(questions).questions
         self.answers = None
         self.name = name
         self._config = config
