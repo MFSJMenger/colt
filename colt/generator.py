@@ -238,6 +238,8 @@ class QuestionGenerator(object):
     @classmethod
     def _parse_choices(cls, typ, line):
         """Handle choices"""
+        if line is None:
+            return None
         if typ not in cls._allowed_choices_types:
             return None
         line = line.replace("[", "").replace("]", "")
@@ -285,7 +287,7 @@ class QuestionGenerator(object):
         else:
             raise Exception(f"Cannot parse line `{original_line}`")
             
-        return Question(question, typ, default, choices, comment)
+        return Question(question, typ, default, cls._parse_choices(typ, choices), comment)
 
 
     def string_to_questions(self, string):
