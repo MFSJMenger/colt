@@ -10,7 +10,7 @@ def questions():
       # hallo ihr
       # ihr auch
       name = :: str :: [hallo, du]
-      ilist = :: ilist 
+      ilist = :: ilist
       flist = 1.2 3.8 :: flist
 
       [qm]
@@ -20,7 +20,23 @@ def questions():
       [examplecase(yes)]
       a = 10
       [examplecase(no)]
-      a = 666 
+      a = 666
+
+      [examplecase(no)::further]
+      a = 666
+
+      [examplecase(no)::further::andmore]
+      a = 666
+      select = :: str
+
+      [examplecase(no)::further::andmore::select(yes)]
+      a = yes
+
+      [examplecase(no)::further::andmore::select(no)]
+      a = no
+
+      [examplecase(no)::further::andmore::select(maybe)]
+      a = maybe :: str :: :: What was the question?
     """
 
 def test_generate_questions(questions):
@@ -30,6 +46,7 @@ def test_generate_questions(questions):
     assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
+    assert questions['examplecase']['no']['further']['andmore']['select']['maybe']['a'] == Question("What was the question?", "str", 'maybe')
 
 def test_add_question_to_block(questions):
     """test parsing of basic questions string
@@ -38,7 +55,7 @@ def test_add_question_to_block(questions):
     """
     questions_generator = QuestionGenerator(questions)
     questions_generator.add_questions_to_block("""
-        add = 
+        add =
     """)
 
     questions = questions_generator.questions
@@ -53,8 +70,8 @@ def test_add_question_to_block_no_overwrite(questions):
     """test parsing of basic questions string """
     questions_generator = QuestionGenerator(questions)
     questions_generator.add_questions_to_block("""
-        value = 
-        add = 
+        value =
+        add =
     """, overwrite=False)
 
     questions = questions_generator.questions
@@ -73,8 +90,8 @@ def test_add_question_block(questions):
     questions_generator = QuestionGenerator(questions)
     #
     questions_generator.generate_block("hallo", """
-        du = 
-        add = 
+        du =
+        add =
     """)
     #
     questions = questions_generator.questions
@@ -95,8 +112,8 @@ def test_add_question_to_subblock(questions):
     questions_generator = QuestionGenerator(questions)
     #
     questions_generator.add_questions_to_block("""
-        du = 
-        add = 
+        du =
+        add =
     """, block="::qm")
 
     questions = questions_generator.questions
@@ -118,11 +135,11 @@ def test_add_question_to_created_subblock(questions):
     questions_generator = QuestionGenerator(questions)
     #
     questions_generator.generate_block("hallo", """
-        du = 
+        du =
     """)
     #
     questions_generator.add_questions_to_block("""
-        add = 
+        add =
     """, block="::hallo")
 
     questions = questions_generator.questions
@@ -141,8 +158,8 @@ def test_add_cases_keyerror(questions):
     #
     with pytest.raises(KeyError):
         questions_generator.generate_cases("software", {
-            'qchem': "basis = sto-3g\nfunctional=b3lyp",   
-            'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",   
+            'qchem': "basis = sto-3g\nfunctional=b3lyp",
+            'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",
             }, "::hallo")
 
 def test_add_cases(questions):
@@ -153,8 +170,8 @@ def test_add_cases(questions):
     questions_generator = QuestionGenerator(questions)
     #
     questions_generator.generate_cases("software", {
-        'qchem': "basis = sto-3g\nfunctional=b3lyp",   
-        'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",   
+        'qchem': "basis = sto-3g\nfunctional=b3lyp",
+        'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",
     })
     #
     questions = questions_generator.questions
@@ -176,8 +193,8 @@ def test_add_block_to_cases(questions):
     questions_generator = QuestionGenerator(questions)
     #
     questions_generator.generate_cases("software", {
-        'qchem': "basis = sto-3g\nfunctional=b3lyp",   
-        'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",   
+        'qchem': "basis = sto-3g\nfunctional=b3lyp",
+        'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",
     })
 
     questions_generator.generate_block("system", """

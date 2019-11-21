@@ -29,7 +29,6 @@ def join_subquestions(func1, func2):
     if isinstance(func2, classmethod):
         func2 = func2.__func__
 
-
     def _generate_subquestions(cls, questions):
         func1(questions)
         func2(cls, questions)

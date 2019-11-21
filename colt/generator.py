@@ -229,6 +229,8 @@ class QuestionGenerator(object):
     @classmethod
     def _parse_choices(cls, typ, line):
         """Handle choices"""
+        if line == "":
+            return None
         if line is None:
             return None
         if typ not in cls._allowed_choices_types:

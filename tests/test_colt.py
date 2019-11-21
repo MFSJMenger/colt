@@ -4,18 +4,67 @@
 """Tests for `colt` package."""
 
 import pytest
-from colt import AskQuestions
-from colt import Question
+import sys
+from colt import Colt 
 
 
 @pytest.fixture
-def example_question():
-    """generate example single question"""
-    q1 = Question("What time is it?", "float", 10)
-    return q1
+def base():
+    """generate example for commandline parser"""
+    class Base(Colt):
+        _questions = """
+        nstates = :: int
+        natoms = :: int
+        factor = 1.0 :: float
+        screening = True :: bool
+        """
+
+        def __init__(self, nstates, natoms, factor, screening):
+            self.nstates = nstates
+            self.natoms = natoms 
+            self.factor = factor
+            self.screening = screening
+        
+        @classmethod
+        def from_config(cls, answers):
+            return cls(answers['nstates'], answers['natoms'],
+                       answers['factor'], answers['screening'])
+
+    return Base
 
 
-def test_askquestion_single_question(example_question):
+def test_colt_form_commandline(base):
     """Test ask question"""
-    questions = AskQuestions("q1", example_question)
-    pass
+    # modify sys.argv
+    # test_colt.py 10 231 --factor 2.8
+    sys.argv = ['name', '10', '231', '--factor', '2.8']
+    cls = base.from_commandline('some example')
+    assert cls.nstates == 10
+    assert cls.natoms == 231
+    assert cls.factor == 2.8
+    assert cls.screening is True
+
+
+def test_colt_form_commandline_base(base):
+    """Test ask question"""
+    # modify sys.argv
+    # test_colt.py 231 10 
+    sys.argv = ['name', '231', '10']
+    cls = base.from_commandline('some example')
+    assert cls.nstates == 231
+    assert cls.natoms == 10
+    assert cls.factor == 1.0
+    assert cls.screening is True
+
+
+def test_colt_question_inheritance(base):
+
+    class Example(base):
+        _questions = "inherited"
+
+    sys.argv = ['name', '231', '10']
+    cls = Example.from_commandline('some example')
+    assert cls.nstates == 231
+    assert cls.natoms == 10
+    assert cls.factor == 1.0
+    assert cls.screening is True
