@@ -61,7 +61,7 @@ class QuestionGenerator(object):
         questions, _ = self.get_question_block(self.questions, block)
 
         if questions is None:
-            raise Exception(f"block {block} unknown")
+            raise KeyError(f"block {block} unknown")
 
         if questions.get(key, None) is None:
             questions[key] = ConditionalQuestion(key, Question(key), subblocks)
@@ -71,16 +71,16 @@ class QuestionGenerator(object):
         elif isinstance(questions[key], Question):
             questions[key] = ConditionalQuestion(key, questions[key], subblocks)
         else:
-            raise Exception("something wrong in generate cases")
+            raise ValueError(f"Argument {questions[key]} can only be None, Questions, ConditionalQuestion")
 
     def add_questions_to_block(self, questions, block="", overwrite=True):
         """add questions to a particular block """
         block_questions, _ = self.get_question_block(self.questions, block)
         if questions is None:
-            raise Exception(f"block {block} unknown")
+            raise KeyError(f"block {block} unknown")
 
         if not isinstance(block_questions, dict):
-            raise Exception(f"block questions {block} should be a dict!")
+            raise ValueError(f"block questions {block} should be a dict!")
 
         if not self.is_question(questions): # assume is string!
             questions = self.string_to_questions(questions)
@@ -115,12 +115,14 @@ class QuestionGenerator(object):
             >>> questions.generate_block("software", {name: software.questions for name, software
                                                       in cls._softwares.items()})
         """
-        subblocks = {name: QuestionGenerator(value).questions for name, value in questions.items()}
+
+        subblocks = QuestionGenerator(questions).questions
+
         questions, _ = self.get_question_block(self.questions, block)
         if questions is None:
-            raise Exception(f"block {block} unknown")
+            raise KeyError(f"block {block} unknown")
 
-        if questions[key] is None:
+        if questions.get(key) is None:
             questions[key] = subblocks
         else:
             raise ValueError(f"{key} in [{block}] should not be given")
@@ -364,7 +366,7 @@ class QuestionGenerator(object):
             # another found case
             argument.subquestions[decission] = {}
             return argument.subquestions[decission]
-        raise Exception("cannot handle anything else")
+        raise ValueError(f"Argument {argument} has to be Question, ConditionalQuestion, or None")
 
     @classmethod
     def get_question_block(cls, questions, block):
