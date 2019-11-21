@@ -1,11 +1,8 @@
-===========================
-Command Line Questions Tool
-===========================
+======================================================
+COLT: COmmand Line Tool (at least that how it started)
+======================================================
 
-
-
-Command Line Questions for Python
-
+Simplicit scheme to generate inputs for fast production ready software development.
 
 * Free software: MIT license
 
