@@ -9,7 +9,7 @@ Question = namedtuple("Question", ("question", "typ", "default", "choices", "com
                       defaults=("", "str", None, None, None))
 
 
-class ConditionalQuestion(object):
+class ConditionalQuestion:
 
     def __init__(self, name, main, subquestions):
         self.name = name
@@ -173,6 +173,10 @@ class _ConcreteQuestion(_QuestionBase):
 
     def _perform_questions(self):
         answer = self._ask_question()
+        # pass just default!
+        if answer.is_set:
+            return answer
+        #
         if any(answer.value == helper for helper in (":help", ":h")):
             print(self._comment)
             # reask

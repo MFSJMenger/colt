@@ -44,8 +44,6 @@ class QuestionGenerator(object):
                 questions = f.read()
         # is string
         self.questions = self.string_to_questions(questions)
-#        questions = self._setup(questions)
-#        self.questions = self.generate_questions(questions)
 
     def generate_cases(self, key, subquestions, block=""):
         """Register `subquestions` at a given `key` in given `block`
@@ -71,7 +69,7 @@ class QuestionGenerator(object):
         if questions is None:
             raise Exception(f"block {block} unknown")
 
-        if questions[key] is None:
+        if questions.get(key, None) is None:
             questions[key] = ConditionalQuestion(key, Question(key), subblocks)
         elif isinstance(questions[key], ConditionalQuestion):
             for name, item in subblocks.items():
@@ -180,12 +178,12 @@ class QuestionGenerator(object):
         """
         # linear parser
         questions = {}
-
+        # parse defaults
         for key, value in config[cls.default].items():
             questions[key] = cls._parse_question_line(key, value)
-
-        afterwards = [section for section in config.sections() if cls.is_subblock(section)]
-
+        # get subsections
+        subsections = [section for section in config.sections() if cls.is_subblock(section)]
+        # parse main sections
         for section in config.sections():
             if section == cls.default:
                 continue
@@ -195,13 +193,14 @@ class QuestionGenerator(object):
             for key, value in config[section].items():
                 subquestions[key] = cls._parse_question_line(key, value)
             questions[section] = subquestions
-
-        for section in afterwards:
-            subquestions = cls._get_section(questions, section)
+        # parse and go to specific section!
+        for section in subsections:
+            subquestions = cls._get_questions_of_block(questions, section)
             if subquestions is None:
                 continue
             for key, value in config[section].items():
                 subquestions[key] = cls._parse_question_line(key, value)
+        #
         return questions
 
     @classmethod
@@ -262,26 +261,32 @@ class QuestionGenerator(object):
         original_line = line
         # handle comment
         line, comment = cls._parse_comment(line)
-
+        #
         line = [ele.strip() for ele in line.split(cls.seperator)]
         len_line = len(line)
+        #
         default = cls._parse_default(line[0])
+        # set defaults
+        typ = 'str'
+        choices = None
+        question = name
         #
         if len_line == 1:
-            return Question(question=name, default=default, comment=comment)
-        if len_line == 2:
-            return Question(question=name, default=default, typ=line[1], comment=comment)
-        if len_line == 3:
-            return Question(question=name,
-                            default=default, typ=line[1],
-                            choices=cls._parse_choices(line[1], line[2]),
-                            comment=comment)
-        if len_line == 4:
-            return Question(default=default, typ=line[1],
-                            choices=cls._parse_choices(line[1], line[2]),
-                            question=line[3], comment=comment)
-        # raise Exception
-        raise Exception(f"Cannot parse line `{original_line}`")
+            pass
+        elif len_line == 2:
+            typ = line[1]
+        elif len_line == 3:
+            typ = line[1]
+            choices = line[2]
+        elif len_line == 4:
+            typ = line[1]
+            choices = line[2]
+            question = line[3]
+        else:
+            raise Exception(f"Cannot parse line `{original_line}`")
+            
+        return Question(question, typ, default, choices, comment)
+
 
     def string_to_questions(self, string):
         questions = self._setup(string)
@@ -333,7 +338,7 @@ class QuestionGenerator(object):
         return sections
 
     @classmethod
-    def _get_section(cls, sections, block):
+    def _get_questions_of_block(cls, sections, block):
         """Get a section from a given block,
            iterative loop over the sections till the last
            section block is reached

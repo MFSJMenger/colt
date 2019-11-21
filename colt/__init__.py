@@ -10,7 +10,7 @@ __version__ = '0.1.0'
 from .colt import Colt
 from .plugins import PluginBase
 # If Questions should be asked without Colt use AskQuestions
-from .colt import AskQuestions
+from .ask import AskQuestions
 # Generate questions from a reference config file
 from .generator import QuestionGenerator
 # base classes to store the meta info for questions

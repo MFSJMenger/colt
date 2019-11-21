@@ -92,10 +92,10 @@ class PluginMeta(ColtMeta):
 class PluginBase(Colt, metaclass=PluginMeta):
     """Base class for the construction of PluginFactories"""
 
-    __plugins_storage = '_plugins'
-    __is_plugin_factory = False
-    __register_plugin = False
-    __is_plugin_specialisation = False
+    _plugins_storage = '_plugins'
+    _is_plugin_factory = False
+    _register_plugin = False
+    _is_plugin_specialisation = False
 
     @classmethod    
     def add_plugin(cls, name, clsobj):
