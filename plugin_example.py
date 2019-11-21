@@ -13,6 +13,7 @@ class Example(Colt):
 class QMFactory(PluginBase):
     """QMFactory"""
 
+
     _plugins_storage = '_software'
     _is_plugin_factory = True
 
@@ -22,6 +23,7 @@ class QMFactory(PluginBase):
 
     @classmethod
     def _generate_subquestions(cls, questions):
+        print("is that here ever called???")
         questions.generate_cases("software", {name: sampling.questions
                                               for name, sampling in cls._software.items()})
         questions.add_questions_to_block(Example.questions)
@@ -30,22 +32,27 @@ class QMFactory(PluginBase):
     def create_interface(cls):            
         questions = cls.generate_questions("qm", config='factory2.ini')
         answer = questions.ask('factory2.ini')
+        print(answer['software'].value)
+        print(cls._software)
         return cls.get_interface(answer['software'].value)
 
     @classmethod
     def get_interface(cls, name):
-        return cls._software.get(name, None)
+        return cls._software.get(name)
 
 
 class QMBase(QMFactory):
 
+    subquestions : 'inherited'
     _register_plugin = False
 
     def say_hallo(self):
         print("hallo")
 
+
 class QChemFactory(QMBase):
 
+    subquestions : 'inherited'
 
     _plugins_storage = '_software'
     _is_plugin_factory = True
@@ -57,8 +64,9 @@ class QChemFactory(QMBase):
 
     @classmethod
     def _generate_subquestions(cls, questions):
-        questions.generate_cases("software", {name: sampling.questions
-                                              for name, sampling in cls._software.items()})
+        print('wuhu...seems to work')
+        print(f"cls = {type(cls)}")
+        print(f"cls = {cls.__name__}")
 
 
 class QChemBase(QChemFactory):
@@ -67,12 +75,14 @@ class QChemBase(QChemFactory):
     def say_hallo(self):
         print("I am a qchem specialisation")
 
+
 class QChemTDDFT(QChemBase):
     _questions = """
         qchem = True :: bool
         basis = sto-3g
         functional = cam-b3lyp
     """
+
 
 class QChemADC(QChemBase):
     _questions = """
@@ -81,12 +91,14 @@ class QChemADC(QChemBase):
         functional = cam-b3lyp
     """
 
+
 class Turbomole(QMBase):
     _questions = """
         qchem = True :: bool
         basis = sto-3g
         functional = cam-b3lyp
     """
+
 
 class Gaussian(QMBase):
     _questions = """
@@ -96,7 +108,8 @@ class Gaussian(QMBase):
         functional = cam-b3lyp
     """
 
+
 print("ALL")
-print(QMFactory._software)
+print(QMFactory())
 print("QCHEM")
-print(QChemFactory._software)
+print(QChemFactory.create_interface())
