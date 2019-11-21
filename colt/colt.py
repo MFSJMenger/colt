@@ -23,6 +23,7 @@ def delete_inherited_keys(keys, clsdict):
         if clsdict[key] == 'inherited':
             del clsdict[key]
 
+
 def join_subquestions(func1, func2):
     if isinstance(func1, classmethod):
         func1 = func1.__func__
@@ -38,8 +39,8 @@ def join_subquestions(func1, func2):
 
 def colt_modify_class_dict(clsdict, bases):
     """setup the clsdict in colt to avoid inheritance problems
-    
-       it modifies both the clsdict and its annotations! 
+
+       it modifies both the clsdict and its annotations!
     """
     colt_defaults = {
             '_generate_subquestions': classmethod(lambda cls, questions: 0),
@@ -53,11 +54,13 @@ def colt_modify_class_dict(clsdict, bases):
             if '_generate_subquestions' in clsdict:
                 print(clsdict['_generate_subquestions'])
                 if len(bases) > 0:
-                    clsdict['_generate_subquestions'] = join_subquestions(bases[0]._generate_subquestions, clsdict['_generate_subquestions'])
-            else: 
+                    clsdict['_generate_subquestions'] = join_subquestions(
+                            bases[0]._generate_subquestions,
+                            clsdict['_generate_subquestions'])
+            else:
                 clsdict['_generate_subquestions'] = bases[0]._generate_subquestions
-            # delete task from annotations, and clean unnecessary annotations!    
-            del clsdict['__annotations__']['subquestions'] 
+            # delete task from annotations, and clean unnecessary annotations!
+            del clsdict['__annotations__']['subquestions']
             if clsdict['__annotations__'] == {}:
                 del clsdict['__annotations__']
     #

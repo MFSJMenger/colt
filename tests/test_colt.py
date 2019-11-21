@@ -5,7 +5,7 @@
 
 import pytest
 import sys
-from colt import Colt 
+from colt import Colt
 
 
 @pytest.fixture
@@ -21,10 +21,10 @@ def base():
 
         def __init__(self, nstates, natoms, factor, screening):
             self.nstates = nstates
-            self.natoms = natoms 
+            self.natoms = natoms
             self.factor = factor
             self.screening = screening
-        
+
         @classmethod
         def from_config(cls, answers):
             return cls(answers['nstates'], answers['natoms'],
@@ -48,7 +48,7 @@ def test_colt_form_commandline(base):
 def test_colt_form_commandline_base(base):
     """Test ask question"""
     # modify sys.argv
-    # test_colt.py 231 10 
+    # test_colt.py 231 10
     sys.argv = ['name', '231', '10']
     cls = base.from_commandline('some example')
     assert cls.nstates == 231

@@ -3,6 +3,7 @@ import pytest
 from colt import QuestionGenerator
 from colt import Question
 
+
 @pytest.fixture
 def questions():
     return """
@@ -39,14 +40,18 @@ def questions():
       a = maybe :: str :: :: What was the question?
     """
 
+
 def test_generate_questions(questions):
     """test parsing of basic questions string"""
     questions = QuestionGenerator(questions).questions
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
-    assert questions['examplecase']['no']['further']['andmore']['select']['maybe']['a'] == Question("What was the question?", "str", 'maybe')
+    assert (questions['examplecase']['no']['further']['andmore']['select']['maybe']['a']
+            == Question("What was the question?", "str", 'maybe'))
+
 
 def test_add_question_to_block(questions):
     """test parsing of basic questions string
@@ -61,10 +66,12 @@ def test_add_question_to_block(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
+
 
 def test_add_question_to_block_no_overwrite(questions):
     """test parsing of basic questions string """
@@ -77,10 +84,13 @@ def test_add_question_to_block_no_overwrite(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
+
 
 def test_add_question_block(questions):
     """test parsing of basic questions string
@@ -97,7 +107,9 @@ def test_add_question_block(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['hallo']['add'] == Question("add", "str")
@@ -119,13 +131,16 @@ def test_add_question_to_subblock(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['qm']['nqm'] == Question("nqm", "int", '100')
     assert questions['qm']['nmm'] == Question("nmm", "int", '200')
     assert questions['qm']['add'] == Question("add", "str")
     assert questions['qm']['du'] == Question("du", "str")
+
 
 def test_add_question_to_created_subblock(questions):
     """test parsing of basic questions string
@@ -145,11 +160,14 @@ def test_add_question_to_created_subblock(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['hallo']['add'] == Question("add", "str")
     assert questions['hallo']['du'] == Question("du", "str")
+
 
 def test_add_cases_keyerror(questions):
     """test parsing of basic questions string
@@ -161,6 +179,7 @@ def test_add_cases_keyerror(questions):
             'qchem': "basis = sto-3g\nfunctional=b3lyp",
             'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",
             }, "::hallo")
+
 
 def test_add_cases(questions):
     """test parsing of basic questions string
@@ -177,13 +196,17 @@ def test_add_cases(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['software']['qchem']['basis'] == Question("basis", "str", "sto-3g")
     assert questions['software']['qchem']['functional'] == Question("functional", "str", "b3lyp")
     assert questions['software']['gaussian']['basis'] == Question("basis", "str", "6-31g*")
-    assert questions['software']['gaussian']['functional'] == Question("functional", "str", "cam-b3lyp")
+    assert (questions['software']['gaussian']['functional'] ==
+            Question("functional", "str", "cam-b3lyp"))
+
 
 def test_add_block_to_cases(questions):
     """test parsing of basic questions string
@@ -205,7 +228,9 @@ def test_add_block_to_cases(questions):
     questions = questions_generator.questions
 
     assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
-    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['software']['qchem']['basis'] == Question("basis", "str", "sto-3g")
@@ -213,4 +238,5 @@ def test_add_block_to_cases(questions):
     assert questions['software']['qchem']['system']['mem'] == Question("mem", "str", "10GB")
     assert questions['software']['qchem']['system']['ncpus'] == Question("ncpus", "int", "4")
     assert questions['software']['gaussian']['basis'] == Question("basis", "str", "6-31g*")
-    assert questions['software']['gaussian']['functional'] == Question("functional", "str", "cam-b3lyp")
+    assert (questions['software']['gaussian']['functional']
+            == Question("functional", "str", "cam-b3lyp"))

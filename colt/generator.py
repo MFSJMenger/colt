@@ -71,7 +71,8 @@ class QuestionGenerator(object):
         elif isinstance(questions[key], Question):
             questions[key] = ConditionalQuestion(key, questions[key], subblocks)
         else:
-            raise ValueError(f"Argument {questions[key]} can only be None, Questions, ConditionalQuestion")
+            raise ValueError(f"Argument {questions[key]} can only be "
+                             f"None, Questions, ConditionalQuestion")
 
     def add_questions_to_block(self, questions, block="", overwrite=True):
         """add questions to a particular block """
@@ -82,7 +83,7 @@ class QuestionGenerator(object):
         if not isinstance(block_questions, dict):
             raise ValueError(f"block questions {block} should be a dict!")
 
-        if not self.is_question(questions): # assume is string!
+        if not self.is_question(questions):  # assume is string!
             questions = self.string_to_questions(questions)
         # just update the dict
         if overwrite is True:
@@ -279,9 +280,8 @@ class QuestionGenerator(object):
             question = line[3]
         else:
             raise Exception(f"Cannot parse line `{original_line}`")
-            
-        return Question(question, typ, default, cls._parse_choices(typ, choices), comment)
 
+        return Question(question, typ, default, cls._parse_choices(typ, choices), comment)
 
     def string_to_questions(self, string):
         questions = self._setup(string)
@@ -378,7 +378,7 @@ class QuestionGenerator(object):
         """
         if questions is None:
             return None, None
-        old_block, delim, new_block = block.partition(cls.seperator)
+        old_block, _, new_block = block.partition(cls.seperator)
         if new_block == "":
             # end of the recursive function
             return questions, old_block
@@ -396,5 +396,5 @@ class QuestionGenerator(object):
             else:
                 questions = questions[key][decission]
             return cls.get_question_block(questions, new_block)
-        except Exception:
+        except KeyError:
             return None, None

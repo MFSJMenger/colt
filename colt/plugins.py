@@ -3,7 +3,7 @@ from .colt import add_defaults_to_dict, delete_inherited_keys
 
 
 def plugin_meta_setup(clsdict):
-    plugin_defaults = { 
+    plugin_defaults = {
             '_register_plugin': True,
             '_is_plugin_factory': False,
             '_is_plugin_specialisation': False,
@@ -12,7 +12,7 @@ def plugin_meta_setup(clsdict):
 
     add_defaults_to_dict(clsdict, plugin_defaults)
     delete_inherited_keys(['_plugins_storage'], clsdict)
-             
+
 
 class PluginMeta(ColtMeta):
     """Meta class to keep subclasshooks to handle plugins in a very simple manner
@@ -24,7 +24,7 @@ class PluginMeta(ColtMeta):
         return ColtMeta.__new__(cls, name, bases, clsdict)
 
     def __init__(cls, name, bases, clsdict):
-        # 
+        #
         cls.__store_subclass(name)
         cls._plugin_storage = cls.__plugins_storage_name
         type.__init__(cls, name, bases, clsdict)
@@ -57,7 +57,7 @@ class PluginMeta(ColtMeta):
     def __get_storage_classes(cls):
         """return all relevant storage classes"""
         mro = cls.mro()
-        # 
+        #
         storage_classes = []
         idx = []
         #
@@ -66,7 +66,7 @@ class PluginMeta(ColtMeta):
                 storage_classes.append(plugin_class)
                 idx.append(i)
                 # stop if it is just a plugin specialisation
-                if getattr(plugin_class, '_is_plugin_specialisation', False) is not True: 
+                if getattr(plugin_class, '_is_plugin_specialisation', False) is not True:
                     break
 
         if idx == []:
@@ -97,7 +97,7 @@ class PluginBase(Colt, metaclass=PluginMeta):
     _register_plugin = False
     _is_plugin_specialisation = False
 
-    @classmethod    
+    @classmethod
     def add_plugin(cls, name, clsobj):
         """Register a plugin"""
         cls.plugins[name] = clsobj

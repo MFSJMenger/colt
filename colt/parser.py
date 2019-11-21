@@ -20,7 +20,7 @@ class LineParser:
             return False
 
         raise ValueError("Answer can only be [%s] or [%s]"
-                        % (", ".join(_positive), ", ".join(_negative)))
+                         % (", ".join(_positive), ", ".join(_negative)))
 
     @classmethod
     def list_parser(cls, answer):
@@ -56,14 +56,10 @@ class LineParser:
     @staticmethod
     def get_upper_bounds(start, stop):
         """get upper bound for range"""
-        start = int(start)
-        stop = int(stop)
+        start, stop = int(start), int(stop)
         if start > stop:
             start, stop = stop, start
-        if stop < 0:
-            return start, stop+1
-        else:
-            return start, stop+1
+        return start, stop+1
 
     @classmethod
     def parse_integer_numbers(cls, string):
@@ -73,8 +69,7 @@ class LineParser:
             start, _, stop = string.partition('~')
             start, stop = cls.get_upper_bounds(start, stop)
             return list(range(start, stop))
-        else:
-            return [int(string)]
+        return [int(string)]
 
     @classmethod
     def _prepare_list_parsing(cls, answer):
@@ -95,4 +90,4 @@ class LineParser:
     @staticmethod
     def remove_brackets_and_quotes(string):
         """remove brackets from string"""
-        return string.replace("[", "").replace("]", "").replace("'", "").replace('"',"")
+        return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")

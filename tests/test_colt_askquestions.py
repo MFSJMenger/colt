@@ -41,8 +41,8 @@ def questions():
       a = maybe :: str :: :: What was the question?
     """
 
+
 def test_basic_ask_questions(questions):
 
     questions = AskQuestions("name", questions)
     assert type(questions.questions) == _Questions
-
