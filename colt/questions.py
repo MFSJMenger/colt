@@ -1,4 +1,5 @@
 from collections import namedtuple
+from collections.abc import MutableMapping
 from .answers import SubquestionsAnswer
 from .context_utils import ExitOnException
 from .parser import LineParser
@@ -11,6 +12,9 @@ Question = namedtuple("Question", ("question", "typ", "default", "choices", "com
 
 
 class ConditionalQuestion(BranchingNode):
+    """Conditional Question, is a branching node
+       used to store decissions
+    """
 
     def __init__(self, name, main, subquestions):
         super().__init__(name, main, subquestions)
@@ -495,42 +499,45 @@ class _ConcreteQuestion(_QuestionBase):
 _Answer = namedtuple("_Answer", ("value", "is_set"))
 
 
-class _Questions(_QuestionBase):
+class _Questions(_QuestionBase, MutableMapping):
 
     def __init__(self, questions, parent=None):
         _QuestionBase.__init__(self, parent)
         self.questions = {name: parse_question(question, parent=self.parent)
                           for (name, question) in questions.items()}
 
-    def items(self):
-        return self.questions.items()
-
     def __getitem__(self, key):
         return self.questions.get(key, None)
 
-    def get(self, key, default=None):
-        return self.questions.get(key, None)
+    def __setitem__(self, key, value):
+        self.questions[key] = value
 
-    def __contains__(self, key):
-        return key in self.questions
+    def __delitem__(self, key): 
+        del self.questions[key]
+
+    def __iter__(self): 
+        return iter(self.questions)
+
+    def __len__(self): 
+        return len(self.questions)
 
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer is possible at the moment!")
 
     def _print(self):
         string = ""
-        for name, question in self.questions.items():
+        for name, question in self.items():
             string += f"{name}: {question._print()}\n"
         return string
 
     def _ask(self):
         answers = {}
-        for name, question in self.questions.items():
+        for name, question in self.items():
             answers[name] = question._ask()
         return answers
 
 
-class _Subquestions(_QuestionBase):
+class _Subquestions(_QuestionBase, MutableMapping):
 
     def __init__(self, name, main_question, questions, parent=None):
         _QuestionBase.__init__(self, parent)
@@ -548,11 +555,17 @@ class _Subquestions(_QuestionBase):
     def __getitem__(self, key):
         return self.subquestions.get(key, None)
 
-    def get(self, key, default=None):
-        return self.subquestions.get(key, None)
+    def __setitem__(self, key, value):
+        self.subquestions[key] = value
 
-    def __contains__(self, key):
-        return key in self.subquestions
+    def __delitem__(self, key):
+        del self.subquestions[key]
+
+    def __iter__(self):
+        return iter(self.subquestions)
+
+    def __len__(self):
+        return len(self.subquestions)
 
     def set_answer(self, value):
         """set answer for main question"""
@@ -560,17 +573,14 @@ class _Subquestions(_QuestionBase):
 
     def _print(self):
         string = f"{self.main_question}\n"
-        for name, question in self.subquestions.items():
+        for name, question in self.items():
             string += f"{name}: {question._print()}\n"
         return string
 
     def _ask(self):
         main_answer = self.main_question._ask()
-        subquestion = self.subquestions.get(main_answer, None)
-        if subquestion is None:
-            return main_answer
-        else:
-            return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
+        subquestion = self.get(main_answer, None)
+        return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
 
 
 def parse_question(question, parent=None):

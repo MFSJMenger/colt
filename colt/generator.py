@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from collections.abc import MutableMapping 
 #
 import configparser
 import re
@@ -300,21 +301,12 @@ class GeneratorBase(ABC):
         return tree
 
 
-class BranchingNode:
+class BranchingNode(MutableMapping):
 
     def __init__(self, name, leaf, subnodes={}):
         self.name = name
         self.leaf = leaf
         self.subnodes = subnodes 
-
-    def get(self, key, default=None):
-        return self.subnodes.get(key, default)
-
-    def items(self):
-        return self.subnodes.items()
-
-    def keys(self):
-        return self.subnodes.keys()
 
     def __getitem__(self, key):
         return self.subnodes[key]
@@ -322,8 +314,14 @@ class BranchingNode:
     def __setitem__(self, key, value):
         self.subnodes[key] = value
 
-    def __contains__(self, key):
-        return key in self.subnodes
+    def __delitem__(self, key):
+        del self.subnodes[key]
+
+    def __iter__(self):
+        return iter(self.subnodes)
+
+    def __len__(self):
+        return len(self.subnodes)
 
     def __str__(self):
         return (f"BranchingNode(name = {self.name},"
