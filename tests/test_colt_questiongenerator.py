@@ -126,7 +126,7 @@ def test_add_question_to_subblock(questions):
     questions_generator.add_questions_to_block("""
         du =
         add =
-    """, block="::qm")
+    """, block="qm")
 
     questions = questions_generator.questions
 
@@ -155,7 +155,7 @@ def test_add_question_to_created_subblock(questions):
     #
     questions_generator.add_questions_to_block("""
         add =
-    """, block="::hallo")
+    """, block="hallo")
 
     questions = questions_generator.questions
 
@@ -223,7 +223,7 @@ def test_add_block_to_cases(questions):
     questions_generator.generate_block("system", """
     mem= 10GB
     ncpus = 4 :: int
-    """, "::software(qchem)")
+    """, "software(qchem)")
     #
     questions = questions_generator.questions
 

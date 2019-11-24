@@ -2,7 +2,7 @@ import argparse
 #
 from abc import ABCMeta
 #
-from .generator import QuestionGenerator
+from .questions import QuestionGenerator
 from .questions import _ConcreteQuestion
 from .questions import Question
 from .ask import AskQuestions
@@ -87,7 +87,6 @@ class ColtMeta(ABCMeta):
 
     def _generate_subquestions(cls, questions):
         """This class will not be inherited"""
-        pass
 
 
 class Colt(metaclass=ColtMeta):

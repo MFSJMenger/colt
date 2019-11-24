@@ -2,6 +2,7 @@ from collections import namedtuple
 from .answers import SubquestionsAnswer
 from .context_utils import ExitOnException
 from .parser import LineParser
+from .generator import GeneratorBase
 from abc import ABC, abstractmethod
 
 
@@ -41,6 +42,261 @@ class ConditionalQuestion:
     def __repr__(self):
         return (f"ConditionalQuestion(name = {self.name},"
                 f" main = {self.main}, subquestions = {self.subquestions}")
+
+
+class QuestionGenerator(GeneratorBase):
+    """Contains all tools to automatically generate questions from
+       a given file
+    """
+
+    comment_char = "###"
+    default = '__QUESTIONS__'
+    _allowed_choices_types = ['int', 'str', 'float', 'bool']
+    # for tree generator
+    leafnode_type = Question
+    branching_type = ConditionalQuestion
+    node_type = dict
+
+    LeafString = namedtuple("LeafString", ("default", "typ", "choices", "question"),
+                            defaults=(None, "str", None, None))
+
+    def __init__(self, questions):
+        """Main Object to generate questions from string
+
+        Args:
+            questions:  Questions object, can
+                        1) Question Object, just save questions
+                        2) file, read file and parse input
+
+        Kwargs:
+            isfile (bool): True, `questions` is a file
+                           False, `questions` is a string
+
+        """
+        # if is questions
+        if self.is_question(questions):
+            self.questions = questions
+            return
+        #
+        self.questions = self.configstring_to_tree(questions)
+
+    @classmethod
+    def new_branching(cls, name, leaf=None):
+        """Create a new empty branching"""
+        if leaf is None:
+            return ConditionalQuestion(name, Question(name), {})
+        return ConditionalQuestion(name, leaf, {})
+
+    @staticmethod
+    def _preprocess_string(string):
+        """Basic Preprocessor to handle in file comments!"""
+
+        parsed_string = []
+        comment_lines = []
+        for line in string.splitlines():
+            line = line.strip()
+            if line == "":
+                continue
+            if line.startswith('#'):
+                comment_lines.append(line[1:])
+                continue
+            if comment_lines != []:
+                line += "###" + "#n".join(comment_lines)
+                comment_lines = []
+            parsed_string.append(line)
+        return "\n".join(parsed_string)
+
+    @classmethod
+    def leaf_from_string(cls, name, value):
+        """Create a leaf from an entry in the config file
+
+        Args:
+            name (str):
+                name of the entry
+
+            value (str):
+                value of the entry in the config
+
+        Returns:
+            A leaf node
+
+        Raises:
+            ValueError:
+                If the value cannot be parsed
+        """
+        original_value = value
+        # handle comment
+        value, comment = cls._parse_comment(value)
+        # try to parse line
+        try:
+            value = cls.LeafString(*(ele.strip() for ele in value.split(cls.seperator)))
+        except TypeError:
+            raise Exception(f"Cannot parse value `{original_value}`")
+        # get default
+        default = cls._parse_default(value.default)
+        # get question
+        if value.question is None:
+            question = name
+        else:
+            question = value.question
+        # get choices
+        choices = cls._parse_choices(value.typ, value.choices)
+        # return leaf node
+        return Question(question, value.typ, default, choices, comment)
+
+    def get_block(self, block=None):
+        if block is not None:
+            return self.get_node(self.questions, block)
+        else:
+            return self.questions
+
+    def generate_cases(self, key, subquestions, block=None):
+        """Register `subquestions` at a given `key` in given `block`
+
+        Args:
+            key (str): name of the variable that should be overwritten as a subquestion
+
+            subquestions (dict): Dict of Questions corresponding to the subquestions
+                                 one wants to register
+
+        Kwargs:
+            block (str):  The name of the block, the given `key` is in
+
+        Example:
+            >>> _question = "sampling = "
+            >>> questions.generate_cases("sampling", {name: sampling.questions for name, sampling
+                                                      in cls._sampling_methods.items()})
+        """
+        questions = self.get_block(block)
+        #
+        subblocks = {name: QuestionGenerator(value).questions
+                     for name, value in subquestions.items()}
+        #
+        if questions is None:
+            raise KeyError(f"block '{block}' unknown")
+
+        if questions.get(key, None) is None:
+            questions[key] = ConditionalQuestion(key, Question(key), subblocks)
+        elif isinstance(questions[key], ConditionalQuestion):
+            for name, item in subblocks.items():
+                questions[key][name] = item
+        elif isinstance(questions[key], Question):
+            questions[key] = ConditionalQuestion(key, questions[key], subblocks)
+        else:
+            raise ValueError(f"Argument {questions[key]} can only be "
+                             f"None, Questions, ConditionalQuestion")
+
+    def add_questions_to_block(self, questions, block=None, overwrite=True):
+        """add questions to a particular block """
+        block_questions = self.get_block(block)
+        if block_questions is None:
+            raise KeyError(f"block {block} unknown")
+
+        if not isinstance(block_questions, self.node_type):
+            raise ValueError(f"block questions {block} should be of type {self.node_type}!")
+
+        if not self.is_question(questions):  # assume is string!
+            questions = self.configstring_to_tree(questions)
+        # just update the dict
+        if overwrite is True:
+            block_questions.update(questions)
+            return
+        # overwrite it
+        for key, item in questions.items():
+            if key not in block_questions:
+                block_questions[key] = item
+
+    def generate_block(self, name, questions, block=None):
+        """Register `questions` at a given `key` in given `block`
+
+        Args:
+            name (str):
+                name of the block
+
+            questions (string, tree):
+                questions of the block
+
+        Kwargs:
+            block (str):  The name of the block, the given `key` is in
+
+        Raises:
+            ValueError: If the `key` in `block` already exist it raises an ValueError,
+                        blocks can only be new created, and cannot overwrite existing
+                        blocks!
+
+        Example:
+            >>> _question = "sampling = "
+            >>> questions.generate_block("software", {name: software.questions for name, software
+                                                      in cls._softwares.items()})
+        """
+
+        block_questions = self.get_block(block)
+        if block_questions is None:
+            raise KeyError(f"block {block} unknown")
+
+        subblocks = QuestionGenerator(questions).questions
+
+        if block_questions.get(name) is None:
+            block_questions[name] = subblocks
+        else:
+            raise ValueError(f"{name} in [{block}] should not be given")
+
+    def is_question(self, questions):
+        """Check if a given obj counts as a Question Object
+
+        Args:
+            questions: QuestionObject, can be
+                    1) dict
+                    2) Question
+                    3) ConditionalQuestion
+
+        Returns:
+            True: if quesition is QuestionObject
+            False: otherwise
+
+        """
+        if isinstance(questions, dict):
+            return True
+        if isinstance(questions, Question):
+            return True
+        if isinstance(questions, ConditionalQuestion):
+            return True
+        return False
+
+    @classmethod
+    def questions_from_file(cls, filename):
+        with open(filename, "r") as f:
+            string = f.read()
+        return cls(string)
+
+    @staticmethod
+    def _parse_default(default):
+        """Handle default value"""
+        if default.lower() == 'none' or default == "":
+            return None
+        return default
+
+    @classmethod
+    def _parse_comment(cls, line):
+        """Handle Comment section"""
+        line, _, comment = line.partition(cls.comment_char)
+        if comment == "":
+            comment = None
+        else:
+            comment = comment.replace("#n", "\n")
+        return line, comment
+
+    @classmethod
+    def _parse_choices(cls, typ, line):
+        """Handle choices"""
+        if line == "":
+            return None
+        if line is None:
+            return None
+        if typ not in cls._allowed_choices_types:
+            return None
+        line = line.replace("[", "").replace("]", "")
+        return [choice.strip() for choice in line.split(",")]
 
 
 def register_parser(key, function):

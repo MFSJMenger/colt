@@ -1,7 +1,7 @@
 import configparser
 #
 from .answers import SubquestionsAnswer
-from .generator import QuestionGenerator
+from .questions import QuestionGenerator
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
 
