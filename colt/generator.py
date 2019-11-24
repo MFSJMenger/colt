@@ -298,3 +298,37 @@ class GeneratorBase(ABC):
                 subnode[key] = cls.leaf_from_string(key, value)
         #
         return tree
+
+
+class BranchingNode:
+
+    def __init__(self, name, leaf, subnodes={}):
+        self.name = name
+        self.leaf = leaf
+        self.subnodes = subnodes 
+
+    def get(self, key, default=None):
+        return self.subnodes.get(key, default)
+
+    def items(self):
+        return self.subnodes.items()
+
+    def keys(self):
+        return self.subnodes.keys()
+
+    def __getitem__(self, key):
+        return self.subnodes[key]
+
+    def __setitem__(self, key, value):
+        self.subnodes[key] = value
+
+    def __contains__(self, key):
+        return key in self.subnodes
+
+    def __str__(self):
+        return (f"BranchingNode(name = {self.name},"
+                f" leaf = {self.leaf}, subnodes = {self.subnodes}")
+
+    def __repr__(self):
+        return (f"BranchingNode(name = {self.name},"
+                f" leaf = {self.leaf}, subnodes = {self.subnodes}")

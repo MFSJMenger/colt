@@ -2,7 +2,7 @@ from collections import namedtuple
 from .answers import SubquestionsAnswer
 from .context_utils import ExitOnException
 from .parser import LineParser
-from .generator import GeneratorBase
+from .generator import GeneratorBase, BranchingNode
 from abc import ABC, abstractmethod
 
 
@@ -10,30 +10,12 @@ Question = namedtuple("Question", ("question", "typ", "default", "choices", "com
                       defaults=("", "str", None, None, None))
 
 
-class ConditionalQuestion:
+class ConditionalQuestion(BranchingNode):
 
     def __init__(self, name, main, subquestions):
-        self.name = name
-        self.main = main
-        self.subquestions = subquestions
-
-    def get(self, key, default=None):
-        return self.subquestions.get(key, default)
-
-    def items(self):
-        return self.subquestions.items()
-
-    def keys(self):
-        return self.subquestions.keys()
-
-    def __getitem__(self, key):
-        return self.subquestions[key]
-
-    def __setitem__(self, key, value):
-        self.subquestions[key] = value
-
-    def __contains__(self, key):
-        return key in self.subquestions
+        super().__init__(name, main, subquestions)
+        self.main = self.leaf
+        self.subquestions = self.subnodes
 
     def __str__(self):
         return (f"ConditionalQuestion(name = {self.name},"
