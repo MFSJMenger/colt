@@ -1,8 +1,33 @@
 import pytest
 #
+import os
+#
 from colt import AskQuestions
 from colt.questions import _Questions
-#
+
+
+path = os.path.dirname(os.path.abspath(__file__))
+
+
+@pytest.fixture
+def configini():
+    return os.path.join(path, "config.ini")
+
+
+@pytest.fixture
+def askini():
+    return os.path.join(path, "askq.ini")
+
+
+@pytest.fixture
+def configiniout():
+    return os.path.join(path, "configout.ini")
+
+
+def get_content(filename):
+    with open(filename, "r") as f:
+        txt = f.read()
+    return txt
 
 
 @pytest.fixture
@@ -46,8 +71,51 @@ def test_basic_ask_questions(questions):
     questions = AskQuestions("name", questions)
     assert type(questions.questions) == _Questions
 
-def test_basic_ask_questions_from_configfile(questions):
-    questions = AskQuestions("name", questions, config='askq.ini')
-    answers = questions.ask('out.ini')
+
+def test_basic_ask_questions_from_configfile(questions, askini):
+    questions = AskQuestions("name", questions, config=askini)
+    answers = questions.ask()
     assert answers['value'] == 2
 
+def test_basic_ask_questions_from_config(questions, configini):
+    questions = AskQuestions("name", questions, config=configini)
+    answers = questions.ask()
+    assert answers['qm']['nqm'] == 100 
+    assert answers['qm']['nmm'] == 200 
+    assert answers['examplecase']['a'] == '666'
+    assert answers['examplecase']['further']['a'] == '131'
+    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+
+def test_basic_ask_questions_from_config_file(questions, configini, configiniout):
+    questions = AskQuestions("name", questions, config=configini)
+    answers = questions.ask(configiniout)
+    assert answers['qm']['nqm'] == 100 
+    assert answers['qm']['nmm'] == 200 
+    assert answers['examplecase']['a'] == '666'
+    assert answers['examplecase']['further']['a'] == '131'
+    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+    assert get_content(configini) == get_content(configiniout)
+
+def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
+    questions = AskQuestions("name", questions, config=configini)
+    answers = questions.check_only('missing.txt')
+    assert answers['qm']['nqm'] == 100 
+    assert answers['qm']['nmm'] == 200 
+    assert answers['examplecase']['a'] == '666'
+    assert answers['examplecase']['further']['a'] == '131'
+    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+
+
+def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configini, configiniout):
+    questions = AskQuestions("name", questions, config=configini)
+    answers = questions.check_only(configiniout)
+    assert answers['qm']['nqm'] == 100 
+    assert answers['qm']['nmm'] == 200 
+    assert answers['examplecase']['a'] == '666'
+    assert answers['examplecase']['further']['a'] == '131'
+    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+    assert get_content(configini) == get_content(configiniout)

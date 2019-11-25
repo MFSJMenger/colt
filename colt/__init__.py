@@ -12,6 +12,6 @@ from .plugins import PluginBase
 # If Questions should be asked without Colt use AskQuestions
 from .ask import AskQuestions
 # Generate questions from a reference config file
-from .generator import QuestionGenerator
+from .questions import QuestionGenerator
 # base classes to store the meta info for questions
 from .questions import Question, ConditionalQuestion, register_parser
