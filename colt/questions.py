@@ -14,7 +14,7 @@ Question = namedtuple("Question", ("question", "typ", "default", "choices", "com
 
 
 # identify literal blocks
-LiteralBlock = namedtuple("LiteralBlock", ())
+LiteralBlock = namedtuple("LiteralBlock", ("name"))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -65,7 +65,15 @@ class QuestionGenerator(GeneratorBase):
                            False, `questions` is a string
 
         """
-        GeneratorBase.__init__(self, questions)
+        if isinstance(questions, QuestionGenerator):
+            self.tree = questions.tree
+            self._keys = questions._keys
+            self.literals = questions.literals
+        elif isinstance(questions, str):
+            self.literals = {}
+            self.tree, self._keys = self._configstring_to_keys_and_tree(questions)
+        else:
+            raise TypeError("Generator only accepts type string!")
         self.questions = self.tree
 
     @classmethod
@@ -94,8 +102,7 @@ class QuestionGenerator(GeneratorBase):
             parsed_string.append(line)
         return "\n".join(parsed_string)
 
-    @classmethod
-    def leaf_from_string(cls, name, value):
+    def leaf_from_string(self, name, value, parent):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -104,6 +111,10 @@ class QuestionGenerator(GeneratorBase):
 
             value (str):
                 value of the entry in the config
+
+        Kwargs:
+            parent (str):
+                identifier of the parent node
 
         Returns:
             A leaf node
@@ -114,30 +125,28 @@ class QuestionGenerator(GeneratorBase):
         """
         original_value = value
         # handle comment
-        value, comment = cls._parse_comment(value)
+        value, comment = self._parse_comment(value)
         # try to parse line
         try:
-            value = cls.LeafString(*(ele.strip() for ele in value.split(cls.seperator)))
+            value = self.LeafString(*(ele.strip() for ele in value.split(self.seperator)))
         except TypeError:
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
-            return LiteralBlock()
+            name = self._join_keys(parent, name)
+            self.literals[name] = None
+            return LiteralBlock(name)
         # get default
-        default = cls._parse_default(value.default)
+        default = self._parse_default(value.default)
         # get question
         if value.question is None:
             question = name
         else:
             question = value.question
         # get choices
-        choices = cls._parse_choices(value.typ, value.choices)
+        choices = self._parse_choices(value.typ, value.choices)
         # return leaf node
         return Question(question, value.typ, default, choices, comment)
-
-    @classmethod
-    def is_decission(cls, node):
-        return cls._is_branching(node)
 
     def generate_cases(self, key, subquestions, block=None):
         """Register `subquestions` at a given `key` in given `block`
@@ -254,6 +263,23 @@ class _QuestionBase(ABC):
     def ask(self):
         """User interface, returns Answer"""
         return self._ask()
+
+
+class _LiteralBlock(_QuestionBase):
+    """parse literal blocks"""
+
+    def __init__(self, literal, parent):
+        _QuestionBase.__init__(self, parent)
+        self.name = literal.name
+
+    def set_answer(self, value):
+        """answer"""
+        raise NotImplementedError("set_answer not supported for literalblock")
+
+    def _ask(self):
+        if self.parent is not None:
+            return self.parent.literals.get(self.name, None)
+        return None
 
 
 class _ConcreteQuestion(_QuestionBase):
@@ -431,6 +457,8 @@ class _ConcreteQuestion(_QuestionBase):
 
     @classmethod
     def register_parser(cls, key, value):
+        if not isinstance(key, str):
+            raise TypeError(f"Parser key '{key}' needs to be string!")
         if not callable(value):
             raise TypeError("Parser needs to be a single argument function!")
         cls._known_parsers[key] = value
@@ -534,6 +562,8 @@ def parse_question(question, parent=None):
         result = _Questions(question, parent=parent)
     elif isinstance(question, Question):
         result = _ConcreteQuestion(question, parent=parent)
+    elif isinstance(question, LiteralBlock):
+        return _LiteralBlock(question, parent=parent)
     elif isinstance(question, ConditionalQuestion):
         result = _Subquestions(question.name, question.main, question.subquestions, parent=parent)
     else:

@@ -21,6 +21,7 @@ import numpy as np
 #
 from colt import AskQuestions
 from colt.parser import LineParser
+from colt import register_parser
 
 
 def mock_input_to_value(value):
@@ -54,9 +55,24 @@ def check_uniform_types():
     return check_solutions
 
 
+def test_add_new_parser_fail():
+    with pytest.raises(TypeError):
+        register_parser("hi", 0)
+
+def test_add_new_parser_fail_key():
+    with pytest.raises(TypeError):
+        register_parser(0, lambda x: x)
+
+def test_add_new_parser():
+
+    def literal_parser(answer):
+        return answer
+
+    register_parser("literal", literal_parser)
+
 # simple tests
 def test_parser_bool_failure():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         LineParser.bool_parser("hamster")
 
 

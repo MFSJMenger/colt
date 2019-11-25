@@ -1,6 +1,7 @@
 import configparser
 #
 from .answers import SubquestionsAnswer
+from .config import ConfigParser
 from .questions import QuestionGenerator
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
@@ -8,6 +9,8 @@ from .questions import parse_question
 
 class AskQuestions:
     """Main Object to handle question request"""
+
+    __slots__ = ("name", "literals", "questions", "answers", "only_check", "_check_failed")
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -30,12 +33,13 @@ class AskQuestions:
                 from which default answers are set!
 
         """
-        questions = QuestionGenerator(questions).questions
+        questions = QuestionGenerator(questions)
+        self.literals = questions.literals
+        questions = questions.questions
+        #
         self.answers = None
         self.name = name
-        self._config = config
         self.questions = self._setup(questions, config)
-        self.configparser = self._fileparser()
         #
         self.only_check = False
         self._check_failed = False
@@ -54,7 +58,7 @@ class AskQuestions:
         """ask the actual question"""
         answers = self.questions.ask()
         if filename is not None:
-            self._create_config_start(self.configparser, self.name, answers)
+            self._create_config_start(self._fileparser(), self.name, answers)
             self._write(filename)
         self.answers = answers
         return answers
@@ -62,14 +66,14 @@ class AskQuestions:
     def create_config_from_answers(self, filename, answers=None):
         """Create a config from defined answers"""
         if answers is not None:
-            self._create_config_start(self.configparser, self.name, answers)
+            self._create_config_start(self._fileparser(), self.name, answers)
             self._write(filename)
 
     def check_only(self, filename):
         self.only_check = True
         answers = self.questions.ask()
         if self._check_failed is True:
-            self._create_config_start(self.configparser, self.name, answers)
+            self._create_config_start(self._fileparser(), self.name, answers)
             self._write(filename)
             raise Exception(f"Input not complete, check file '{filename}' for missing values!")
         self.only_check = False
@@ -77,9 +81,6 @@ class AskQuestions:
 
     def __getitem__(self, key):
         return self.questions.get(key, None)
-
-    def __repr__(self):
-        return f"AskQuestions({self.name}, config='{self._config}')"
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
@@ -90,13 +91,18 @@ class AskQuestions:
 
     def set_answers_from_file(self, filename):
         """Set answers from a given file"""
-        parsed = self._fileparser(filename)
-        for section in parsed.sections():
-            # get rid of name
-            _, _, sec = section.partition(QuestionGenerator.seperator)
-            question = QuestionGenerator.get_node_from_tree(sec, self.questions)
+        parsed, self.literals = ConfigParser.read(filename, self.literals)
+        for section, values in parsed.items():
+            if section == ConfigParser.base:
+                name = ""
+            else:
+                name = section
+            question = QuestionGenerator.get_node_from_tree(name, self.questions)
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")
+                continue
+            if isinstance(question, _ConcreteQuestion):
+                print(f"""Section '{section}' is concrete question, maybe typo?""")
                 continue
             if isinstance(question, _Subquestions):
                 if len(parsed[section].items()) == 1:
@@ -123,7 +129,7 @@ class AskQuestions:
     def _write(self, filename):
         """write output to file"""
         with open(filename, 'w') as configfile:
-            self.configparser.write(configfile)
+            self._fileparser().write(configfile)
 
     def _actual_modifyer(self, question, answer):
         _ConcreteQuestion.set_answer(question, answer)

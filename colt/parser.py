@@ -19,8 +19,8 @@ class LineParser:
         if answer in _negative:
             return False
 
-        raise ValueError("Answer can only be [%s] or [%s]"
-                         % (", ".join(_positive), ", ".join(_negative)))
+        raise TypeError("Answer can only be [%s] or [%s]"
+                        % (", ".join(_positive), ", ".join(_negative)))
 
     @classmethod
     def list_parser(cls, answer):
