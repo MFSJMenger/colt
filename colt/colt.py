@@ -79,7 +79,7 @@ class ColtMeta(ABCMeta):
         """generate questions"""
         questions = QuestionGenerator(cls._questions)
         cls._generate_subquestions(questions)
-        return questions.questions
+        return questions
 
     def _generate_subquestions(cls, questions):
         """This class will not be inherited"""
@@ -124,7 +124,7 @@ class Colt(metaclass=ColtMeta):
         #
         type_parser = _ConcreteQuestion.get_parsers()
 
-        for key, question in cls.questions.items():
+        for key, question in cls.questions[""].items():
             if not isinstance(question, Question):
                 raise ValueError("Only linear trees allowed!")
             if question.default is not None:
@@ -136,4 +136,4 @@ class Colt(metaclass=ColtMeta):
 
         results = parser.parse_args()
 
-        return {key: getattr(results, key) for key in cls.questions.keys()}
+        return {key: getattr(results, key) for key in cls.questions[""].keys()}

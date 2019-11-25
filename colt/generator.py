@@ -57,14 +57,17 @@ class GeneratorBase(Mapping):
             config(string):
                 string that should be converted in the tree
         """
-        if isinstance(treeconfig, (self.leafnode_type, self.node_type, self.branching_type)):
-            self.tree = treeconfig
-        elif not isinstance(treeconfig, str):
+        if isinstance(treeconfig, GeneratorBase):
+            self.tree = treeconfig.tree
+            self._keys = treeconfig._keys
+            return
+        # 
+        if not isinstance(treeconfig, str):
             raise TypeError("Generator only accepts type string!")
         self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig)
     #
     @abstractmethod
-    def leaf_from_string(self, name, value):
+    def leaf_from_string(self, name, value, parent=None):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -73,6 +76,10 @@ class GeneratorBase(Mapping):
 
             value (str):
                 value of the entry in the config
+
+        Kwargs:
+            parent (str):
+                identifier of the parent node
 
         Returns:
             A leaf node
@@ -435,7 +442,7 @@ class GeneratorBase(Mapping):
         tree = self.new_node()
         # parse defaults
         for key, value in config[self.default].items():
-            tree[key] = self.leaf_from_string(key, value)
+            tree[key] = self.leaf_from_string(key, value, parent="")
         # get subsections
         subsections = [section for section in config.sections() if self._is_subblock(section)]
         # parse main sections
@@ -448,19 +455,19 @@ class GeneratorBase(Mapping):
             keys.add(section)
             subnode = self.new_node()
             for key, value in config[section].items():
-                subnode[key] = self.leaf_from_string(key, value)
+                subnode[key] = self.leaf_from_string(key, value, parent=section)
             tree[section] = subnode
         # parse all subsections
         for section in subsections:
             # gets the subnode, if it is a branching
             # and does not exist, creates it
             subnode = self._select_subnode(tree, section)
-            # register section
-            keys.add(section)
             if subnode is None:
                 continue
+            # register sectio
+            keys.add(section)
             for key, value in config[section].items():
-                subnode[key] = self.leaf_from_string(key, value)
+                subnode[key] = self.leaf_from_string(key, value, parent=section)
         #
         return tree, keys
 
