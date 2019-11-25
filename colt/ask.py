@@ -140,7 +140,7 @@ class AskQuestions:
             for key, value in parsed[section].items():
                 try:
                     question[key].set_answer(value)
-                except:
+                except SystemExit:
                     print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
 
     def _write(self, filename):
@@ -169,7 +169,7 @@ class AskQuestions:
             if config[name].get(question.name, None) is not None:
                 question.set_answer(config[name][question.name])
                 self._modify_questions((f"{name}::{question.name}"
-                                        f"({config[name][question.name]})"),
+                                       f"({config[name][question.name]})"),
                                        config, question.subquestions)
         elif isinstance(question, dict):
             self._modify_questions(name, config, question)

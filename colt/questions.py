@@ -59,12 +59,8 @@ class QuestionGenerator(GeneratorBase):
                            False, `questions` is a string
 
         """
-        # if is questions
-        if self.is_question(questions):
-            self.questions = questions
-            return
-        #
-        self.questions = self.configstring_to_tree(questions)
+        GeneratorBase.__init__(self, questions)
+        self.questions = self.tree
 
     @classmethod
     def new_branching(cls, name, leaf=None):
@@ -130,12 +126,6 @@ class QuestionGenerator(GeneratorBase):
         # return leaf node
         return Question(question, value.typ, default, choices, comment)
 
-    def get_block(self, block=None):
-        if block is not None:
-            return self.get_node(self.questions, block)
-        else:
-            return self.questions
-
     def generate_cases(self, key, subquestions, block=None):
         """Register `subquestions` at a given `key` in given `block`
 
@@ -153,44 +143,11 @@ class QuestionGenerator(GeneratorBase):
             >>> questions.generate_cases("sampling", {name: sampling.questions for name, sampling
                                                       in cls._sampling_methods.items()})
         """
-        questions = self.get_block(block)
-        #
-        subblocks = {name: QuestionGenerator(value).questions
-                     for name, value in subquestions.items()}
-        #
-        if questions is None:
-            raise KeyError(f"block '{block}' unknown")
-
-        if questions.get(key, None) is None:
-            questions[key] = ConditionalQuestion(key, Question(key), subblocks)
-        elif isinstance(questions[key], ConditionalQuestion):
-            for name, item in subblocks.items():
-                questions[key][name] = item
-        elif isinstance(questions[key], Question):
-            questions[key] = ConditionalQuestion(key, questions[key], subblocks)
-        else:
-            raise ValueError(f"Argument {questions[key]} can only be "
-                             f"None, Questions, ConditionalQuestion")
+        self.add_branching(key, subquestions, parentnode=block)
 
     def add_questions_to_block(self, questions, block=None, overwrite=True):
         """add questions to a particular block """
-        block_questions = self.get_block(block)
-        if block_questions is None:
-            raise KeyError(f"block {block} unknown")
-
-        if not isinstance(block_questions, self.node_type):
-            raise ValueError(f"block questions {block} should be of type {self.node_type}!")
-
-        if not self.is_question(questions):  # assume is string!
-            questions = self.configstring_to_tree(questions)
-        # just update the dict
-        if overwrite is True:
-            block_questions.update(questions)
-            return
-        # overwrite it
-        for key, item in questions.items():
-            if key not in block_questions:
-                block_questions[key] = item
+        self.add_elements(questions, parentnode=block, overwrite=overwrite)
 
     def generate_block(self, name, questions, block=None):
         """Register `questions` at a given `key` in given `block`
@@ -215,39 +172,7 @@ class QuestionGenerator(GeneratorBase):
             >>> questions.generate_block("software", {name: software.questions for name, software
                                                       in cls._softwares.items()})
         """
-
-        block_questions = self.get_block(block)
-        if block_questions is None:
-            raise KeyError(f"block {block} unknown")
-
-        subblocks = QuestionGenerator(questions).questions
-
-        if block_questions.get(name) is None:
-            block_questions[name] = subblocks
-        else:
-            raise ValueError(f"{name} in [{block}] should not be given")
-
-    def is_question(self, questions):
-        """Check if a given obj counts as a Question Object
-
-        Args:
-            questions: QuestionObject, can be
-                    1) dict
-                    2) Question
-                    3) ConditionalQuestion
-
-        Returns:
-            True: if quesition is QuestionObject
-            False: otherwise
-
-        """
-        if isinstance(questions, dict):
-            return True
-        if isinstance(questions, Question):
-            return True
-        if isinstance(questions, ConditionalQuestion):
-            return True
-        return False
+        self.add_node(name, questions, parentnode=block)
 
     @classmethod
     def questions_from_file(cls, filename):
@@ -319,16 +244,16 @@ class _QuestionBase(ABC):
 class _ConcreteQuestion(_QuestionBase):
 
     _known_parsers = {
-                      'str': str,
-                      'float': float,
-                      'int': int,
-                      'bool': LineParser.bool_parser,
-                      'list': LineParser.list_parser,
-                      'ilist': LineParser.ilist_parser,
-                      'ilist_np': LineParser.ilist_np_parser,
-                      'flist': LineParser.flist_parser,
-                      'flist_np': LineParser.flist_np_parser,
-    }
+        'str': str,
+        'float': float,
+        'int': int,
+        'bool': LineParser.bool_parser,
+        'list': LineParser.list_parser,
+        'ilist': LineParser.ilist_parser,
+        'ilist_np': LineParser.ilist_np_parser,
+        'flist': LineParser.flist_parser,
+        'flist_np': LineParser.flist_np_parser,
+        }
 
     def __init__(self, question, parent=None):
         # setup
@@ -359,6 +284,7 @@ class _ConcreteQuestion(_QuestionBase):
             self._set_answer = self._parse(str(value))
 
     def _generate_question(self, question):
+        """generate actual question"""
         txt = question.question.strip()
         # add default option
         if question.default is not None:
@@ -368,20 +294,24 @@ class _ConcreteQuestion(_QuestionBase):
         return txt + ": "
 
     def set_choices(self, choices):
+        """set choices"""
+        if choices is None:
+            self._choices = None
+            return
+
         try:
             self._choices = [self._parse(choice) for choice in choices]
-        except:
+            return
+        except ValueError:
             pass
+        raise ValueError("Choises ({' ,'.join(choices)}) cannot be converted")
 
     def _setup(self, question):
         self._default = None
         self._accept_enter = False
         self._comment = question.comment
         # Try to set choices
-        try:
-            self._choices = [self._parse(choice) for choice in question.choices]
-        except:
-            self._choices = None
+        self.set_choices(question.choices)
 
         if question.default is not None:
             self._accept_enter = True
@@ -512,13 +442,13 @@ class _Questions(_QuestionBase, MutableMapping):
     def __setitem__(self, key, value):
         self.questions[key] = value
 
-    def __delitem__(self, key): 
+    def __delitem__(self, key):
         del self.questions[key]
 
-    def __iter__(self): 
+    def __iter__(self):
         return iter(self.questions)
 
-    def __len__(self): 
+    def __len__(self):
         return len(self.questions)
 
     def set_answer(self, value):

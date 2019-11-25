@@ -4,11 +4,11 @@ from .colt import add_defaults_to_dict, delete_inherited_keys
 
 def plugin_meta_setup(clsdict):
     plugin_defaults = {
-            '_register_plugin': True,
-            '_is_plugin_factory': False,
-            '_is_plugin_specialisation': False,
-            '_plugins_storage': 'inherited'
-    }
+        '_register_plugin': True,
+        '_is_plugin_factory': False,
+        '_is_plugin_specialisation': False,
+        '_plugins_storage': 'inherited'
+        }
 
     add_defaults_to_dict(clsdict, plugin_defaults)
     delete_inherited_keys(['_plugins_storage'], clsdict)

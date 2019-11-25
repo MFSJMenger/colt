@@ -28,11 +28,11 @@ class SubquestionsAnswer(Mapping):
     def __eq__(self, other):
         """set __eq__ for easier comparision
 
-        e.g. 
+        e.g.
 
         answer['colt']['case'] == 'case1'
 
-        would be false, as answer['colt']['case'] is SubquestionsAnswer 
+        would be false, as answer['colt']['case'] is SubquestionsAnswer
         """
         if self._main_answer == other:
             return True

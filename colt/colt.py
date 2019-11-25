@@ -42,21 +42,17 @@ def colt_modify_class_dict(clsdict, bases):
 
        it modifies both the clsdict and its annotations!
     """
-    colt_defaults = {
-            '_generate_subquestions': classmethod(lambda cls, questions: 0),
-            '_questions': "",
-    }
-    if '__annotations__' in clsdict:
-        print(clsdict)
+    colt_defaults = {'_generate_subquestions': classmethod(lambda cls, questions: 0),
+                     '_questions': "",
+                     }
     # rewrite that....it is horrible
     if clsdict.get('__annotations__', None) is not None:
         if clsdict['__annotations__'].get('subquestions', None) == 'inherited':
             if '_generate_subquestions' in clsdict:
-                print(clsdict['_generate_subquestions'])
                 if len(bases) > 0:
                     clsdict['_generate_subquestions'] = join_subquestions(
-                            bases[0]._generate_subquestions,
-                            clsdict['_generate_subquestions'])
+                        bases[0]._generate_subquestions,
+                        clsdict['_generate_subquestions'])
             else:
                 clsdict['_generate_subquestions'] = bases[0]._generate_subquestions
             # delete task from annotations, and clean unnecessary annotations!
