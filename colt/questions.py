@@ -244,6 +244,8 @@ class _ConcreteQuestion(_QuestionBase):
 
     @classmethod
     def register_parser(cls, key, value):
+        if not isinstance(key, str):
+            raise TypeError(f"Parser key '{key}' needs to be string!")
         if not callable(value):
             raise TypeError("Parser needs to be a single argument function!")
         cls._known_parsers[key] = value

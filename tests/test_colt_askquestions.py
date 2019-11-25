@@ -43,6 +43,11 @@ def questions():
 
 
 def test_basic_ask_questions(questions):
-
     questions = AskQuestions("name", questions)
     assert type(questions.questions) == _Questions
+
+def test_basic_ask_questions_from_configfile(questions):
+    questions = AskQuestions("name", questions, config='askq.ini')
+    answers = questions.ask('out.ini')
+    assert answers['value'] == 2
+
