@@ -8,8 +8,13 @@ from .generator import GeneratorBase, BranchingNode
 from abc import ABC, abstractmethod
 
 
+# store Questions
 Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
                       defaults=("", "str", None, None, None))
+
+
+# identify literal blocks
+LiteralBlock = namedtuple("LiteralBlock", ())
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -114,7 +119,10 @@ class QuestionGenerator(GeneratorBase):
         try:
             value = cls.LeafString(*(ele.strip() for ele in value.split(cls.seperator)))
         except TypeError:
-            raise Exception(f"Cannot parse value `{original_value}`")
+            raise ValueError(f"Cannot parse value `{original_value}`") from None
+        # check for literal block
+        if value.typ == 'literal':
+            return LiteralBlock()
         # get default
         default = cls._parse_default(value.default)
         # get question
@@ -126,6 +134,10 @@ class QuestionGenerator(GeneratorBase):
         choices = cls._parse_choices(value.typ, value.choices)
         # return leaf node
         return Question(question, value.typ, default, choices, comment)
+
+    @classmethod
+    def is_decission(cls, node):
+        return cls._is_branching(node)
 
     def generate_cases(self, key, subquestions, block=None):
         """Register `subquestions` at a given `key` in given `block`

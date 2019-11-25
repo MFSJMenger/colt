@@ -49,7 +49,7 @@ class GeneratorBase(Mapping):
     is_branching_regex = re.compile(r"(?P<branch>.*)\((?P<node>.*)\)")
     # named tuple to store the pair
     Branch = namedtuple("Branch", ["branch", "node"])
-    #
+
     def __init__(self, treeconfig):
         """Main Object to generate abstract tree from configstring
 
@@ -87,7 +87,6 @@ class GeneratorBase(Mapping):
         """Basic Preprocessor"""
         return string
 
-
     @classmethod
     def new_branching(cls, name, leaf=None):
         """Create a new empty branching"""
@@ -99,23 +98,29 @@ class GeneratorBase(Mapping):
         """Create a new node of the tree"""
         return {}
 
+    @classmethod
+    def get_node_from_tree(cls, node_name, tree):
+        """return node from a given tree"""
+        return cls._get_node(node_name, tree)
+
     def get_node(self, node_name):
         """Parse down the abstraction tree to extract
            a particular node based on its block name
         """
-        # init tree
-        tree = self.tree
-        #
+        return self._get_node(node_name, self.tree)
+
+    @classmethod
+    def _get_node(cls, node_name, tree):
+        """Actual implementation of get_node """
         if node_name is None or node_name.strip() == "":
             return tree
         # loop over nodes to reach the particular node
-        nodes = node_name.split(self.seperator)
+        nodes = node_name.split(cls.seperator)
         for node in nodes:
-            tree = self._get_next_node(tree, node)
+            tree = cls._get_next_node(tree, node)
             if tree is None:
                 return None
         return tree
-
 
     def add_element(self, name, line, parentnode=None, overwrite=False):
         """add a single leaf node to the tree"""
