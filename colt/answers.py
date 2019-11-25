@@ -1,3 +1,4 @@
+"""Storage for Answers in Colts Questions Module"""
 from collections.abc import Mapping
 
 
@@ -45,10 +46,12 @@ class SubquestionsAnswer(Mapping):
 
     @property
     def subquestion_answers(self):
+        """Return answer of subquestions"""
         return self._subquestion_answers
 
     @property
     def value(self):
+        """Return main answer"""
         return self._main_answer
 
     def __str__(self):

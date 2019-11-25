@@ -1,3 +1,4 @@
+"""Definitions of all Question Classes"""
 from collections import namedtuple
 from collections.abc import MutableMapping
 from .answers import SubquestionsAnswer
@@ -11,7 +12,7 @@ Question = namedtuple("Question", ("question", "typ", "default", "choices", "com
                       defaults=("", "str", None, None, None))
 
 
-class ConditionalQuestion(BranchingNode):
+class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
     """Conditional Question, is a branching node
        used to store decissions
     """
@@ -176,6 +177,7 @@ class QuestionGenerator(GeneratorBase):
 
     @classmethod
     def questions_from_file(cls, filename):
+        """generate questions from file"""
         with open(filename, "r") as f:
             string = f.read()
         return cls(string)
@@ -229,6 +231,7 @@ class _QuestionBase(ABC):
 
     @abstractmethod
     def set_answer(self, value):
+        """set an answer"""
         pass
 
     @abstractmethod
@@ -318,8 +321,8 @@ class _ConcreteQuestion(_QuestionBase):
             try:
                 self._default = self._parse(question.default)
                 return
-            except Exception as e:
-                print(e)
+            except ValueError as expt:
+                print(expt)
             # either already returned, or raise exception!
             raise Exception(f"For parser '{question.typ}' "
                             f"default '{question.default}' cannot be used!")
@@ -395,12 +398,12 @@ class _ConcreteQuestion(_QuestionBase):
         """
         if self._set_answer is not None:
             return self._set_answer
-        elif self.default is not None:
+        if self.default is not None:
             return self.default
-        else:
-            if self.parent is not None:
-                self.parent._check_failed = True
-            return "NEEDS_TO_BE_SET"
+
+        if self.parent is not None:
+            self.parent._check_failed = True
+        return "NEEDS_TO_BE_SET"
 
     def _ask(self):
         if self.parent is not None:

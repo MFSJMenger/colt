@@ -1,3 +1,4 @@
+"""Basic Logic for an INI based code generator"""
 from abc import abstractmethod
 from collections import namedtuple, OrderedDict
 from collections.abc import Mapping, MutableMapping
@@ -35,7 +36,7 @@ class GeneratorBase(Mapping):
         A tree can be any of the elements above, but typically it is
         either a Branching or a Node
     """
-
+    __slots__ = ('tree', '_keys')
     # please select leaf and branching type
     leafnode_type = None
     branching_type = None
@@ -48,7 +49,7 @@ class GeneratorBase(Mapping):
     is_branching_regex = re.compile(r"(?P<branch>.*)\((?P<node>.*)\)")
     # named tuple to store the pair
     Branch = namedtuple("Branch", ["branch", "node"])
-
+    #
     def __init__(self, treeconfig):
         """Main Object to generate abstract tree from configstring
 
@@ -61,10 +62,9 @@ class GeneratorBase(Mapping):
         elif not isinstance(treeconfig, str):
             raise TypeError("Generator only accepts type string!")
         self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig)
-
-    @classmethod
+    #
     @abstractmethod
-    def leaf_from_string(cls, name, value):
+    def leaf_from_string(self, name, value):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -82,16 +82,48 @@ class GeneratorBase(Mapping):
                 If the value cannot be parsed
         """
 
+    @staticmethod
+    def _preprocess_string(string):
+        """Basic Preprocessor"""
+        return string
+
+
     @classmethod
     def new_branching(cls, name, leaf=None):
         """Create a new empty branching"""
         raise NotImplementedError("Branching not implemented in this tree, "
-                                  "please implement 'new_branching'")
+                                  "please implement the 'new_branching' method")
 
     @staticmethod
     def new_node():
         """Create a new node of the tree"""
         return {}
+
+    def get_node(self, node_name):
+        """Parse down the abstraction tree to extract
+           a particular node based on its block name
+        """
+        # init tree
+        tree = self.tree
+        #
+        if node_name is None or node_name.strip() == "":
+            return tree
+        # loop over nodes to reach the particular node
+        nodes = node_name.split(self.seperator)
+        for node in nodes:
+            tree = self._get_next_node(tree, node)
+            if tree is None:
+                return None
+        return tree
+
+
+    def add_element(self, name, line, parentnode=None, overwrite=False):
+        """add a single leaf node to the tree"""
+        tree = self._get_subtree(parentnode)
+        if name in tree:
+            if overwrite is False:
+                raise KeyError(f"Node {name} already exists in {parentnode}")
+        tree[name] = self.leaf_from_string(name, line)
 
     def add_elements(self, configtree, parentnode=None, overwrite=True):
         """add elements to a particular node of the tree"""
@@ -107,38 +139,6 @@ class GeneratorBase(Mapping):
         for key, item in subtree.items():
             if key not in tree:
                 tree[key] = item
-
-    def add_branching(self, leaf_name, branching_cases, parentnode=None):
-        """Add a branching node inside `parentnode` with name `leaf_name`
-
-        Args:
-            leaf_name (str):
-                name of leaf that should be replaced with a branching node
-
-            branching_cases (dict):
-                dictionary containing the cases that are implemented in the branching
-
-        Kwargs:
-            parentnode (str):
-                name of the parent node
-
-        Example:
-            >>> questions.add_branching("sampling", {name: sampling.questions for name, sampling
-                                                     in cls._sampling_methods.items()})
-        """
-        tree = self._get_subtree(parentnode)
-        # generate the new branching, in case it exist return exisiting one
-        tree[leaf_name] = self._new_branching_node(tree.get(leaf_name), leaf_name)
-        # add branching to keys
-        cases = self._join_keys(parentnode, leaf_name)
-        self._update_keys(cases)
-        # add cases!
-        for case, config in branching_cases.items():
-            # create name of real parent
-            parent = self._join_keys(parentnode, self._join_case(leaf_name, case))
-            subtree, keys = self._get_keys_and_subtree(config, parentnode=parent)
-            self._update_keys(keys)
-            tree[leaf_name][case] = subtree
 
     def add_node(self, name, config, parentnode=None):
         """Add a new `node` with name `name` in given `parentnode`
@@ -172,44 +172,55 @@ class GeneratorBase(Mapping):
         else:
             raise ValueError(f"Node '{name}' in [{parentnode}] should not exist")
 
+    def add_branching(self, leaf_name, branching_cases, parentnode=None):
+        """Add a branching node inside `parentnode` with name `leaf_name`
+
+        Args:
+            leaf_name (str):
+                name of leaf that should be replaced with a branching node
+
+            branching_cases (dict):
+                dictionary containing the cases that are implemented in the branching
+
+        Kwargs:
+            parentnode (str):
+                name of the parent node
+
+        Example:
+            >>> questions.add_branching("sampling", {name: sampling.questions for name, sampling
+                                                     in cls._sampling_methods.items()})
+        """
+        tree = self._get_subtree(parentnode)
+        # generate the new branching, in case it exist return exisiting one
+        tree[leaf_name] = self._new_branching_node(tree.get(leaf_name), leaf_name)
+        # add branching to keys
+        cases = self._join_keys(parentnode, leaf_name)
+        self._update_keys(cases)
+        # add cases!
+        for case, config in branching_cases.items():
+            # create name of real parent
+            parent = self._join_keys(parentnode, self._join_case(leaf_name, case))
+            subtree, keys = self._get_keys_and_subtree(config, parentnode=parent)
+            self._update_keys(keys)
+            tree[leaf_name][case] = subtree
+
     def __getitem__(self, key):
-        node = self.get_node(self.tree, key)
+        """Mapping logic"""
+        node = self.get_node(key)
         if node is None:
             raise KeyError(f"Node {key} does not exisit")
         return node
 
     def __len__(self):
-        """To support full implementation of Mapping please also support these"""
         return len(self._keys)
 
     def __iter__(self):
-        """To support full implementation of Mapping please also support these"""
         return iter(self._keys)
 
     def _configstring_to_keys_and_tree(self, string):
         """transform a configstring to a tree object"""
         questions = self._preprocess_configstring(string)
         return self._generate_tree(questions)
-
-    @classmethod
-    def get_node(cls, tree, node_name):
-        """Parse down the abstraction tree to extract
-           a particular node based on its block name
-        """
-        if node_name is None or node_name.strip() == "":
-            return tree
-
-        nodes = node_name.split(cls.seperator)
-        for node in nodes:
-            tree = cls._get_next_node(tree, node)
-            if tree is None:
-                return None
-        return tree
-
-    @staticmethod
-    def _preprocess_string(string):
-        """Basic Preprocessor"""
-        return string
 
     @classmethod
     def _preprocess_configstring(cls, string):
@@ -354,6 +365,52 @@ class GeneratorBase(Mapping):
             return True
         return False
 
+    _join_keys = classmethod(lambda cls, parent, key: f"{parent}{cls.seperator}{key}"
+                             if not (parent is None or parent == "")
+                             else key)
+
+    _join_case = classmethod(lambda cls, branch, case: f"{branch}({case})")
+
+    def _update_keys(self, keys):
+        if isinstance(keys, set):
+            self._keys |= keys
+        elif isinstance(keys, str):
+            self._keys.add(keys)
+        else:
+            TypeError(f"keys can only be set or str not {type(keys)}")
+
+    def _get_keys(self, iterator, name=None, parentnode=None):
+        keys = set()
+        if name is not None:
+            name = self._join_keys(parentnode, name)
+            keys.add(name)
+        keys |= set(self._join_keys(name, key) for key in iterator)
+        return keys
+
+    def _get_subtree(self, node_name):
+        """get the node of a subtree at a given position
+
+           important, it can not return branchings, only subtrees
+        """
+        subtree = self.get_node(node_name)
+        # check that subtree is correct!
+        if subtree is None:
+            raise KeyError(f"Node {node_name} unknown")
+        if not isinstance(subtree, self.node_type):
+            raise ValueError(f"Node {node_name} has to be of type {self.node_type}")
+        return subtree
+
+    def _get_keys_and_subtree(self, configtree, name=None, parentnode=None):
+        """update the tree keys and get a particular node"""
+        if isinstance(configtree, GeneratorBase):
+            keys = self._get_keys(configtree.keys(), name=name, parentnode=parentnode)
+            subtree = configtree.tree
+        elif isinstance(configtree, str):
+            subtree, keys = self._configstring_to_keys_and_tree(configtree)
+        else:
+            raise TypeError("Generator only accepts type string or GeneratorBase!")
+        return subtree, keys
+
     def _generate_tree(self, config):
         """Generate a new tree from a configparser object
 
@@ -402,55 +459,11 @@ class GeneratorBase(Mapping):
         #
         return tree, keys
 
-    _join_keys = classmethod(lambda cls, parent, key: f"{parent}{cls.seperator}{key}"
-                             if not (parent is None or parent == "")
-                             else key)
-
-    _join_case = classmethod(lambda cls, branch, case: f"{branch}({case})")
-
-    def _update_keys(self, keys):
-        if isinstance(keys, set):
-            self._keys |= keys
-        elif isinstance(keys, str):
-            self._keys.add(keys)
-        else:
-            TypeError(f"keys can only be set or str not {type(keys)}")
-
-    def _get_keys(self, iterator, name=None, parentnode=None):
-        keys = set()
-        if name is not None:
-            name = self._join_keys(parentnode, name)
-            keys.add(name)
-        keys |= set(self._join_keys(name, key) for key in iterator)
-        return keys
-
-    def _get_subtree(self, node_name):
-        """get the node of a subtree at a given position
-
-           important, it can not return branchings, only subtrees
-        """
-        subtree = self.get_node(self.tree, node_name)
-        # check that subtree is correct!
-        if subtree is None:
-            raise KeyError(f"Node {node_name} unknown")
-        if not isinstance(subtree, self.node_type):
-            raise ValueError(f"Node {node_name} has to be of type {self.node_type}")
-        return subtree
-
-    def _get_keys_and_subtree(self, configtree, name=None, parentnode=None):
-        """update the tree keys and get a particular node"""
-        if isinstance(configtree, GeneratorBase):
-            keys = self._get_keys(configtree.keys(), name=name, parentnode=parentnode)
-            subtree = configtree.tree
-        elif isinstance(configtree, str):
-            subtree, keys = self._configstring_to_keys_and_tree(configtree)
-        else:
-            raise TypeError("Generator only accepts type string or GeneratorBase!")
-        return subtree, keys
-
 
 class BranchingNode(MutableMapping):
     """Basic Class that can be used as a Branching Node"""
+
+    __slots__ = ('name', 'leaf', 'subnodes')
 
     def __init__(self, name, leaf, subnodes=OrderedDict()):
         self.name = name
