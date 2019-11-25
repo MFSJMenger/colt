@@ -38,8 +38,8 @@ class GeneratorBase(Mapping):
     """
     __slots__ = ('tree', '_keys')
     # please select leaf and branching type
-    leafnode_type = None
-    branching_type = None
+    leafnode_type = type(None)
+    branching_type = type(None)
     #
     node_type = dict
     #
@@ -87,8 +87,7 @@ class GeneratorBase(Mapping):
         """Basic Preprocessor"""
         return string
 
-    @classmethod
-    def new_branching(cls, name, leaf=None):
+    def new_branching(self, name, leaf=None):
         """Create a new empty branching"""
         raise NotImplementedError("Branching not implemented in this tree, "
                                   "please implement the 'new_branching' method")
