@@ -134,7 +134,7 @@ class GeneratorBase(Mapping):
         if name in tree:
             if overwrite is False:
                 raise KeyError(f"Node {name} already exists in {parentnode}")
-        tree[name] = self.leaf_from_string(name, line)
+        tree[name] = self.leaf_from_string(name, line, parentnode)
 
     def add_elements(self, configtree, parentnode=None, overwrite=True):
         """add elements to a particular node of the tree"""
