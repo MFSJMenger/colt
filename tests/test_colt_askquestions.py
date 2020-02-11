@@ -72,6 +72,7 @@ def test_basic_ask_questions(questions):
     assert type(questions.questions) == _Questions
 
 
+
 def test_basic_ask_questions_from_configfile(questions, askini):
     questions = AskQuestions("name", questions, config=askini)
     answers = questions.ask()
@@ -86,6 +87,7 @@ def test_basic_ask_questions_from_config(questions, configini):
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
     assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+
 
 def test_basic_ask_questions_from_config_file(questions, configini, configiniout):
     questions = AskQuestions("name", questions, config=configini)

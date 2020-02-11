@@ -2,6 +2,7 @@ import pytest
 #
 from colt import QuestionGenerator
 from colt import Question
+from colt.questions import LiteralBlock
 
 
 @pytest.fixture
@@ -71,6 +72,42 @@ def test_add_question_to_block(questions):
     assert questions['ilist'] == Question("ilist", "ilist", None)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
+
+def test_add_single_question_to_block(questions):
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    questions_generator = QuestionGenerator(questions)
+    questions_generator.add_element('add', "hallo")
+    questions = questions_generator.questions
+
+    assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
+    assert questions['name'] == Question("name", "str", None, choices=['hallo', 'du'],
+                                         comment=" hallo ihr\n ihr auch")
+    assert questions['ilist'] == Question("ilist", "ilist", None)
+    assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
+    assert questions['add'] == Question("add", "str", "hallo")
+
+
+def test_add_single_question_to_block_fail_block_doesnt_exist(questions):
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    questions_generator = QuestionGenerator(questions)
+    with pytest.raises(KeyError):
+        questions_generator.add_element('add', "hallo", "mm")
+
+
+def test_add_single_question_to_block_fail_overwrite(questions):
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    questions_generator = QuestionGenerator(questions)
+    with pytest.raises(KeyError):
+        questions_generator.add_element('name', "hallo")
 
 
 def test_add_question_to_block_no_overwrite(questions):
@@ -240,3 +277,59 @@ def test_add_block_to_cases(questions):
     assert questions['software']['gaussian']['basis'] == Question("basis", "str", "6-31g*")
     assert (questions['software']['gaussian']['functional']
             == Question("functional", "str", "cam-b3lyp"))
+
+def test_generator_from_generator(questions):
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    oldgen = QuestionGenerator(questions)
+    questions_generator = QuestionGenerator(oldgen)
+    #
+    questions = questions_generator.questions
+
+    assert questions['value'] == Question("value", "int", '2', choices=['1', '2', '3'])
+    assert questions['name'] == Question("name", "str", None,
+                                         choices=['hallo', 'du'], comment=" hallo ihr\n ihr auch")
+    assert questions['ilist'] == Question("ilist", "ilist", None)
+    assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
+    assert (questions['examplecase']['no']['further']['andmore']['select']['maybe']['a']
+            == Question("What was the question?", "str", 'maybe'))
+
+def test_generator_from_int():
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    with pytest.raises(TypeError):
+        QuestionGenerator(5)
+
+def test_generator_from_float():
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    with pytest.raises(TypeError):
+        QuestionGenerator(5.8)
+
+
+def test_generator_parsing_error(questions):
+    """test parsing of basic questions string
+
+       and add additional questions
+    """
+    questions_generator = QuestionGenerator(questions)
+
+    with pytest.raises(ValueError):
+        questions_generator.generate_block("system", """
+            mem= 10GB
+            ncpus = 4 :: int :: :: :: :: ::
+            """)
+
+    questions_generator.generate_block("system", """
+            mem= :: literal
+            """)
+
+    questions = questions_generator.questions
+
+    assert isinstance(questions['system']['mem'] , LiteralBlock)

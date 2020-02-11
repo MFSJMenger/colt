@@ -63,14 +63,10 @@ class AskQuestions:
         self._check_failed = False
 
     @classmethod
-    def questions_from_string(cls, name, question_string, config=None):
-        questions = QuestionGenerator.questions_from_string(question_string)
-        return cls(name, questions, config)
-
-    @classmethod
     def questions_from_file(cls, name, filename, config=None):
-        questions = QuestionGenerator.questions_from_file(filename)
-        return cls(name, questions, config)
+        with open(filename, "r") as f:
+            txt = f.read()
+        return cls(name, txt, config)
 
     def ask(self, filename=None):
         """ask the actual question"""
