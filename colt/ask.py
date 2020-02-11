@@ -10,25 +10,27 @@ from .questions import parse_question
 
 
 def with_attribute(attr, value):
-    def _class_function(f):
-        @wraps(f)
+    def _class_function(func):
+        @wraps(func)
         def _inner(self, *args, **kwargs):
             if hasattr(self, attr):
                 old = getattr(self, attr)
             else:
                 delete = True
             setattr(self, attr, value)
-            val = f(self, *args, **kwargs)
+            val = func(self, *args, **kwargs)
             if delete is False:
                 setattr(self, attr, old)
             return val
         return _inner
     return _class_function
 
+
 class AskQuestions:
     """Main Object to handle question request"""
 
-    __slots__ = ("name", "literals", "questions", "answers", "only_check", "_check_failed", '_no_failure_setting_answers')
+    __slots__ = ("name", "literals", "questions", "answers",
+                 "only_check", "check_failed", '_no_failure_setting_answers')
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -60,12 +62,13 @@ class AskQuestions:
         self.questions = self._setup(questions.questions, config)
         #
         self.only_check = False
-        self._check_failed = False
+        self.check_failed = False
+        self._no_failure_setting_answers = None
 
     @classmethod
     def questions_from_file(cls, name, filename, config=None):
-        with open(filename, "r") as f:
-            txt = f.read()
+        with open(filename, "r") as fhandle:
+            txt = fhandle.read()
         return cls(name, txt, config)
 
     def ask(self, filename=None):
@@ -86,7 +89,7 @@ class AskQuestions:
     def check_only(self, filename):
         self.only_check = True
         answers = self.questions.ask()
-        if self._check_failed is True:
+        if self.check_failed is True:
             self._create_config_start(self._fileparser(), self.name, answers)
             self._write(filename)
             raise Exception(f"Input not complete, check file '{filename}' for missing values!")
@@ -114,10 +117,9 @@ class AskQuestions:
     @with_attribute('_no_failure_setting_answers', True)
     def set_answers_from_file(self, filename):
         """Set answers from a given file"""
-        # self.literals should probably not be updated in this manner...
         parsed, self.literals = ConfigParser.read(filename, self.literals)
         #
-        for section, values in parsed.items():
+        for section in parsed:
             if section == ConfigParser.base:
                 name = ""
                 error = ""
