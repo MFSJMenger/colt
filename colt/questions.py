@@ -314,15 +314,10 @@ class _ConcreteQuestion(_QuestionBase):
         """set the answer to a suitable value, also here parse is called!
            only consistent inputs values are accepted
         """
-
         if value.strip() == "":
             return
-        # also kinda useless, as the question is never ask, but conceptionally correct ;)
-        self._accept_enter = True
-        # this is kinda a hack to ensure that the provided config
-        # file is correct,
-        with ExitOnException():
-            self._set_answer = self._parse(str(value))
+        # this is kinda a hack to ensure that the provided config file is correct,
+        self._set_answer = self._parse(str(value))
 
     def _generate_question(self, question):
         """generate actual question"""

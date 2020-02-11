@@ -72,7 +72,7 @@ def test_add_new_parser():
 
 # simple tests
 def test_parser_bool_failure():
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         LineParser.bool_parser("hamster")
 
 
