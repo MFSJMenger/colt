@@ -61,7 +61,7 @@ class GeneratorBase(Mapping):
             self.tree = treeconfig.tree
             self._keys = treeconfig._keys
             return
-        # 
+        #
         if not isinstance(treeconfig, str):
             raise TypeError("Generator only accepts type string!")
         self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig)

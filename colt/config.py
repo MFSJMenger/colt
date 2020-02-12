@@ -7,6 +7,7 @@ class FileIterable:
     def __init__(self, filename, options="r"):
         self._fileiter = open(filename, options)
         self._previous = 0
+        self._status = None
 
     def _read(self):
         while True:
@@ -31,15 +32,24 @@ class ConfigParser(MutableMapping):
 
     comment = "#"
     base = "DEFAULTS"
-    _is_header = re.compile(r"\s*\[(?P<header>.*)\]\s*")
+    _is_header = re.compile(r"\s*\[\s*(?P<header>.*)\]\s*")
     _is_entry = re.compile(r"(?P<key>.*)=(?P<value>.*)")
+
+    def __init__(self, config, literals):
+        self._config = config
+        self.literals = literals
+
+    @classmethod
+    def from_string(cls, filename, literals):
+        config, literals = cls.read(filename, literals)
+        return cls(config, literals)
 
     @classmethod
     def _header(cls, line):
         match = cls._is_header.match(line)
         if match is None:
             return None
-        return match['header']
+        return match['header'].strip()
 
     @classmethod
     def _entry(cls, line):
@@ -56,8 +66,7 @@ class ConfigParser(MutableMapping):
             if header is not None:
                 if header != currentheader:
                     return "\n".join(string), header
-                else:
-                    continue
+                continue
             string.append(line)
         return "\n".join(string), None
 
@@ -103,7 +112,7 @@ class ConfigParser(MutableMapping):
 
     def __getitem__(self, key):
         return self._config[key]
-    
+
     def __setitem__(self, key, value):
         self._config[key] = value
 
@@ -115,4 +124,3 @@ class ConfigParser(MutableMapping):
 
     def __len__(self):
         return len(self._config)
-

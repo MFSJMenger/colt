@@ -1,12 +1,13 @@
 """Definitions of all Question Classes"""
+from abc import ABC, abstractmethod
 from collections import namedtuple
 from collections.abc import MutableMapping
+#
 from .answers import SubquestionsAnswer
-from .context_utils import ExitOnException
-from .parser import LineParser
 from .generator import GeneratorBase, BranchingNode
-from abc import ABC, abstractmethod
-
+#
+from .parser import bool_parser, list_parser, ilist_parser
+from .parser import ilist_np_parser, flist_parser, flist_np_parser, abspath, file_exists
 
 # store Questions
 Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
@@ -66,14 +67,13 @@ class QuestionGenerator(GeneratorBase):
 
         """
         if isinstance(questions, QuestionGenerator):
-            self.tree = questions.tree
-            self._keys = questions._keys
             self.literals = questions.literals
         elif isinstance(questions, str):
             self.literals = {}
-            self.tree, self._keys = self._configstring_to_keys_and_tree(questions)
         else:
             raise TypeError("Generator only accepts type string!")
+        GeneratorBase.__init__(self, questions)
+        #
         self.questions = self.tree
 
     @classmethod
@@ -102,7 +102,7 @@ class QuestionGenerator(GeneratorBase):
             parsed_string.append(line)
         return "\n".join(parsed_string)
 
-    def leaf_from_string(self, name, value, parent):
+    def leaf_from_string(self, name, value, parent=None):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -199,8 +199,8 @@ class QuestionGenerator(GeneratorBase):
     @classmethod
     def questions_from_file(cls, filename):
         """generate questions from file"""
-        with open(filename, "r") as f:
-            string = f.read()
+        with open(filename, "r") as fhandle:
+            string = fhandle.read()
         return cls(string)
 
     @staticmethod
@@ -253,12 +253,10 @@ class _QuestionBase(ABC):
     @abstractmethod
     def set_answer(self, value):
         """set an answer"""
-        pass
 
     @abstractmethod
     def _ask(self):
         """Actual ask routine"""
-        pass
 
     def ask(self):
         """User interface, returns Answer"""
@@ -282,94 +280,35 @@ class _LiteralBlock(_QuestionBase):
         return None
 
 
-class _ConcreteQuestion(_QuestionBase):
+class _ConcreteQuestionBase(_QuestionBase):
 
     _known_parsers = {
         'str': str,
         'float': float,
         'int': int,
-        'bool': LineParser.bool_parser,
-        'list': LineParser.list_parser,
-        'ilist': LineParser.ilist_parser,
-        'ilist_np': LineParser.ilist_np_parser,
-        'flist': LineParser.flist_parser,
-        'flist_np': LineParser.flist_np_parser,
+        'bool': bool_parser,
+        'list': list_parser,
+        'ilist': ilist_parser,
+        'ilist_np': ilist_np_parser,
+        'flist': flist_parser,
+        'flist_np': flist_np_parser,
+        'file': abspath, # return abspath
+        'folder': abspath,
+        'existing_file': file_exists,
         }
 
-    def __init__(self, question, parent=None):
-        # setup
+    def __init__(self, question, parent):
         _QuestionBase.__init__(self, parent)
+        #
         self._parse = self._select_parser(question.typ)
-        self._setup(question)
-        # generate the question
-        self.question = self._generate_question(question)
-
-    def __repr__(self):
-        return f"{self.question}\n"
-
-    def __str__(self):
-        return f"{self.question}\n"
-
-    def set_answer(self, value: str):
-        """set the answer to a suitable value, also here parse is called!
-           only consistent inputs values are accepted
-        """
-
-        if value.strip() == "":
-            return
-        # also kinda useless, as the question is never ask, but conceptionally correct ;)
-        self._accept_enter = True
-        # this is kinda a hack to ensure that the provided config
-        # file is correct,
-        try:
-            self._set_answer = self._parse(str(value))
-            return
-        except ValueError:
-            pass
-
-    def _generate_question(self, question):
-        """generate actual question"""
-        txt = question.question.strip()
-        # add default option
-        if question.default is not None:
-            txt += " [%s]" % (str(self.default))
-        if question.choices is not None:
-            txt += ", choices = (%s)" % (", ".join(question.choices))
-        return txt + ": "
-
-    def set_choices(self, choices):
-        """set choices"""
-        if choices is None:
-            self._choices = None
-            return
-
-        try:
-            self._choices = [self._parse(choice) for choice in choices]
-            return
-        except ValueError:
-            pass
-        raise ValueError("Choises ({' ,'.join(choices)}) cannot be converted")
-
-    def _setup(self, question):
+        # set defaults
+        self._choices = None
         self._default = None
         self._accept_enter = False
-        self._comment = question.comment
-        # Try to set choices
-        self.set_choices(question.choices)
-
-        if question.default is not None:
-            self._accept_enter = True
-            try:
-                self._default = self._parse(question.default)
-                return
-            except ValueError as expt:
-                print(expt)
-            # either already returned, or raise exception!
-            raise Exception(f"For parser '{question.typ}' "
-                            f"default '{question.default}' cannot be used!")
-
-    def _print(self):
-        return f"{self.question}\n"
+        self._comment = None
+        self._set_answer = None
+        self.question = None
+        self.typ = question.typ
 
     @property
     def default(self):
@@ -378,16 +317,24 @@ class _ConcreteQuestion(_QuestionBase):
             return self._set_answer
         return self._default
 
-    def _ask_question(self):
-        """Helper routine which asks the actual question"""
-        is_set = False
-        answer = input(self.question).strip()  # strip is important!
-        if answer == "":
-            if self._accept_enter:
-                answer = self.default
-                is_set = True
+    def _ask(self):
+        if self.parent is not None:
+            if self.parent.only_check is True:
+                return self._check_only()
+        return self._ask_implementation()
+
+    def _check_only(self):
+        """Check if the answer is set, or a default is
+           available, if not notify parent and return
+           "NEEDS_TO_BE_SET"
+        """
+        # self.default is _set_answer if answer was set!
+        if self.default is not None:
+            return self.default
         #
-        return _Answer(answer, is_set)
+        if self.parent is not None:
+            self.parent.check_failed = True
+        return "NEEDS_TO_BE_SET"
 
     def _perform_questions(self):
         answer = self._ask_question()
@@ -418,9 +365,9 @@ class _ConcreteQuestion(_QuestionBase):
         #
         try:
             if answer.value == "":
-                raise Exception("No default set, empty string not allowed!")
+                raise ValueError("No default set, empty string not allowed!")
             result = self._parse(answer.value)
-        except Exception:
+        except ValueError:
             print(f"Unknown input '{answer.value}', redo")
             # reask
             result = self._ask_implementation()
@@ -432,25 +379,25 @@ class _ConcreteQuestion(_QuestionBase):
                 result = self._ask_implementation()
         return result
 
-    def _check_only(self):
-        """Check if the answer is set, or a default is
-           available, if not notify parent and return
-           "NEEDS_TO_BE_SET"
+    def set_answer(self, value: str):
+        """set the answer to a suitable value, also here parse is called!
+           only consistent inputs values are accepted
         """
-        if self._set_answer is not None:
-            return self._set_answer
-        if self.default is not None:
-            return self.default
+        if value.strip() == "":
+            return
+        # this is a hack to ensure that the provided config file is correct
+        self._set_answer = self._parse(str(value))
 
-        if self.parent is not None:
-            self.parent._check_failed = True
-        return "NEEDS_TO_BE_SET"
-
-    def _ask(self):
-        if self.parent is not None:
-            if self.parent.only_check is True:
-                return self._check_only()
-        return self._ask_implementation()
+    def _ask_question(self):
+        """Helper routine which asks the actual question"""
+        is_set = False
+        answer = input(self.question).strip()  # strip is important!
+        if answer == "":
+            if self._accept_enter:
+                answer = self.default
+                is_set = True
+        #
+        return _Answer(answer, is_set)
 
     def _select_parser(self, key):
         parser = self._known_parsers.get(key, None)
@@ -469,6 +416,70 @@ class _ConcreteQuestion(_QuestionBase):
     @classmethod
     def get_parsers(cls):
         return cls._known_parsers
+
+
+class _ConcreteQuestion(_ConcreteQuestionBase):
+
+    def __init__(self, question, parent=None):
+        # setup
+        _ConcreteQuestionBase.__init__(self, question, parent)
+        #
+        self._setup(question)
+        # generate the question
+        self.question = self._generate_question(question)
+
+    def __repr__(self):
+        return f"{self.question}\n"
+
+    def __str__(self):
+        return f"{self.question}\n"
+
+    def _generate_question(self, question):
+        """generate actual question"""
+        txt = question.question.strip()
+        # add default option
+        if question.default is not None:
+            txt += " [%s]" % (str(self.default))
+        if question.choices is not None:
+            txt += ", choices = (%s)" % (", ".join(question.choices))
+        return txt + ": "
+
+    def set_choices(self, choices):
+        """set choices"""
+        if choices is None:
+            self._choices = None
+            return
+        try:
+            self._choices = [self._parse(choice) for choice in choices]
+            return
+        except ValueError:
+            pass
+        raise ValueError("Choises ({' ,'.join(choices)}) cannot be converted")
+
+    def _setup(self, question):
+        self._comment = question.comment
+        # Try to set choices
+        self.set_choices(question.choices)
+
+        if question.default is not None:
+            self._accept_enter = True
+            try:
+                self._default = self._parse(question.default)
+                return
+            except ValueError as expt:
+                print(expt)
+            # either already returned, or raise exception!
+            raise ValueError(f"For parser '{question.typ}' "
+                             f"default '{question.default}' cannot be used!")
+
+    def print(self):
+        return f"{self.question}\n"
+
+    def _ask(self):
+        if self.parent is not None:
+            if self.parent.only_check is True:
+                return self._check_only()
+        return self._ask_implementation()
 
 
 # Used to save status of a concrete answer
@@ -500,16 +511,16 @@ class _Questions(_QuestionBase, MutableMapping):
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer is possible at the moment!")
 
-    def _print(self):
+    def print(self):
         string = ""
         for name, question in self.items():
-            string += f"{name}: {question._print()}\n"
+            string += f"{name}: {question.print()}\n"
         return string
 
     def _ask(self):
         answers = {}
         for name, question in self.items():
-            answers[name] = question._ask()
+            answers[name] = question.ask()
         return answers
 
 
@@ -547,16 +558,16 @@ class _Subquestions(_QuestionBase, MutableMapping):
         """set answer for main question"""
         self.main_question.set_answer(value)
 
-    def _print(self):
+    def print(self):
         string = f"{self.main_question}\n"
         for name, question in self.items():
-            string += f"{name}: {question._print()}\n"
+            string += f"{name}: {question.print()}\n"
         return string
 
     def _ask(self):
-        main_answer = self.main_question._ask()
+        main_answer = self.main_question.ask()
         subquestion = self.get(main_answer, None)
-        return SubquestionsAnswer(self.name, main_answer, subquestion._ask())
+        return SubquestionsAnswer(self.name, main_answer, subquestion.ask())
 
 
 def parse_question(question, parent=None):

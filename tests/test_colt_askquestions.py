@@ -120,4 +120,17 @@ def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configin
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
     assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
-    # assert get_content(configini) == get_content(configiniout)
+    #assert get_content(configini) == get_content(configiniout)
+
+def test_basic_ask_questions_from_config_checkonly_fail_default_set(questions, configini):
+    questions = questions.replace("nqm = 200 :: int", "nqm = yes :: bool")
+    questions = AskQuestions("name", questions, config=configini)
+    print(questions)
+
+#    answers = questions.check_only('missing.txt')
+#    assert answers['qm']['nqm'] == 100 
+#    assert answers['qm']['nmm'] == 200 
+#    assert answers['examplecase']['a'] == '666'
+#    assert answers['examplecase']['further']['a'] == '131'
+#    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+#    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'

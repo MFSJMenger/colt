@@ -1,4 +1,6 @@
+from functools import wraps
 import configparser
+import sys
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
@@ -7,10 +9,28 @@ from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
 
 
+def with_attribute(attr, value):
+    def _class_function(func):
+        @wraps(func)
+        def _inner(self, *args, **kwargs):
+            if hasattr(self, attr):
+                old = getattr(self, attr)
+            else:
+                delete = True
+            setattr(self, attr, value)
+            val = func(self, *args, **kwargs)
+            if delete is False:
+                setattr(self, attr, old)
+            return val
+        return _inner
+    return _class_function
+
+
 class AskQuestions:
     """Main Object to handle question request"""
 
-    __slots__ = ("name", "literals", "questions", "answers", "only_check", "_check_failed")
+    __slots__ = ("name", "literals", "questions", "answers",
+                 "only_check", "check_failed", '_no_failure_setting_answers')
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -35,19 +55,20 @@ class AskQuestions:
         """
         questions = QuestionGenerator(questions)
         self.literals = questions.literals
-        questions = questions.questions
         #
         self.answers = None
         self.name = name
-        self.questions = self._setup(questions, config)
+        # setup
+        self.questions = self._setup(questions.questions, config)
         #
         self.only_check = False
-        self._check_failed = False
+        self.check_failed = False
+        self._no_failure_setting_answers = None
 
     @classmethod
     def questions_from_file(cls, name, filename, config=None):
-        with open(filename, "r") as f:
-            txt = f.read()
+        with open(filename, "r") as fhandle:
+            txt = fhandle.read()
         return cls(name, txt, config)
 
     def ask(self, filename=None):
@@ -70,7 +91,7 @@ class AskQuestions:
     def check_only(self, filename):
         self.only_check = True
         answers = self.questions.ask()
-        if self._check_failed is True:
+        if self.check_failed is True:
             filename = filename + "__check"
             self.create_config_from_answers(filename, answers)
             raise Exception(f"Input not complete, check file '{filename}' for missing values!")
@@ -87,84 +108,66 @@ class AskQuestions:
             self.set_answers_from_file(config)
         return self.questions
 
+    def _set_answer(self, section, key, question, answer):
+        try:
+            question.set_answer(answer)
+            return ""
+        except ValueError:
+            self._no_failure_setting_answers = False
+            if question.typ == 'existing_file':
+                return f"\n{key} = {answer}, File does not exist!"
+            return f"\n{key} = {answer}, TypeError expected: '{question.typ}'"
+
+    @with_attribute('_no_failure_setting_answers', True)
     def set_answers_from_file(self, filename):
         """Set answers from a given file"""
         parsed, self.literals = ConfigParser.read(filename, self.literals)
-        for section, values in parsed.items():
+        #
+        for section in parsed:
             if section == ConfigParser.base:
                 name = ""
+                error = ""
             else:
                 name = section
+                error = f'[{section}]'
+            errmsg = ""
+            #
             question = QuestionGenerator.get_node_from_tree(name, self.questions)
+            #
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")
-                continue
-            if isinstance(question, _ConcreteQuestion):
+            elif isinstance(question, _ConcreteQuestion):
                 print(f"""Section '{section}' is concrete question, maybe typo?""")
-                continue
-            if isinstance(question, _Subquestions):
+            elif isinstance(question, _Subquestions):
                 if len(parsed[section].items()) == 1:
                     for key, value in parsed[section].items():
                         if key == question.name:
-                            question.set_answer(value)
+                            errmsg += self._set_answer(section, key, question, value)
                         else:
-                            print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
+                            errmsg += f"\n{key} = UNKNOWN"
                 else:
                     for key, value in parsed[section].items():
                         if key == question.name:
-                            question.set_answer(value)
+                            errmsg += self._set_answer(section, key, question, value)
                         else:
-                            print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
-                    print(f"question instance is ConditionalQuestion, "
-                          f"but multiple values are defined? input error?")
-                continue
-            for key, value in parsed[section].items():
-                try:
-                    question[key].set_answer(value)
-                except SystemExit:
-                    print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
+                            errmsg += f"\n{key} = UNKNOWN"
+                    print(f"Input Error: question instance is ConditionalQuestion, "
+                          f"but multiple values are defined!")
+            elif isinstance(question, _Questions):
+                for key, value in parsed[section].items():
+                    concre_question = question[key]
+                    if concre_question is None:
+                        errmsg += f"\n{key} = UNKNOWN"
+                    else:
+                        errmsg += self._set_answer(section, key, concre_question, value)
+            else:
+                print(f'Unkown type...')
 
-    def _actual_modifyer(self, question, answer):
-        question.set_answer(question, answer)
+            if errmsg != "":
+                print(f"{error}{errmsg}")
 
-    def _modify(self, name, config, questions):
-        """set answers depending on the config file!"""
-        if isinstance(questions, _Subquestions):
-            if config[name].get(questions.name, None) is not None:
-                self._actual_modifyer(questions, config[name][questions.name])
-#                questions.set_answer(config[name][questions.name])
-                self._modify_questions(f"{name}::{questions.name}({config[name][questions.name]})",
-                                       config, questions.subquestions)
-        else:
-            self._modify_questions(name, config, questions)
-
-    def _modify_selection(self, name, key, question, config):
-        if isinstance(question, _Questions):
-            self._modify_questions(name, config, question.questions)
-        elif isinstance(question, _Subquestions):
-            if config[name].get(question.name, None) is not None:
-                question.set_answer(config[name][question.name])
-                self._modify_questions((f"{name}::{question.name}"
-                                       f"({config[name][question.name]})"),
-                                       config, question.subquestions)
-        elif isinstance(question, dict):
-            self._modify_questions(name, config, question)
-        elif isinstance(question, _ConcreteQuestion):
-            if config[name].get(key, None) is not None:
-                question.set_answer(config[name][key])
-        else:
-            raise TypeError(f"Type of question not known! {type(question)}")
-
-    def _modify_questions(self, name, config, questions):
-        """ recusive function to set answer depending on the config file!"""
-        # check that config[name] is defined!
-        try:
-            config[name]
-        except Exception:
-            return questions
-        #
-        for key, question in questions.items():
-            self._modify_selection(name, key, question, config)
+        if self._no_failure_setting_answers is False:
+            sys.exit()
 
     @classmethod
     def _fileparser(cls, filename=None):
@@ -188,6 +191,7 @@ class AskQuestions:
         else:
             result.update(cls._unfold_answers_helper(default_name, answers, default_name))
         return result
+
     @classmethod
     def _unfold_answers_helper(cls, name, answers, default_name='__DEFAULT__ANSWERS__'):
         result = {}
