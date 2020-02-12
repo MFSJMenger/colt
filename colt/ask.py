@@ -54,23 +54,25 @@ class AskQuestions:
         """ask the actual question"""
         answers = self.questions.ask()
         if filename is not None:
-            self._create_config_start(self._fileparser(), self.name, answers)
-            self._write(filename)
+            self.create_config_from_answers(filename, answers)
         self.answers = answers
         return answers
 
-    def create_config_from_answers(self, filename, answers=None):
+    def create_config_from_answers(self, filename, answers):
         """Create a config from defined answers"""
-        if answers is not None:
-            self._create_config_start(self._fileparser(), self.name, answers)
-            self._write(filename)
+        if answers is None:
+            return
+        default_name = '__DEFAULT__ANSWERS__'
+        answers = self._unfold_answers(answers, default_name)
+        with open(filename, 'w') as f:
+            f.write('\n'.join(answer for key, answerdct in answers.items() for answer in answeriter(key, answerdct, default_name)))
 
     def check_only(self, filename):
         self.only_check = True
         answers = self.questions.ask()
         if self._check_failed is True:
-            self._create_config_start(self._fileparser(), self.name, answers)
-            self._write(filename)
+            filename = filename + "__check"
+            self.create_config_from_answers(filename, answers)
             raise Exception(f"Input not complete, check file '{filename}' for missing values!")
         self.only_check = False
         return answers
@@ -122,13 +124,8 @@ class AskQuestions:
                 except SystemExit:
                     print(f"""In Section({section}) key({key}) unknown, maybe typo?""")
 
-    def _write(self, filename):
-        """write output to file"""
-        with open(filename, 'w') as configfile:
-            self._fileparser().write(configfile)
-
     def _actual_modifyer(self, question, answer):
-        _ConcreteQuestion.set_answer(question, answer)
+        question.set_answer(question, answer)
 
     def _modify(self, name, config, questions):
         """set answers depending on the config file!"""
@@ -178,30 +175,45 @@ class AskQuestions:
         return parser
 
     @classmethod
-    def _create_config_start(cls, config, name, entries):
-        """Starting routine to create config file"""
-        if isinstance(entries, SubquestionsAnswer):
-            config[name] = {}
-            config[name][entries.name] = entries.value
-            cls._create_config(config, f"{name}::{entries.name}({entries.value})", entries)
-        else:
-            cls._create_config(config, name, entries)
+    def _unfold_answers(cls, answers, default_name): 
 
-    @classmethod
-    def _create_config(cls, config, name, entries):
-        # sanity check!
-        if not (isinstance(entries, SubquestionsAnswer) or isinstance(entries, dict)):
-            return
-
-        config[name] = {}
-
-        for key, entry in entries.items():
-            if isinstance(entry, SubquestionsAnswer):
-                config[name][entry.name] = entry.value
-                cls._create_config(config, f"{name}::{entry.name}({entry.value})", entry)
-            elif isinstance(entry, dict):
-                cls._create_config(config, f"{name}::{key}", entry)
-            elif isinstance(entry, list):
-                config[name][key] = ", ".join(str(ele) for ele in entry)
+        result = {}
+        if isinstance(answers, SubquestionsAnswer):
+            result[default_name] = {}
+            if isinstance(answers.value, list):
+                result[default_name][answers.name] = ", ".join(str(ele) for ele in answers.value)
             else:
-                config[name][key] = str(entry)
+                result[default_name][answers.name] = str(answers.value)
+            result.update(cls._unfold_answers_helper(f"{answers.name}({answers.value})", answers))
+        else:
+            result.update(cls._unfold_answers_helper(default_name, answers, default_name))
+        return result
+    @classmethod
+    def _unfold_answers_helper(cls, name, answers, default_name='__DEFAULT__ANSWERS__'):
+        result = {}
+        result[name] = {}
+        default = result[name]
+        if name == default_name:
+            name = f""
+
+        for key, answer in answers.items():
+            if isinstance(answer, SubquestionsAnswer):
+                default[key] = str(answer.value)
+                result.update(cls._unfold_answers_helper(f"{name}{key}({answer.value})", answer))
+            elif isinstance(answer, dict):
+                result.update(cls._unfold_answers_helper(f"{name}{key}", answer))
+            elif isinstance(answer, list):
+                default[key] = ", ".join(str(ele) for ele in answer)
+            else:
+                default[key] = str(answer)
+        return result
+
+
+def answeriter(name, dct, default_name):
+    if name != default_name:
+        yield f'[{name}]'
+    else:
+        yield f'\n'
+    for name, value in dct.items():
+        yield f"{name} = {value}"
+    yield ''

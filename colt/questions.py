@@ -321,8 +321,11 @@ class _ConcreteQuestion(_QuestionBase):
         self._accept_enter = True
         # this is kinda a hack to ensure that the provided config
         # file is correct,
-        with ExitOnException():
+        try:
             self._set_answer = self._parse(str(value))
+            return
+        except ValueError:
+            pass
 
     def _generate_question(self, question):
         """generate actual question"""

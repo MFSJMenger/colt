@@ -97,15 +97,15 @@ class Colt(metaclass=ColtMeta):
         return AskQuestions(name, cls.questions, config=config)
 
     @classmethod
-    def from_questions(cls, name, check_only=False, config=None, savefile=None):
+    def from_questions(cls, name, *args, check_only=False, config=None, savefile=None, **kwargs):
         questions = cls.generate_questions(name, config=config)
         if check_only is True:
             return questions.check_only(savefile)
         answers = questions.ask(savefile)
-        return cls.from_config(answers)
+        return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
-    def from_config(cls, answer):
+    def from_config(cls, answer, *args, **kwargs):
         raise Exception("Cannot load from_config, as it is not implemented!, "
                         "also from_questions depend on that!")
 
