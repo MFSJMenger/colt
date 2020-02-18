@@ -8,6 +8,7 @@ from .config import ConfigParser
 from .questions import QuestionGenerator, WrongChoiceError
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
+from .exceptions import ErrorSettingAnswerFromFile
 
 
 def with_attribute(attr, value):
@@ -108,9 +109,7 @@ class AskQuestions(Mapping):
     def set_answers_from_file(self, filename):
         errmsg = self._set_answers_from_file(filename)
         if errmsg is not None:
-            print(f'Error parsing file: {filename}')
-            print(errmsg)
-            sys.exit()
+            raise ErrorSettingAnswerFromFile(filename, errmsg)
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
@@ -136,7 +135,10 @@ class AskQuestions(Mapping):
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
         errstr = ""
-        parsed, self.literals = ConfigParser.read(filename, self.literals)
+        try:
+            parsed, self.literals = ConfigParser.read(filename, self.literals)
+        except FileNotFoundError:
+            return f"File '{filename}' not found!"
         #
         for section in parsed:
             if section == ConfigParser.base:

@@ -5,9 +5,15 @@ import re
 class FileIterable:
 
     def __init__(self, filename, options="r"):
-        self._fileiter = open(filename, options)
+        self.closed = True
         self._previous = 0
         self._status = None
+        self._fileiter = self._open(filename, options)
+
+    def _open(self, filename, options):
+        fhandle = open(filename, options)
+        self.closed = False
+        return fhandle
 
     def _read(self):
         while True:
@@ -24,7 +30,8 @@ class FileIterable:
         return next(self._status)
 
     def __del__(self):
-        self._fileiter.close()
+        if not self.closed:
+            self._fileiter.close()
 
 
 class ConfigParser(MutableMapping):
