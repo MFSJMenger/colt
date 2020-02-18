@@ -102,7 +102,7 @@ def test_basic_ask_questions_from_config_file(questions, configini, configiniout
 
 def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
     questions = AskQuestions("name", questions, config=configini)
-    answers = questions.check_only('missing.txt')
+    answers = questions.check_only()
     assert answers['qm']['nqm'] == 100 
     assert answers['qm']['nmm'] == 200 
     assert answers['examplecase']['a'] == '666'
@@ -113,7 +113,7 @@ def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
 
 def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configini, configiniout):
     questions = AskQuestions("name", questions, config=configini)
-    answers = questions.check_only(configiniout)
+    answers = questions.check_only()
     assert answers['qm']['nqm'] == 100 
     assert answers['qm']['nmm'] == 200 
     assert answers['examplecase']['a'] == '666'
@@ -125,9 +125,7 @@ def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configin
 def test_basic_ask_questions_from_config_checkonly_fail_default_set(questions, configini):
     questions = questions.replace("nqm = 200 :: int", "nqm = yes :: bool")
     questions = AskQuestions("name", questions, config=configini)
-    print(questions)
-
-#    answers = questions.check_only('missing.txt')
+    answers = questions.check_only()
 #    assert answers['qm']['nqm'] == 100 
 #    assert answers['qm']['nmm'] == 200 
 #    assert answers['examplecase']['a'] == '666'

@@ -1,10 +1,11 @@
-from functools import wraps
+from collections.abc import Mapping
 import configparser
+from functools import wraps
 import sys
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
-from .questions import QuestionGenerator
+from .questions import QuestionGenerator, WrongChoiceError
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
 
@@ -15,6 +16,7 @@ def with_attribute(attr, value):
         def _inner(self, *args, **kwargs):
             if hasattr(self, attr):
                 old = getattr(self, attr)
+                delete = False
             else:
                 delete = True
             setattr(self, attr, value)
@@ -26,11 +28,11 @@ def with_attribute(attr, value):
     return _class_function
 
 
-class AskQuestions:
+class AskQuestions(Mapping):
     """Main Object to handle question request"""
 
     __slots__ = ("name", "literals", "questions", "answers",
-                 "only_check", "check_failed", '_no_failure_setting_answers')
+                 "only_checking", "check_failed", '_no_failure_setting_answers')
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -61,9 +63,9 @@ class AskQuestions:
         # setup
         self.questions = self._setup(questions.questions, config)
         #
-        self.only_check = False
+        self.only_checking = False
         self.check_failed = False
-        self._no_failure_setting_answers = None
+        self._no_failure_setting_answers = True
 
     @classmethod
     def questions_from_file(cls, name, filename, config=None):
@@ -88,18 +90,27 @@ class AskQuestions:
         with open(filename, 'w') as f:
             f.write('\n'.join(answer for key, answerdct in answers.items() for answer in answeriter(key, answerdct, default_name)))
 
-    def check_only(self, filename):
-        self.only_check = True
-        answers = self.questions.ask()
-        if self.check_failed is True:
-            filename = filename + "__check"
-            self.create_config_from_answers(filename, answers)
-            raise Exception(f"Input not complete, check file '{filename}' for missing values!")
-        self.only_check = False
-        return answers
+    @with_attribute('only_checking', True)
+    def check_only(self, filename=None):
+        if filename is not None:
+            self.set_answers_from_file(filename)
+        return self.questions.ask()
 
     def __getitem__(self, key):
         return self.questions.get(key, None)
+
+    def __len__(self):
+        return len(self.questions)
+
+    def __iter__(self):
+        return iter(self.questions)
+
+    def set_answers_from_file(self, filename):
+        errmsg = self._set_answers_from_file(filename)
+        if errmsg is not None:
+            print(f'Error parsing file: {filename}')
+            print(errmsg)
+            sys.exit()
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
@@ -116,11 +127,15 @@ class AskQuestions:
             self._no_failure_setting_answers = False
             if question.typ == 'existing_file':
                 return f"\n{key} = {answer}, File does not exist!"
-            return f"\n{key} = {answer}, TypeError expected: '{question.typ}'"
+            return f"\n{key} = {answer}, ValueError expected: '{question.typ}'"
+        except WrongChoiceError:
+            self._no_failure_setting_answers = False
+            return f"\n{key} = {answer}, Wrong Choice: can only be ({', '.join(str(choice) for choice in question.choices)})"
 
     @with_attribute('_no_failure_setting_answers', True)
-    def set_answers_from_file(self, filename):
+    def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
+        errstr = ""
         parsed, self.literals = ConfigParser.read(filename, self.literals)
         #
         for section in parsed:
@@ -164,10 +179,11 @@ class AskQuestions:
                 print(f'Unkown type...')
 
             if errmsg != "":
-                print(f"{error}{errmsg}")
+                errstr += f"{error}{errmsg}\n"
 
-        if self._no_failure_setting_answers is False:
-            sys.exit()
+        if errstr == "":
+            return None
+        return errstr
 
     @classmethod
     def _fileparser(cls, filename=None):

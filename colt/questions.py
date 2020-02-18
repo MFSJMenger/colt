@@ -9,6 +9,11 @@ from .generator import GeneratorBase, BranchingNode
 from .parser import bool_parser, list_parser, ilist_parser
 from .parser import ilist_np_parser, flist_parser, flist_np_parser, abspath, file_exists
 
+
+class WrongChoiceError(Exception):
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+
 # store Questions
 Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
                       defaults=("", "str", None, None, None))
@@ -302,7 +307,7 @@ class _ConcreteQuestionBase(_QuestionBase):
         #
         self._parse = self._select_parser(question.typ)
         # set defaults
-        self._choices = None
+        self.choices = None
         self._default = None
         self._accept_enter = False
         self._comment = None
@@ -319,7 +324,7 @@ class _ConcreteQuestionBase(_QuestionBase):
 
     def _ask(self):
         if self.parent is not None:
-            if self.parent.only_check is True:
+            if self.parent.only_checking is True:
                 return self._check_only()
         return self._ask_implementation()
 
@@ -372,9 +377,9 @@ class _ConcreteQuestionBase(_QuestionBase):
             # reask
             result = self._ask_implementation()
 
-        if self._choices is not None:
-            if result not in self._choices:
-                print(f"answer({result}) has to be ({', '.join(self._choices)})")
+        if self.choices is not None:
+            if result not in self.choices:
+                print(f"answer({result}) has to be one of ({', '.join(str(ele) for ele in self.choices)})")
                 # reask
                 result = self._ask_implementation()
         return result
@@ -383,10 +388,15 @@ class _ConcreteQuestionBase(_QuestionBase):
         """set the answer to a suitable value, also here parse is called!
            only consistent inputs values are accepted
         """
+        value = str(value)
         if value.strip() == "":
             return
         # this is a hack to ensure that the provided config file is correct
         self._set_answer = self._parse(str(value))
+        if self.choices is not None:
+            if self._set_answer not in self.choices:
+                raise WrongChoiceError
+
 
     def _ask_question(self):
         """Helper routine which asks the actual question"""
@@ -447,10 +457,10 @@ class _ConcreteQuestion(_ConcreteQuestionBase):
     def set_choices(self, choices):
         """set choices"""
         if choices is None:
-            self._choices = None
+            self.choices = None
             return
         try:
-            self._choices = [self._parse(choice) for choice in choices]
+            self.choices = [self._parse(choice) for choice in choices]
             return
         except ValueError:
             pass
@@ -477,7 +487,7 @@ class _ConcreteQuestion(_ConcreteQuestionBase):
 
     def _ask(self):
         if self.parent is not None:
-            if self.parent.only_check is True:
+            if self.parent.only_checking is True:
                 return self._check_only()
         return self._ask_implementation()
 
