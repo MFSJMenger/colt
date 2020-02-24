@@ -97,11 +97,14 @@ def remove_brackets_and_quotes(string):
     """remove brackets from string"""
     return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")
 
+
 # empty class
 class NotDefined:
     __slots__ = ()
 
+
 NOT_DEFINED = NotDefined()
+
 
 class Validator:
 
@@ -115,7 +118,7 @@ class Validator:
         'ilist_np': ilist_np_parser,
         'flist': flist_parser,
         'flist_np': flist_np_parser,
-        'file': abspath, # return abspath
+        'file': abspath,  # return abspath
         'folder': abspath,
         'existing_file': file_exists,
     }

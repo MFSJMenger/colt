@@ -13,6 +13,7 @@ class WrongChoiceError(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 
+
 # store Questions
 Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
                       defaults=("", "str", NOT_DEFINED, None, None))
@@ -290,7 +291,7 @@ class _ConcreteQuestion(_QuestionBase):
         # setup
         _QuestionBase.__init__(self, parent)
         #
-        self._value = Validator(question.typ, default=question.default, 
+        self._value = Validator(question.typ, default=question.default,
                                 choices=question.choices)
         #
         self._accept_enter = True
@@ -393,11 +394,6 @@ class _ConcreteQuestion(_QuestionBase):
 
     def print(self):
         return f"{self.question}\n"
-
-    def _ask(self):
-        if self.parent is None or self.parent.only_checking is False:
-            self._ask_implementation()
-        return self._answer
 
 
 # Used to save status of a concrete answer
