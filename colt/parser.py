@@ -92,6 +92,75 @@ def choose_split_char(answer):
         split_char = None
     return split_char
 
+
 def remove_brackets_and_quotes(string):
     """remove brackets from string"""
     return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")
+
+# empty class
+class NotDefined:
+    __slots__ = ()
+
+NOT_DEFINED = NotDefined()
+
+class Validator:
+
+    _parsers = {
+        'str': str,
+        'float': float,
+        'int': int,
+        'bool': bool_parser,
+        'list': list_parser,
+        'ilist': ilist_parser,
+        'ilist_np': ilist_np_parser,
+        'flist': flist_parser,
+        'flist_np': flist_np_parser,
+        'file': abspath, # return abspath
+        'folder': abspath,
+        'existing_file': file_exists,
+    }
+
+    def __init__(self, typ, default=NOT_DEFINED, choices=None):
+        #
+        self._parse = self._parsers[typ]
+        #
+        self._value = self._set_value(default)
+        self._choices = self._set_choices(choices)
+
+    def _set_value(self, default):
+        if default is not NOT_DEFINED:
+            default = self.validate(default)
+        return default
+
+    def _set_choices(self, choices):
+        """set choices"""
+        if choices is None:
+            return None
+        try:
+            return [self._parse(choice) for choice in choices]
+        except ValueError:
+            pass
+        raise ValueError("Choises ({' ,'.join(choices)}) cannot be converted")
+
+    def validate(self, value):
+        return self._parse(str(value))
+
+    def get(self):
+        if self._value is NOT_DEFINED:
+            raise ValueError("Value not defined!")
+        return self._value
+
+    def set(self, value):
+        self._value = self.validate(value)
+
+    @classmethod
+    def register_parser(cls, name, parser):
+        if not isinstance(name, str):
+            raise ValueError("key needs to be a string")
+        if not callable(parser):
+            raise ValueError("parser needs to be callable with a single argument")
+        cls._parsers[name] = parser
+
+    @classmethod
+    def get_parsers(cls):
+        return cls._parsers

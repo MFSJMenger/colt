@@ -3,7 +3,7 @@ import argparse
 from abc import ABCMeta
 #
 from .questions import QuestionGenerator
-from .questions import _ConcreteQuestion
+from .questions import Validator, NOT_DEFINED
 from .questions import Question
 from .ask import AskQuestions
 
@@ -122,17 +122,17 @@ class Colt(metaclass=ColtMeta):
         parser = argparse.ArgumentParser(description=description,
                                          formatter_class=argparse.RawTextHelpFormatter)
         #
-        type_parser = _ConcreteQuestion.get_parsers()
+        type_parser = Validator.get_parsers()
 
         for key, question in cls.questions[""].items():
             if not isinstance(question, Question):
                 raise ValueError("Only linear trees allowed!")
-            if question.default is not None:
-                parser.add_argument(f'--{key}', metavar=key, type=type_parser[question.typ],
-                                    default=question.default, help=question.comment)
-            else:
+            if question.default is NOT_DEFINED:
                 parser.add_argument(f'{key}', metavar=key, type=type_parser[question.typ],
                                     help=question.comment)
+            else:
+                parser.add_argument(f'--{key}', metavar=key, type=type_parser[question.typ],
+                                    default=question.default, help=question.comment)
 
         results = parser.parse_args()
 

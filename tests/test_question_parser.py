@@ -56,11 +56,11 @@ def check_uniform_types():
 
 
 def test_add_new_parser_fail():
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         register_parser("hi", 0)
 
 def test_add_new_parser_fail_key():
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         register_parser(0, lambda x: x)
 
 def test_add_new_parser():
