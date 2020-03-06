@@ -1,6 +1,5 @@
 """Definitions of all Question Classes"""
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from collections.abc import MutableMapping
 #
 from .answers import SubquestionsAnswer
@@ -8,6 +7,8 @@ from .generator import GeneratorBase, BranchingNode
 #
 from .parser import bool_parser, list_parser, ilist_parser
 from .parser import ilist_np_parser, flist_parser, flist_np_parser, abspath, file_exists
+#
+from .slottedcls import slottedcls
 
 
 class WrongChoiceError(Exception):
@@ -15,12 +16,18 @@ class WrongChoiceError(Exception):
         Exception.__init__(self, *args, **kwargs)
 
 # store Questions
-Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
-                      defaults=("", "str", None, None, None))
+Question = slottedcls("Question", 
+                      {
+                        "question": "",
+                        "typ": "str", 
+                        "default": None, 
+                        "choices": None, 
+                        "comment": None,
+                      })
 
 
 # identify literal blocks
-LiteralBlock = namedtuple("LiteralBlock", ("name"))
+LiteralBlock = slottedcls("LiteralBlock", ("name", ))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -55,8 +62,10 @@ class QuestionGenerator(GeneratorBase):
     branching_type = ConditionalQuestion
     node_type = dict
 
-    LeafString = namedtuple("LeafString", ("default", "typ", "choices", "question"),
-                            defaults=(None, "str", None, None))
+    LeafString = slottedcls("LeafString", {"default": None, 
+                                           "typ": 'str', 
+                                           "choices": None, 
+                                           "question": None})
 
     def __init__(self, questions):
         """Main Object to generate questions from string
@@ -493,7 +502,7 @@ class _ConcreteQuestion(_ConcreteQuestionBase):
 
 
 # Used to save status of a concrete answer
-_Answer = namedtuple("_Answer", ("value", "is_set"))
+_Answer = slottedcls("_Answer", ("value", "is_set"))
 
 
 class _Questions(_QuestionBase, MutableMapping):

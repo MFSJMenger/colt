@@ -1,6 +1,6 @@
 import sys
 from functools import wraps, partial
-from collections import namedtuple
+from .slottedcls import slottedcls
 # import traceback
 
 
@@ -48,7 +48,7 @@ class TryOnException(_BaseContextDecorator):
     __slots__ = ('_tuple', '_defaults', '_dct', 'result')
 
     def __init__(self, dct):
-        self._tuple = namedtuple("name", (key for key in dct))
+        self._tuple = slottedcls("name", (key for key in dct))
         self._defaults = dct
         self._dct = {key: None for key in dct}
         self.result = None
