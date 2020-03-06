@@ -1,7 +1,5 @@
 from collections.abc import Mapping
-import configparser
 from functools import wraps
-import sys
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
@@ -89,7 +87,8 @@ class AskQuestions(Mapping):
         default_name = '__DEFAULT__ANSWERS__'
         answers = self._unfold_answers(answers, default_name)
         with open(filename, 'w') as f:
-            f.write('\n'.join(answer for key, answerdct in answers.items() for answer in answeriter(key, answerdct, default_name)))
+            f.write('\n'.join(answer for key, answerdct in answers.items()
+                              for answer in answer_iter(key, answerdct, default_name)))
 
     @with_attribute('only_checking', True)
     def check_only(self, filename=None):
@@ -129,7 +128,8 @@ class AskQuestions(Mapping):
             return f"\n{key} = {answer}, ValueError expected: '{question.typ}'"
         except WrongChoiceError:
             self._no_failure_setting_answers = False
-            return f"\n{key} = {answer}, Wrong Choice: can only be ({', '.join(str(choice) for choice in question.choices)})"
+            return (f"\n{key} = {answer}, Wrong Choice: can only be"
+                    f"({', '.join(str(choice) for choice in question.choices)})")
 
     @with_attribute('_no_failure_setting_answers', True)
     def _set_answers_from_file(self, filename):
@@ -188,17 +188,13 @@ class AskQuestions(Mapping):
         return errstr
 
     @classmethod
-    def _fileparser(cls, filename=None):
-        if filename is None:
-            return configparser.ConfigParser(allow_no_value=True)
-        parser = configparser.ConfigParser(allow_no_value=True)
-        parser.read(filename)
-        return parser
-
-    @classmethod
-    def _unfold_answers(cls, answers, default_name): 
+    def _unfold_answers(cls, answers, default_name):
+        """unfold answers dct of dcts to a single dct
+           with the config header as keys
+        """
 
         result = {}
+
         if isinstance(answers, SubquestionsAnswer):
             result[default_name] = {}
             if isinstance(answers.value, list):
@@ -231,7 +227,7 @@ class AskQuestions(Mapping):
         return result
 
 
-def answeriter(name, dct, default_name):
+def answer_iter(name, dct, default_name):
     if name != default_name:
         yield f'[{name}]'
     else:
