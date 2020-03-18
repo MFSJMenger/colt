@@ -1,15 +1,27 @@
-import numpy as np
 import os
+import numpy as np
 
 
 def abspath(answer):
     return os.path.abspath(os.path.expanduser(answer))
 
 
-def file_exists(cls, path):
-    path = cls.abspath(path)
+def file_exists(path):
+    path = abspath(path)
     if not os.path.isfile(path):
-        raise ValueError("File does not exist")
+        raise ValueError(f"File does not exisit '{path}'")
+    return path
+
+def folder_exists(path):
+    path = abspath(path)
+    if not os.path.isdir(path):
+        raise ValueError(f"Folder does not exisit '{path}'")
+    return path
+
+def non_existing_path(path):
+    path = abspath(path)
+    if os.path.exists(path):
+        raise ValueError(f"File/Folder does already exisit '{path}'")
     return path
 
 
@@ -31,13 +43,12 @@ def bool_parser(answer):
 def list_parser(answer):
     """convert string to list of strings"""
     split_char, answer = _prepare_list_parsing(answer)
-    return [ele.strip() for ele in answer.split(split_char)]
+    return [ele.strip() for ele in answer.split(split_char) if ele.strip() != ""]
 
 
 def flist_parser(answer):
     """convert string to list of floats"""
-    split_char, answer = _prepare_list_parsing(answer)
-    return [float(ele) for ele in answer.split(split_char)]
+    return [float(ele) for ele in list_parser(answer)]
 
 
 def flist_np_parser(answer):
@@ -47,9 +58,10 @@ def flist_np_parser(answer):
 
 def ilist_parser(answer):
     """convert string to list of integers"""
-    split_char, answer = _prepare_list_parsing(answer)
     if '~' not in answer:
-        return [int(ele) for ele in answer.split(split_char)]
+        return [int(ele) for ele in list_parser(answer)]
+    #
+    split_char, answer = _prepare_list_parsing(answer)
     numbers = (parse_integer_numbers(number) for number in answer.split(split_char))
     return sum(numbers, [])
 
@@ -74,6 +86,8 @@ def parse_integer_numbers(string):
         start, _, stop = string.partition('~')
         start, stop = get_upper_bounds(start, stop)
         return list(range(start, stop))
+    if string.strip() == "":
+        return []
     return [int(string)]
 
 
@@ -102,6 +116,12 @@ def remove_brackets_and_quotes(string):
 class NotDefined:
     __slots__ = ()
 
+    def __repr__(self):
+        return "<NOT_DEFINED>"
+
+    def __str__(self):
+        return "<NOT_DEFINED>"
+
 
 NOT_DEFINED = NotDefined()
 
@@ -121,6 +141,9 @@ class Validator:
         'file': abspath,  # return abspath
         'folder': abspath,
         'existing_file': file_exists,
+        'existing_folder': folder_exists,
+        'non_existing_file': non_existing_path,
+        'non_existing_folder': non_existing_path,
     }
 
     def __init__(self, typ, default=NOT_DEFINED, choices=None):

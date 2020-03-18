@@ -5,14 +5,8 @@ from collections.abc import MutableMapping
 from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
 #
-<<<<<<< HEAD
-from .parser import bool_parser, list_parser, ilist_parser
-from .parser import ilist_np_parser, flist_parser, flist_np_parser, abspath, file_exists
-#
-from .slottedcls import slottedcls
-=======
 from .parser import Validator, NOT_DEFINED
->>>>>>> a0b62ba3b0ee1e02fd844b1511eb208a6a38fbbb
+from collections import namedtuple
 
 
 class WrongChoiceError(Exception):
@@ -21,23 +15,12 @@ class WrongChoiceError(Exception):
 
 
 # store Questions
-<<<<<<< HEAD
-Question = slottedcls("Question", 
-                      {
-                        "question": "",
-                        "typ": "str", 
-                        "default": None, 
-                        "choices": None, 
-                        "comment": None,
-                      })
-=======
-Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"),
-                      defaults=("", "str", NOT_DEFINED, None, None))
->>>>>>> a0b62ba3b0ee1e02fd844b1511eb208a6a38fbbb
+Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"), 
+    defaults=("", "str", NOT_DEFINED, None, NOT_DEFINED))
 
 
 # identify literal blocks
-LiteralBlock = slottedcls("LiteralBlock", ("name", ))
+LiteralBlock = namedtuple("LiteralBlock", ("name", ))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -72,10 +55,8 @@ class QuestionGenerator(GeneratorBase):
     branching_type = ConditionalQuestion
     node_type = dict
 
-    LeafString = slottedcls("LeafString", {"default": None, 
-                                           "typ": 'str', 
-                                           "choices": None, 
-                                           "question": None})
+    LeafString = namedtuple("LeafString", ("default", "typ", "choices", "question"),
+                defaults=(NOT_DEFINED, 'str', NOT_DEFINED, NOT_DEFINED))
 
     def __init__(self, questions):
         """Main Object to generate questions from string
@@ -163,7 +144,7 @@ class QuestionGenerator(GeneratorBase):
         # get default
         default = self._parse_default(value.default)
         # get question
-        if value.question is None:
+        if value.question is NOT_DEFINED:
             question = name
         else:
             question = value.question
@@ -239,7 +220,7 @@ class QuestionGenerator(GeneratorBase):
         """Handle Comment section"""
         line, _, comment = line.partition(cls.comment_char)
         if comment == "":
-            comment = None
+            comment = NOT_DEFINED
         else:
             comment = comment.replace("#n", "\n")
         return line, comment
@@ -249,7 +230,7 @@ class QuestionGenerator(GeneratorBase):
         """Handle choices"""
         if line == "":
             return None
-        if line is None:
+        if line is NOT_DEFINED:
             return None
         if typ not in cls._allowed_choices_types:
             return None
@@ -399,9 +380,15 @@ class _ConcreteQuestion(_QuestionBase):
 
     def _generate_question(self, question):
         """generate actual question"""
-        txt = question.question.strip()
+        if question.question is NOT_DEFINED:
+            if question.default is NOT_DEFINED:
+                txt = ""
+            else:
+                txt = f"{question.default}"
+        else:
+            txt = question.question.strip()
         # add default option
-        if question.default is not None:
+        if question.default is not NOT_DEFINED:
             txt += " [%s]" % (str(question.default))
         if question.choices is not None:
             txt += ", choices = (%s)" % (", ".join(question.choices))
@@ -416,7 +403,7 @@ class _ConcreteQuestion(_QuestionBase):
 
 
 # Used to save status of a concrete answer
-_Answer = slottedcls("_Answer", ("value", "is_set"))
+_Answer = namedtuple("_Answer", ("value", "is_set"))
 
 
 class _Questions(_QuestionBase, MutableMapping):

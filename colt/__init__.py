@@ -9,6 +9,8 @@ __version__ = '0.1.0'
 # Helper class to handle easily questions with classes
 from .colt import Colt
 from .plugins import PluginBase
+#
+from .commandline import FromCommandline
 # If Questions should be asked without Colt use AskQuestions
 from .ask import AskQuestions
 # Generate questions from a reference config file

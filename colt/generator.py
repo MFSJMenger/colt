@@ -89,11 +89,6 @@ class GeneratorBase(Mapping):
                 If the value cannot be parsed
         """
 
-    @staticmethod
-    def _preprocess_string(string):
-        """Basic Preprocessor"""
-        return string
-
     def new_branching(self, name, leaf=None):
         """Create a new empty branching"""
         raise NotImplementedError("Branching not implemented in this tree, "
@@ -102,6 +97,11 @@ class GeneratorBase(Mapping):
     @staticmethod
     def new_node():
         """Create a new node of the tree"""
+        return {}
+
+    @staticmethod
+    def tree_container():
+        """Create the container of the Tree"""
         return {}
 
     @classmethod
@@ -114,19 +114,6 @@ class GeneratorBase(Mapping):
            a particular node based on its block name
         """
         return self._get_node(node_name, self.tree)
-
-    @classmethod
-    def _get_node(cls, node_name, tree):
-        """Actual implementation of get_node """
-        if node_name is None or node_name.strip() == "":
-            return tree
-        # loop over nodes to reach the particular node
-        nodes = node_name.split(cls.seperator)
-        for node in nodes:
-            tree = cls._get_next_node(tree, node)
-            if tree is None:
-                return None
-        return tree
 
     def add_element(self, name, line, parentnode=None, overwrite=False):
         """add a single leaf node to the tree"""
@@ -227,6 +214,24 @@ class GeneratorBase(Mapping):
 
     def __iter__(self):
         return iter(self._keys)
+
+    @staticmethod
+    def _preprocess_string(string):
+        """Basic Preprocessor"""
+        return string
+
+    @classmethod
+    def _get_node(cls, node_name, tree):
+        """Actual implementation of get_node """
+        if node_name is None or node_name.strip() == "":
+            return tree
+        # loop over nodes to reach the particular node
+        nodes = node_name.split(cls.seperator)
+        for node in nodes:
+            tree = cls._get_next_node(tree, node)
+            if tree is None:
+                return None
+        return tree
 
     def _configstring_to_keys_and_tree(self, string):
         """transform a configstring to a tree object"""
@@ -437,8 +442,8 @@ class GeneratorBase(Mapping):
         keys = set()
         # add starting value
         keys.add("")
-        # create starting node
-        tree = self.new_node()
+        # create container for the tree
+        tree = self.tree_container()
         # parse defaults
         for key, value in config[self.default].items():
             tree[key] = self.leaf_from_string(key, value, parent="")
