@@ -1,3 +1,5 @@
+import os
+#
 from collections.abc import Mapping
 from functools import wraps
 #
@@ -114,7 +116,8 @@ class AskQuestions(Mapping):
         """setup questions and read config file in case a default file is give"""
         self.questions = parse_question(questions, parent=self)
         if config is not None:
-            self.set_answers_from_file(config)
+            if os.path.isfile(config):
+                self.set_answers_from_file(config)
         return self.questions
 
     def _set_answer(self, section, key, question, answer):

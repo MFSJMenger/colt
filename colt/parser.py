@@ -112,6 +112,31 @@ def remove_brackets_and_quotes(string):
     return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")
 
 
+def _as_python_object(string, obj, name, dct={}):
+    try:
+        result = eval(string, dct)
+    except SyntaxError:
+        raise ValueError(f"Could not parse {string}") from None
+    if not isinstance(result, obj):
+        raise ValueError(f"Value is not a python {name}!")
+    return result
+
+
+def as_python_list(string):
+    """try to convert string to python list"""
+    return _as_python_object(string, list, "list")
+
+
+def as_python_dict(string):
+    """try to convert string to python list"""
+    return _as_python_object(string, dict, "dict")
+
+
+def as_python_numpy_array(string):
+    """try to convert string to python list"""
+    return _as_python_object(string, np.ndarray, "np.array", dct={'numpy': np, 'np': np, 'array': np.array})
+
+
 # empty class
 class NotDefined:
     __slots__ = ()
@@ -144,6 +169,10 @@ class Validator:
         'existing_folder': folder_exists,
         'non_existing_file': non_existing_path,
         'non_existing_folder': non_existing_path,
+        # python objects
+        'python(list)': as_python_list,
+        'python(dict)': as_python_dict,
+        'python(np.array)': as_python_numpy_array,
     }
 
     def __init__(self, typ, default=NOT_DEFINED, choices=None):

@@ -341,3 +341,20 @@ def test_question_generator_flists_np_string_ssv(check_uniform_types):
     solution = np.array([1.2, 2.1, 3.3, 4.8, 5.1, 6.10])
     solution_string = str(solution).replace(",", " ")
     check_uniform_types("flist_np", solution, solution_string, is_array=True)
+
+
+def test_question_generator_python_nparray(check_uniform_types):
+    solution = np.array([1.2, 2.1, 3.3, 4.8, 5.1, 6.10])
+    solution_string = "np.array([1.2, 2.1, 3.3, 4.8, 5.1, 6.10])"
+    check_uniform_types("python(np.array)", solution, solution_string, is_array=True)
+
+
+def test_question_generator_python_dict(check_uniform_types):
+    solution = {'hi': 1.2, 'du': {1: 2, 3: 4}}
+    solution_string = "{'hi': 1.2, 'du': {1: 2, 3: 4}}"
+    check_uniform_types("python(dict)", solution, solution_string)
+
+def test_question_generator_python_list(check_uniform_types):
+    solution = [1, 2, 'hi', 3]
+    solution_string = "[1, 2, 'hi', 3]"
+    check_uniform_types("python(list)", solution, solution_string)
