@@ -5,13 +5,8 @@ from collections.abc import MutableMapping
 from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
 #
-from .parser import Validator, NOT_DEFINED
+from .validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
 from collections import namedtuple
-
-
-class WrongChoiceError(Exception):
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
 
 
 # store Questions
@@ -305,7 +300,7 @@ class _ConcreteQuestion(_QuestionBase):
         self.question = self._generate_question(question)
 
     def _ask(self):
-        if self.parent is None or self.parent.only_checking is False:
+        if self.parent is None or self.parent.is_only_checking is False:
             self._ask_implementation()
         return self._answer
 
@@ -343,8 +338,10 @@ class _ConcreteQuestion(_QuestionBase):
             return self._answer
         except ValueError:
             print(f"Unknown input '{answer.value}', redo")
-            # reask
-            return self._ask_implementation()
+        except ValidatorErrorNotInChoices:
+            print(f"Answer '{answer.value}' not in choices!")
+        # reask!
+        return self._ask_implementation()
 
     def set_answer(self, value: str):
         """set the answer to a suitable value, also here parse is called!
@@ -450,6 +447,9 @@ class _Subquestions(_QuestionBase, MutableMapping):
         _QuestionBase.__init__(self, parent)
         # main question
         self.name = name
+        #
+        if main_question.typ != 'str':
+            raise ValueError("Cases can only be of type string!") 
         # subquestions
         self.subquestions = {name: parse_question(question, parent=self.parent)
                              for name, question in questions.items()}

@@ -5,7 +5,7 @@ from functools import wraps
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
-from .questions import QuestionGenerator, WrongChoiceError
+from .questions import QuestionGenerator, ValidatorErrorNotInChoices
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
 from .exceptions import ErrorSettingAnswerFromFile
@@ -33,7 +33,7 @@ class AskQuestions(Mapping):
     """Main Object to handle question request"""
 
     __slots__ = ("name", "literals", "questions", "answers",
-                 "only_checking", "check_failed", '_no_failure_setting_answers')
+                 "is_only_checking", "check_failed", '_no_failure_setting_answers')
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -64,7 +64,7 @@ class AskQuestions(Mapping):
         # setup
         self.questions = self._setup(questions.questions, config)
         #
-        self.only_checking = False
+        self.is_only_checking = False
         self.check_failed = False
         self._no_failure_setting_answers = True
 
@@ -92,7 +92,7 @@ class AskQuestions(Mapping):
             f.write('\n'.join(answer for key, answerdct in answers.items()
                               for answer in answer_iter(key, answerdct, default_name)))
 
-    @with_attribute('only_checking', True)
+    @with_attribute('is_only_checking', True)
     def check_only(self, filename=None):
         if filename is not None:
             self.set_answers_from_file(filename)
@@ -129,7 +129,7 @@ class AskQuestions(Mapping):
             if question.typ == 'existing_file':
                 return f"\n{key} = {answer}, File does not exist!"
             return f"\n{key} = {answer}, ValueError expected: '{question.typ}'"
-        except WrongChoiceError:
+        except ValidatorErrorNotInChoices:
             self._no_failure_setting_answers = False
             return (f"\n{key} = {answer}, Wrong Choice: can only be"
                     f"({', '.join(str(choice) for choice in question.choices)})")

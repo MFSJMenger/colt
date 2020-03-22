@@ -1,6 +1,8 @@
 import os
 import numpy as np
 
+__all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
+
 
 def abspath(answer):
     return os.path.abspath(os.path.expanduser(answer))
@@ -151,6 +153,12 @@ class NotDefined:
 NOT_DEFINED = NotDefined()
 
 
+class ValidatorErrorNotInChoices(Exception):
+
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+
+
 class Validator:
 
     _parsers = {
@@ -206,7 +214,11 @@ class Validator:
         return self._value
 
     def set(self, value):
-        self._value = self.validate(value)
+        value = self.validate(value)
+        if self._choices is not None:
+            if value not in self._choices:
+                raise ValidatorErrorNotInChoices("Answer is not in choices")
+        self._value = value
 
     @classmethod
     def register_parser(cls, name, parser):

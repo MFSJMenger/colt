@@ -20,7 +20,7 @@ import numpy.random as random
 import numpy as np
 #
 from colt import AskQuestions
-import colt.parser as LineParser
+import colt.validator as LineParser
 from colt import register_parser
 
 

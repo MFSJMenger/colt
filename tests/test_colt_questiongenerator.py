@@ -2,7 +2,7 @@ import pytest
 #
 from colt import QuestionGenerator
 from colt import Question
-from colt.parser import NOT_DEFINED
+from colt.validator import NOT_DEFINED
 from colt.questions import LiteralBlock
 
 

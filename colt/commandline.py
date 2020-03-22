@@ -1,7 +1,7 @@
 from functools import wraps
 #
 from .colt import Colt
-from .parser import Validator
+from .validator import Validator
 
 
 class FromCommandline:
