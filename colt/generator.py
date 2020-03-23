@@ -1,10 +1,12 @@
 """Basic Logic for an INI based code generator"""
 from abc import abstractmethod
-from collections import namedtuple, OrderedDict
+from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
 #
 import configparser
 import re
+#
+from .slottedcls import slottedcls
 
 
 class GeneratorBase(Mapping):
@@ -48,7 +50,7 @@ class GeneratorBase(Mapping):
     # is there a branching in the tree?
     is_branching_regex = re.compile(r"(?P<branch>.*)\((?P<node>.*)\)")
     # named tuple to store the pair
-    Branch = namedtuple("Branch", ["branch", "node"])
+    Branch = slottedcls("Branch", ["branch", "node"])
 
     def __init__(self, treeconfig):
         """Main Object to generate abstract tree from configstring
@@ -277,7 +279,7 @@ class GeneratorBase(Mapping):
         if conditions is False:
             return tree.get(node, None)
 
-        node, case = conditions
+        node, case = conditions.branch, conditions.node
         tree = tree.get(node, None)
         if tree is not None:
             return tree.get(case, None)
@@ -332,7 +334,7 @@ class GeneratorBase(Mapping):
             tree[node] = self.new_node()
             return tree[node]
         #
-        branch_name, node_name = conditions
+        branch_name, node_name = conditions.branch, conditions.node
         branching = tree.get(branch_name, None)
         # insert new branching into tree
         branching = self._new_branching_node(branching, branch_name)

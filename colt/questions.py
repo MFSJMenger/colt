@@ -6,16 +6,18 @@ from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
 #
 from .validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
-from collections import namedtuple
+from .slottedcls import slottedcls
 
 
 # store Questions
-Question = namedtuple("Question", ("question", "typ", "default", "choices", "comment"), 
-    defaults=("", "str", NOT_DEFINED, None, NOT_DEFINED))
-
+Question = slottedcls("Question", {"question": "",
+                                   "typ": "str",
+                                   "default": NOT_DEFINED,
+                                   "choices": None,
+                                   "comment": NOT_DEFINED,})
 
 # identify literal blocks
-LiteralBlock = namedtuple("LiteralBlock", ("name", ))
+LiteralBlock = slottedcls("LiteralBlock", ("name", ))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -50,8 +52,10 @@ class QuestionGenerator(GeneratorBase):
     branching_type = ConditionalQuestion
     node_type = dict
 
-    LeafString = namedtuple("LeafString", ("default", "typ", "choices", "question"),
-                defaults=(NOT_DEFINED, 'str', NOT_DEFINED, NOT_DEFINED))
+    LeafString = slottedcls("LeafString", {"default": NOT_DEFINED, 
+                                           "typ": "str", 
+                                           "choices": NOT_DEFINED, 
+                                           "question": NOT_DEFINED,})
 
     def __init__(self, questions):
         """Main Object to generate questions from string
@@ -400,7 +404,7 @@ class _ConcreteQuestion(_QuestionBase):
 
 
 # Used to save status of a concrete answer
-_Answer = namedtuple("_Answer", ("value", "is_set"))
+_Answer = slottedcls("_Answer", ("value", "is_set"))
 
 
 class _Questions(_QuestionBase, MutableMapping):
