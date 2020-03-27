@@ -87,6 +87,16 @@ class AskQuestions(GeneratorBase):
         self.answers = answers
         return answers
 
+    @with_attribute('is_only_checking', True)
+    def get_not_set_answers(self):
+        answers = Answers(self.questions.ask(), self._blocks, do_check=False)
+        return answers.get_not_defined_answers()
+
+    @with_attribute('is_only_checking', True)
+    def get_answers_and_not_set(self):
+        answers = Answers(self.questions.ask(), self._blocks, do_check=False)
+        return answers, answers.get_not_defined_answers()
+
     def create_config_from_answers(self, filename, answers):
         """Create a config from defined answers"""
         if answers is None:

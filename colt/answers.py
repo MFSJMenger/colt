@@ -32,12 +32,33 @@ class Answers(UserDict, GeneratorNavigator):
         if do_check is True:
             self._check_answers(answers)
 
+    def get_not_defined_answers(self):
+        result = self._get_not_defined_answers()
+        if result == {}:
+            return None
+        return result
+
     def _check_answers(self, answers):
-        errmsg = "".join(self._errmsg(key, answers) for key in self._blocks)
+        not_defined = self._get_not_defined_answers()
+        errmsg = "".join(self._errmsg(key, items) for key, items in not_defined.items())
         if errmsg != "":
             raise ColtErrorAnswerNotDefined(self.filename, errmsg)
 
-    def _errmsg(self, key, answers):
+    def _errmsg(self, block, items):
+        out = "\n".join(f"{item} = NOT_SET" for item in items)
+        if block == "":
+            return out + "\n"
+        return f"[{block}]\n{out}\n"
+
+    def _get_not_defined_answers(self):
+
+        not_defined = {key: self._get_not_defined_from_block(key, self.data)
+                       for key in self._blocks}
+        not_defined = {key: value for key, value in not_defined.items()
+                       if not (value is None or len(value) == 0)}
+        return not_defined
+
+    def _get_not_defined_from_block(self, key, answers):
         answer = self.is_branching(key)
         if answer is False:
             return self._check_block(key, answers)
@@ -46,9 +67,8 @@ class Answers(UserDict, GeneratorNavigator):
     def _check_block(self, parent, tree):
         node = self.get_node_from_tree(parent, tree)
         if node is None:
-            return ''
-        return self._check_items(parent, node)
-        return ''
+            return None
+        return self._check_items(node)
 
     def _check_branching(self, parent, block_name, node_name, tree):
         parent, child = self.rpslit_keys(block_name)
@@ -57,22 +77,15 @@ class Answers(UserDict, GeneratorNavigator):
             parent = ""
         node = self.get_node_from_tree(parent, tree)
         if node is None:
-            return ''
+            return None
         node = node[child]
         if node != node_name:
-            return ''
-        return self._check_items(parent, node)
+            return None
+        return self._check_items(node)
 
-    def _check_items(self, parent, node):
-        errstr = "".join(f'{key} = NOT_SET\n' for key, value in node.items()
-                         if value is NOT_DEFINED)
-        # no error
-        if errstr == '':
-            return ''
-        # error but in main
-        if parent == '':
-            return errstr + '\n'
-        return f"[{parent}]\n{errstr}\n"
+    def _check_items(self, node):
+        return tuple(key for key, value in node.items()
+                     if value is NOT_DEFINED)
 
 
 class SubquestionsAnswer(Mapping):

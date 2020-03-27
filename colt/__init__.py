@@ -13,6 +13,8 @@ from .plugins import PluginBase
 from .commandline import FromCommandline
 # If Questions should be asked without Colt use AskQuestions
 from .ask import AskQuestions
+# If answer is not set!
+from .answers import ColtErrorAnswerNotDefined
 # Generate questions from a reference config file
 from .questions import QuestionGenerator
 # base classes to store the meta info for questions
