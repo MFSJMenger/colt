@@ -14,11 +14,13 @@ def file_exists(path):
         raise ValueError(f"File does not exisit '{path}'")
     return path
 
+
 def folder_exists(path):
     path = abspath(path)
     if not os.path.isdir(path):
         raise ValueError(f"Folder does not exisit '{path}'")
     return path
+
 
 def non_existing_path(path):
     path = abspath(path)
@@ -136,7 +138,9 @@ def as_python_dict(string):
 
 def as_python_numpy_array(string):
     """try to convert string to python list"""
-    return _as_python_object(string, np.ndarray, "np.array", dct={'numpy': np, 'np': np, 'array': np.array})
+    return _as_python_object(string, np.ndarray,
+                             "np.array",
+                             dct={'numpy': np, 'np': np, 'array': np.array})
 
 
 # empty class
@@ -209,8 +213,7 @@ class Validator:
         return self._parse(str(value))
 
     def get(self):
-        if self._value is NOT_DEFINED:
-            raise ValueError("Value not defined!")
+        """Return self._value if its set or not!"""
         return self._value
 
     def set(self, value):

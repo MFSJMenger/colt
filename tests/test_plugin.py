@@ -12,7 +12,6 @@ def plugin():
         _plugins_storage = '_methods'
         _is_plugin_factory = True
 
-        
     class PluginOne(Plugin):
         pass
 
@@ -28,6 +27,7 @@ def plugin():
 
 
 def test_plugin_basics(plugin):
+    #
     base, plugins = plugin
 
     class PluginFour(base):
@@ -38,6 +38,3 @@ def test_plugin_basics(plugin):
     assert base._methods.get("PluginTwo", None) == plugins.two
     assert base._methods.get("PluginThree", None) == plugins.three
     assert base._methods.get("PluginFour", None) == PluginFour
-
-
-

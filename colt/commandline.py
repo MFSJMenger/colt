@@ -1,7 +1,6 @@
 from functools import wraps
 #
 from .colt import Colt
-from .validator import Validator
 
 
 class FromCommandline:
@@ -14,7 +13,7 @@ class FromCommandline:
             @classmethod
             def from_config(cls, answers):
                 return answers
-        
+
         self._cquest = Example
         self._description = None
 
@@ -24,5 +23,5 @@ class FromCommandline:
         def __wrapper():
             answers = self._cquest.from_commandline(self._description)
             return function(**answers)
-        
+
         return __wrapper

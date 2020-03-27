@@ -4,7 +4,7 @@ from abc import ABCMeta
 #
 from .questions import QuestionGenerator
 from .questions import Validator, NOT_DEFINED
-from .questions import Question
+from .questions import Question, LiteralBlock, ConditionalQuestion
 from .ask import AskQuestions
 
 
@@ -124,7 +124,6 @@ class Colt(metaclass=ColtMeta):
         return fold_commandline_answers({key: getattr(results, key) for key in names})
 
 
-
 def fold_commandline_answers(answers, separator='::'):
     result = {}
     for key, value in answers.items():
@@ -167,7 +166,7 @@ def add_parser_arguments(name, question, parser, type_parser, names):
     elif isinstance(question, dict):
         for key, question in question.items():
             add_parser_arguments(f"{name}::{key}", question, parser, type_parser, names)
-    elif isinstance(question, (LiteralBlock, ConditionalQuestion)): 
+    elif isinstance(question, (LiteralBlock, ConditionalQuestion)):
         raise ValueError("NO commandline args from Literalblocks or ConditionalQuestions")
     else:
         raise ValueError("question needs to be a Question or QuestionBlock")

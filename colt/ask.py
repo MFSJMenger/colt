@@ -1,9 +1,9 @@
 import os
 #
-from collections.abc import Mapping
 from functools import wraps
 #
-from .answers import SubquestionsAnswer
+from .answers import SubquestionsAnswer, Answers
+from .generator import GeneratorBase
 from .config import ConfigParser
 from .questions import QuestionGenerator, ValidatorErrorNotInChoices
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
@@ -29,11 +29,15 @@ def with_attribute(attr, value):
     return _class_function
 
 
-class AskQuestions(Mapping):
+class AskQuestions(GeneratorBase):
     """Main Object to handle question request"""
 
     __slots__ = ("name", "literals", "questions", "answers",
                  "is_only_checking", "check_failed", '_no_failure_setting_answers')
+
+    leafnode_type = _ConcreteQuestion
+    branching_type = _Subquestions
+    node_type = _Questions
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -57,12 +61,13 @@ class AskQuestions(Mapping):
 
         """
         questions = QuestionGenerator(questions)
+        self._blocks = list(questions.keys())
         self.literals = questions.literals
         #
         self.answers = None
         self.name = name
         # setup
-        self.questions = self._setup(questions.questions, config)
+        self.questions = self._setup(questions, config)
         #
         self.is_only_checking = False
         self.check_failed = False
@@ -92,20 +97,14 @@ class AskQuestions(Mapping):
             f.write('\n'.join(answer for key, answerdct in answers.items()
                               for answer in answer_iter(key, answerdct, default_name)))
 
+    def leaf_from_string(self, name, value, parent=None):
+        raise Exception("This class is only a config")
+
     @with_attribute('is_only_checking', True)
     def check_only(self, filename=None):
         if filename is not None:
             self.set_answers_from_file(filename)
-        return self.questions.ask()
-
-    def __getitem__(self, key):
-        return self.questions.get(key, None)
-
-    def __len__(self):
-        return len(self.questions)
-
-    def __iter__(self):
-        return iter(self.questions)
+        return Answers(self.questions.ask(), self._blocks, filename=filename)
 
     def set_answers_from_file(self, filename):
         errmsg = self._set_answers_from_file(filename)
@@ -114,7 +113,11 @@ class AskQuestions(Mapping):
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
-        self.questions = parse_question(questions, parent=self)
+        self.questions = parse_question(questions.questions, parent=self)
+        for key in questions.keys():
+            node = self.get_node_from_tree(key, self.questions)
+            node.set_name(key)
+
         if config is not None:
             if os.path.isfile(config):
                 self.set_answers_from_file(config)

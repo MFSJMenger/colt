@@ -52,7 +52,7 @@ def test_dict_generator_basic(dict_generator):
             'c': "name",
             "system": {
                 'natoms': '8',
-               'methods': 'tddft',
+                'methods': 'tddft',
                 }
             }
 
@@ -75,7 +75,7 @@ def test_dict_generator_tree_from_tree(dict_generator):
             'c': "name",
             "system": {
                 'natoms': '8',
-               'methods': 'tddft',
+                'methods': 'tddft',
                 }
             }
 
@@ -89,6 +89,7 @@ def test_dict_generator_from_float(dict_generator):
     with pytest.raises(TypeError):
         dict_generator(8.88)
 
+
 def test_dict_generator_fail_branching(dict_generator):
     string = """
     a = 100
@@ -100,4 +101,3 @@ def test_dict_generator_fail_branching(dict_generator):
     """
     with pytest.raises(NotImplementedError):
         dict_generator(string)
-

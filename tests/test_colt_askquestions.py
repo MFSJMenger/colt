@@ -72,17 +72,17 @@ def test_basic_ask_questions(questions):
     assert type(questions.questions) == _Questions
 
 
-
 def test_basic_ask_questions_from_configfile(questions, askini):
     questions = AskQuestions("name", questions, config=askini)
     answers = questions.ask()
     assert answers['value'] == 2
 
+
 def test_basic_ask_questions_from_config(questions, configini):
     questions = AskQuestions("name", questions, config=configini)
     answers = questions.ask()
-    assert answers['qm']['nqm'] == 100 
-    assert answers['qm']['nmm'] == 200 
+    assert answers['qm']['nqm'] == 100
+    assert answers['qm']['nmm'] == 200
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
@@ -92,19 +92,20 @@ def test_basic_ask_questions_from_config(questions, configini):
 def test_basic_ask_questions_from_config_file(questions, configini, configiniout):
     questions = AskQuestions("name", questions, config=configini)
     answers = questions.ask(configiniout)
-    assert answers['qm']['nqm'] == 100 
-    assert answers['qm']['nmm'] == 200 
+    assert answers['qm']['nqm'] == 100
+    assert answers['qm']['nmm'] == 200
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
     assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
     # assert get_content(configini) == get_content(configiniout)
 
+
 def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
     questions = AskQuestions("name", questions, config=configini)
     answers = questions.check_only()
-    assert answers['qm']['nqm'] == 100 
-    assert answers['qm']['nmm'] == 200 
+    assert answers['qm']['nqm'] == 100
+    assert answers['qm']['nmm'] == 200
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
@@ -114,21 +115,22 @@ def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
 def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configini, configiniout):
     questions = AskQuestions("name", questions, config=configini)
     answers = questions.check_only()
-    assert answers['qm']['nqm'] == 100 
-    assert answers['qm']['nmm'] == 200 
+    assert answers['qm']['nqm'] == 100
+    assert answers['qm']['nmm'] == 200
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
     assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
-    #assert get_content(configini) == get_content(configiniout)
+    # assert get_content(configini) == get_content(configiniout)
+
 
 def test_basic_ask_questions_from_config_checkonly_fail_default_set(questions, configini):
     questions = questions.replace("nqm = 200 :: int", "nqm = yes :: bool")
     questions = AskQuestions("name", questions, config=configini)
     answers = questions.check_only()
-#    assert answers['qm']['nqm'] == 100 
-#    assert answers['qm']['nmm'] == 200 
-#    assert answers['examplecase']['a'] == '666'
-#    assert answers['examplecase']['further']['a'] == '131'
-#    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
-#    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'
+    assert answers['qm']['nqm'] == 100
+    assert answers['qm']['nmm'] == 200
+    assert answers['examplecase']['a'] == '666'
+    assert answers['examplecase']['further']['a'] == '131'
+    assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
+    assert answers['examplecase']['further']['andmore']['select']['a'] == 'maybe'

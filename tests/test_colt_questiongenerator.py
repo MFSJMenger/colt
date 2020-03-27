@@ -74,6 +74,7 @@ def test_add_question_to_block(questions):
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
 
+
 def test_add_single_question_to_block(questions):
     """test parsing of basic questions string
 
@@ -279,6 +280,7 @@ def test_add_block_to_cases(questions):
     assert (questions['software']['gaussian']['functional']
             == Question("functional", "str", "cam-b3lyp"))
 
+
 def test_generator_from_generator(questions):
     """test parsing of basic questions string
 
@@ -297,6 +299,7 @@ def test_generator_from_generator(questions):
     assert (questions['examplecase']['no']['further']['andmore']['select']['maybe']['a']
             == Question("What was the question?", "str", 'maybe'))
 
+
 def test_generator_from_int():
     """test parsing of basic questions string
 
@@ -304,6 +307,7 @@ def test_generator_from_int():
     """
     with pytest.raises(TypeError):
         QuestionGenerator(5)
+
 
 def test_generator_from_float():
     """test parsing of basic questions string
@@ -333,4 +337,4 @@ def test_generator_parsing_error(questions):
 
     questions = questions_generator.questions
 
-    assert isinstance(questions['system']['mem'] , LiteralBlock)
+    assert isinstance(questions['system']['mem'], LiteralBlock)

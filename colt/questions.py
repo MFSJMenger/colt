@@ -1,6 +1,6 @@
 """Definitions of all Question Classes"""
 from abc import ABC, abstractmethod
-from collections.abc import MutableMapping
+from collections import UserDict
 #
 from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
@@ -9,12 +9,20 @@ from .validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
 from .slottedcls import slottedcls
 
 
+class QuestionContainer(UserDict):
+
+    def __init__(self, data=None):
+        if data is None:
+            data = {}
+        UserDict.__init__(self, data)
+
+
 # store Questions
 Question = slottedcls("Question", {"question": "",
                                    "typ": "str",
                                    "default": NOT_DEFINED,
                                    "choices": None,
-                                   "comment": NOT_DEFINED,})
+                                   "comment": NOT_DEFINED})
 
 # identify literal blocks
 LiteralBlock = slottedcls("LiteralBlock", ("name", ))
@@ -50,12 +58,12 @@ class QuestionGenerator(GeneratorBase):
     # for tree generator
     leafnode_type = Question
     branching_type = ConditionalQuestion
-    node_type = dict
+    node_type = QuestionContainer
 
-    LeafString = slottedcls("LeafString", {"default": NOT_DEFINED, 
-                                           "typ": "str", 
-                                           "choices": NOT_DEFINED, 
-                                           "question": NOT_DEFINED,})
+    LeafString = slottedcls("LeafString", {"default": NOT_DEFINED,
+                                           "typ": "str",
+                                           "choices": NOT_DEFINED,
+                                           "question": NOT_DEFINED})
 
     def __init__(self, questions):
         """Main Object to generate questions from string
@@ -84,8 +92,16 @@ class QuestionGenerator(GeneratorBase):
     def new_branching(cls, name, leaf=None):
         """Create a new empty branching"""
         if leaf is None:
-            return ConditionalQuestion(name, Question(name), {})
-        return ConditionalQuestion(name, leaf, {})
+            return ConditionalQuestion(name, Question(name), QuestionContainer())
+        return ConditionalQuestion(name, leaf, QuestionContainer())
+
+    @staticmethod
+    def new_node():
+        return QuestionContainer()
+
+    @staticmethod
+    def tree_container():
+        return QuestionContainer()
 
     @staticmethod
     def _preprocess_string(string):
@@ -137,7 +153,7 @@ class QuestionGenerator(GeneratorBase):
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
-            name = self._join_keys(parent, name)
+            name = self.join_keys(parent, name)
             self.literals[name] = None
             return LiteralBlock(name)
         # get default
@@ -407,30 +423,20 @@ class _ConcreteQuestion(_QuestionBase):
 _Answer = slottedcls("_Answer", ("value", "is_set"))
 
 
-class _Questions(_QuestionBase, MutableMapping):
+class _Questions(_QuestionBase, UserDict):
 
     def __init__(self, questions, parent=None):
         _QuestionBase.__init__(self, parent)
         self.questions = {name: parse_question(question, parent=self.parent)
                           for (name, question) in questions.items()}
-
-    def __getitem__(self, key):
-        return self.questions.get(key, None)
-
-    def __setitem__(self, key, value):
-        self.questions[key] = value
-
-    def __delitem__(self, key):
-        del self.questions[key]
-
-    def __iter__(self):
-        return iter(self.questions)
-
-    def __len__(self):
-        return len(self.questions)
+        UserDict.__init__(self, self.questions)
+        self._name = NOT_DEFINED
 
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer is possible at the moment!")
+
+    def set_name(self, name):
+        self._name = name
 
     def print(self):
         string = ""
@@ -445,7 +451,7 @@ class _Questions(_QuestionBase, MutableMapping):
         return answers
 
 
-class _Subquestions(_QuestionBase, MutableMapping):
+class _Subquestions(_QuestionBase, UserDict):
 
     def __init__(self, name, main_question, questions, parent=None):
         _QuestionBase.__init__(self, parent)
@@ -453,30 +459,18 @@ class _Subquestions(_QuestionBase, MutableMapping):
         self.name = name
         #
         if main_question.typ != 'str':
-            raise ValueError("Cases can only be of type string!") 
+            raise ValueError("Cases can only be of type string!")
         # subquestions
         self.subquestions = {name: parse_question(question, parent=self.parent)
                              for name, question in questions.items()}
+
         main_question = Question(question=main_question.question, typ=main_question.typ,
                                  default=main_question.default,
                                  choices=self.subquestions.keys(),
                                  comment=main_question.comment)
         self.main_question = _ConcreteQuestion(main_question, parent=self.parent)
-
-    def __getitem__(self, key):
-        return self.subquestions.get(key, None)
-
-    def __setitem__(self, key, value):
-        self.subquestions[key] = value
-
-    def __delitem__(self, key):
-        del self.subquestions[key]
-
-    def __iter__(self):
-        return iter(self.subquestions)
-
-    def __len__(self):
-        return len(self.subquestions)
+        # setup data container
+        UserDict.__init__(self, self.subquestions)
 
     def set_answer(self, value):
         """set answer for main question"""
@@ -496,7 +490,7 @@ class _Subquestions(_QuestionBase, MutableMapping):
 
 def parse_question(question, parent=None):
 
-    if isinstance(question, dict):
+    if isinstance(question, QuestionContainer):
         result = _Questions(question, parent=parent)
     elif isinstance(question, Question):
         result = _ConcreteQuestion(question, parent=parent)

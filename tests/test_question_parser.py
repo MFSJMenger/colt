@@ -59,9 +59,11 @@ def test_add_new_parser_fail():
     with pytest.raises(ValueError):
         register_parser("hi", 0)
 
+
 def test_add_new_parser_fail_key():
     with pytest.raises(ValueError):
         register_parser(0, lambda x: x)
+
 
 def test_add_new_parser():
 
@@ -69,6 +71,7 @@ def test_add_new_parser():
         return answer
 
     register_parser("literal", literal_parser)
+
 
 # simple tests
 def test_parser_bool_failure():
@@ -353,6 +356,7 @@ def test_question_generator_python_dict(check_uniform_types):
     solution = {'hi': 1.2, 'du': {1: 2, 3: 4}}
     solution_string = "{'hi': 1.2, 'du': {1: 2, 3: 4}}"
     check_uniform_types("python(dict)", solution, solution_string)
+
 
 def test_question_generator_python_list(check_uniform_types):
     solution = [1, 2, 'hi', 3]
