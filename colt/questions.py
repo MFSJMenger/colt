@@ -14,7 +14,8 @@ Question = slottedcls("Question", {"question": "",
                                    "typ": "str",
                                    "default": NOT_DEFINED,
                                    "choices": None,
-                                   "comment": NOT_DEFINED})
+                                   "comment": NOT_DEFINED,
+                                   })
 
 # identify literal blocks
 LiteralBlock = slottedcls("LiteralBlock", ("name", ))
@@ -29,7 +30,8 @@ class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
         super().__init__(name, main, subquestions)
         self.main = self.leaf
         self.subquestions = self.subnodes
-        self.main.choices = self.main_choices
+        # updatable view!
+        self.main.choices = self.subquestions.keys()
 
     @property
     def main_choices(self):

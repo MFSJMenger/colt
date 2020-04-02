@@ -292,6 +292,11 @@ class GeneratorBase(GeneratorNavigator, Mapping):
     def __iter__(self):
         return iter(self._keys)
 
+    def block_items(self):
+        for key, value in self.items():
+            if isinstance(value, self.node_type):
+                yield key, value
+
     @staticmethod
     def _preprocess_string(string):
         """Basic Preprocessor"""
