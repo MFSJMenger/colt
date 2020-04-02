@@ -9,19 +9,20 @@ class FromCommandline:
 
         class Example(Colt):
             _questions = questions
+            _description = description
+
+            def __init__(self, function):
+                self._function = function
 
             @classmethod
             def from_config(cls, answers):
                 return answers
 
+            def __call__(self):
+                answers = self.from_commandline(self._description)
+                return self._function(**answers)
+
         self._cquest = Example
-        self._description = None
 
     def __call__(self, function):
-
-        @wraps(function)
-        def __wrapper():
-            answers = self._cquest.from_commandline(self._description)
-            return function(**answers)
-
-        return __wrapper
+        return self._cquest(function)
