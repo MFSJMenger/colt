@@ -40,6 +40,8 @@ class GeneratorNavigator:
     def join_keys(cls, parent, node):
         if parent is None or parent == "":
             return node
+        if node is None or node == "":
+            return parent
         return f"{parent}{cls.seperator}{node}"
 
     @staticmethod
@@ -424,6 +426,8 @@ class GeneratorBase(GeneratorNavigator, Mapping):
         if name is not None:
             name = self.join_keys(parentnode, name)
             keys.add(name)
+        else:
+            name = parentnode
         keys |= set(self.join_keys(name, key) for key in iterator)
         return keys
 
