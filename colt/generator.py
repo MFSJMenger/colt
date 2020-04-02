@@ -47,7 +47,7 @@ class GeneratorNavigator:
         return f"{branch}({case})"
 
     @classmethod
-    def rpslit_keys(cls, node):
+    def rsplit_keys(cls, node):
         parent, sep, child = node.rpartition(cls.seperator)
         if sep != cls.seperator:
             parent = child

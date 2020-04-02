@@ -3,12 +3,12 @@ import os
 from functools import wraps
 #
 from .answers import SubquestionsAnswer, Answers
-from .generator import GeneratorBase
+from .generator import GeneratorNavigator
 from .config import ConfigParser
 from .questions import QuestionGenerator, ValidatorErrorNotInChoices
 from .questions import _Subquestions, _Questions, _ConcreteQuestion
 from .questions import parse_question
-from .exceptions import ErrorSettingAnswerFromFile
+from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
 
 def with_attribute(attr, value):
@@ -29,15 +29,11 @@ def with_attribute(attr, value):
     return _class_function
 
 
-class AskQuestions(GeneratorBase):
+class AskQuestions(GeneratorNavigator):
     """Main Object to handle question request"""
 
     __slots__ = ("name", "literals", "questions", "answers",
                  "is_only_checking", "check_failed", '_no_failure_setting_answers')
-
-    leafnode_type = _ConcreteQuestion
-    branching_type = _Subquestions
-    node_type = _Questions
 
     def __init__(self, name, questions, config=None):
         """Main Object to handle question request
@@ -87,10 +83,17 @@ class AskQuestions(GeneratorBase):
         self.answers = answers
         return answers
 
+    def get_node(self, key):
+        return self.get_node_from_tree(key, self.questions)
+
     @with_attribute('is_only_checking', True)
     def get_not_set_answers(self):
         answers = Answers(self.questions.ask(), self._blocks, do_check=False)
         return answers.get_not_defined_answers()
+
+    @with_attribute('is_only_checking', True)
+    def get_answers_unchecked(self):
+        return Answers(self.questions.ask(), self._blocks, do_check=False)
 
     @with_attribute('is_only_checking', True)
     def get_answers_and_not_set(self):
@@ -107,9 +110,6 @@ class AskQuestions(GeneratorBase):
             f.write('\n'.join(answer for key, answerdct in answers.items()
                               for answer in answer_iter(key, answerdct, default_name)))
 
-    def leaf_from_string(self, name, value, parent=None):
-        raise Exception("This class is only a config")
-
     @with_attribute('is_only_checking', True)
     def check_only(self, filename=None):
         if filename is not None:
@@ -120,6 +120,15 @@ class AskQuestions(GeneratorBase):
         errmsg = self._set_answers_from_file(filename)
         if errmsg is not None:
             raise ErrorSettingAnswerFromFile(filename, errmsg)
+
+    def set_answers_from_dct(self, dct):
+        errmsg = self._set_answers_from_dct(dct)
+        if errmsg is not None:
+            raise ErrorSettingAnswerFromDict(errmsg)
+
+    @staticmethod
+    def is_concrete_question(value):
+        return isinstance(value, _ConcreteQuestion)
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
@@ -147,15 +156,17 @@ class AskQuestions(GeneratorBase):
             return (f"\n{key} = {answer}, Wrong Choice: can only be"
                     f"({', '.join(str(choice) for choice in question.choices)})")
 
-    @with_attribute('_no_failure_setting_answers', True)
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
-        errstr = ""
         try:
             parsed, self.literals = ConfigParser.read(filename, self.literals)
         except FileNotFoundError:
             return f"File '{filename}' not found!"
+        return self._set_answers_from_dct(parsed)
         #
+    @with_attribute('_no_failure_setting_answers', True)
+    def _set_answers_from_dct(self, parsed):
+        errstr = ""
         for section in parsed:
             if section == ConfigParser.base:
                 name = ""
@@ -165,7 +176,7 @@ class AskQuestions(GeneratorBase):
                 error = f'[{section}]'
             errmsg = ""
             #
-            question = QuestionGenerator.get_node_from_tree(name, self.questions)
+            question = self.get_node_from_tree(name, self.questions)
             #
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")

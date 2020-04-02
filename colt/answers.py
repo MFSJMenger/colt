@@ -71,7 +71,7 @@ class Answers(UserDict, GeneratorNavigator):
         return self._check_items(node)
 
     def _check_branching(self, parent, block_name, node_name, tree):
-        parent, child = self.rpslit_keys(block_name)
+        parent, child = self.rsplit_keys(block_name)
         if child is None:
             child = parent
             parent = ""

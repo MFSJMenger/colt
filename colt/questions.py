@@ -9,14 +9,6 @@ from .validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
 from .slottedcls import slottedcls
 
 
-class QuestionContainer(UserDict):
-
-    def __init__(self, data=None):
-        if data is None:
-            data = {}
-        UserDict.__init__(self, data)
-
-
 # store Questions
 Question = slottedcls("Question", {"question": "",
                                    "typ": "str",
@@ -37,6 +29,11 @@ class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
         super().__init__(name, main, subquestions)
         self.main = self.leaf
         self.subquestions = self.subnodes
+        self.main.choices = self.main_choices
+
+    @property
+    def main_choices(self):
+        return list(self.subquestions.keys())
 
     def __str__(self):
         return (f"ConditionalQuestion(name = {self.name},"
@@ -45,6 +42,22 @@ class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
     def __repr__(self):
         return (f"ConditionalQuestion(name = {self.name},"
                 f" main = {self.main}, subquestions = {self.subquestions}")
+
+
+class QuestionContainer(UserDict):
+
+    def __init__(self, data=None):
+        if data is None:
+            data = {}
+        UserDict.__init__(self, data)
+
+    def concrete_items(self):
+        types = (ConditionalQuestion, QuestionContainer)
+        for key, question in self.items():
+            if not isinstance(question, types):
+                yield key, question
+            if isinstance(question, ConditionalQuestion):
+                yield key, question.main
 
 
 class QuestionGenerator(GeneratorBase):
@@ -322,7 +335,7 @@ class _ConcreteQuestion(_QuestionBase):
     def _ask(self):
         if self.parent is None or self.parent.is_only_checking is False:
             self._ask_implementation()
-        return self._answer
+        return self.answer
 
     def _perform_questions(self):
         answer = self._ask_question()
@@ -343,7 +356,7 @@ class _ConcreteQuestion(_QuestionBase):
         """
         #
         if self._answer_set is True:
-            return self._answer
+            return self.answer
         #
         answer = self._perform_questions()
 
@@ -354,8 +367,8 @@ class _ConcreteQuestion(_QuestionBase):
         try:
             if answer.value == "":
                 raise ValueError("No default set, empty string not allowed!")
-            self._answer = answer.value
-            return self._answer
+            self.answer = answer.value
+            return self.answer
         except ValueError:
             print(f"Unknown input '{answer.value}', redo")
         except ValidatorErrorNotInChoices:
@@ -367,7 +380,7 @@ class _ConcreteQuestion(_QuestionBase):
         """set the answer to a suitable value, also here parse is called!
            only consistent inputs values are accepted
         """
-        self._answer = value
+        self.answer = value
         self._answer_set = True
 
     def _ask_question(self):
@@ -376,17 +389,17 @@ class _ConcreteQuestion(_QuestionBase):
         answer = input(self.question).strip()  # strip is important!
         if answer == "":
             if self._accept_enter:
-                answer = self._answer
+                answer = self.answer
                 is_set = True
         #
         return _Answer(answer, is_set)
 
     @property
-    def _answer(self):
+    def answer(self):
         return self._value.get()
 
-    @_answer.setter
-    def _answer(self, value):
+    @answer.setter
+    def answer(self, value):
         self._value.set(value)
 
     def __repr__(self):
@@ -422,15 +435,29 @@ class _ConcreteQuestion(_QuestionBase):
 # Used to save status of a concrete answer
 _Answer = slottedcls("_Answer", ("value", "is_set"))
 
+class _QuestionsContainerBase(_QuestionBase, UserDict):
 
-class _Questions(_QuestionBase, UserDict):
+    def __init__(self, parent, data):
+        _QuestionBase.__init__(self, parent)
+        UserDict.__init__(self, data)
+
+    def concrete_items(self):
+        types = (_Subquestions, _Questions, _LiteralBlock)
+        for key, value in self.items():
+            if not isinstance(value, types):
+                yield key, value
+
+
+class _Questions(_QuestionsContainerBase):
 
     def __init__(self, questions, parent=None):
-        _QuestionBase.__init__(self, parent)
-        self.questions = {name: parse_question(question, parent=self.parent)
+        #
+        self.questions = {name: parse_question(question, parent=parent)
                           for (name, question) in questions.items()}
-        UserDict.__init__(self, self.questions)
+        #
         self._name = NOT_DEFINED
+        # init super()
+        _QuestionsContainerBase.__init__(self, parent, self.questions)
 
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer is possible at the moment!")
@@ -451,26 +478,25 @@ class _Questions(_QuestionBase, UserDict):
         return answers
 
 
-class _Subquestions(_QuestionBase, UserDict):
+class _Subquestions(_QuestionsContainerBase):
 
     def __init__(self, name, main_question, questions, parent=None):
-        _QuestionBase.__init__(self, parent)
         # main question
         self.name = name
         #
         if main_question.typ != 'str':
             raise ValueError("Cases can only be of type string!")
         # subquestions
-        self.subquestions = {name: parse_question(question, parent=self.parent)
+        self.subquestions = {name: parse_question(question, parent=parent)
                              for name, question in questions.items()}
 
         main_question = Question(question=main_question.question, typ=main_question.typ,
                                  default=main_question.default,
                                  choices=self.subquestions.keys(),
                                  comment=main_question.comment)
-        self.main_question = _ConcreteQuestion(main_question, parent=self.parent)
+        self.main_question = _ConcreteQuestion(main_question, parent=parent)
         # setup data container
-        UserDict.__init__(self, self.subquestions)
+        _QuestionsContainerBase.__init__(self, parent, self.subquestions)
 
     def set_answer(self, value):
         """set answer for main question"""
