@@ -163,7 +163,7 @@ class AskQuestions(GeneratorNavigator):
         except FileNotFoundError:
             return f"File '{filename}' not found!"
         return self._set_answers_from_dct(parsed)
-        #
+
     @with_attribute('_no_failure_setting_answers', True)
     def _set_answers_from_dct(self, parsed):
         errstr = ""
