@@ -3,30 +3,22 @@ from importlib import import_module
 from docutils import nodes
 #
 from sphinx.util.docutils import SphinxDirective
-from .validator import NOT_DEFINED
+from . import QuestionGenerator, NOT_DEFINED
 
 
 class ColtDirective(SphinxDirective):
 
-    has_content = True
-    _colt_seperator = '::'
+    has_content = False
 
     required_arguments = 1
-    optional_arguments = 1
+    optional_arguments = 0
     option_spec = {
             'name': str,
             'class': str,
     }
 
     def run(self):
-        try:
-            module = import_module(self.arguments[0])
-        except ImportError:
-            msg = f'Could not find module {self.arguments}'
-            raise Exception(msg)
-
-        cls = self.options.get('class', None)
-        questions = self._load_questions(module, cls)
+        questions = self._load_questions()
 
         main_node = nodes.topic('')
         for key, value in questions.block_items():
@@ -72,7 +64,7 @@ class ColtDirective(SphinxDirective):
         if question.choices is not None:
             choices = ", ".join(question.choices)
 #        if question.default is not NOT_DEFINED:
-        if question.default is NOT_DEFINED:
+        if question.default is not NOT_DEFINED:
             txt = f' default: {question.default}'
             if question.choices is not None:
                 txt += f', from {choices}'
@@ -83,22 +75,51 @@ class ColtDirective(SphinxDirective):
             text += txt + '\n'
 
 #        if question.comment is not NOT_DEFINED:
-        if question.comment is NOT_DEFINED:
+        if question.comment is not NOT_DEFINED:
             text += question.comment
         if text != "":
             content = True
         return nodes.literal_block(text, text), content
 
-    def _load_questions(self, module, cls):
+    def _load_questions(self):
+
+        try:
+            module = import_module(self.arguments[0])
+        except ImportError:
+            msg = f'Could not find module {self.arguments}'
+            raise Exception(msg)
+
+        cls = self.options.get('class', None)
 
         if hasattr(module, cls):
             obj = getattr(module, cls)
             return obj.questions
         raise Exception('could import module')
 
+class ColtQFileDirective(ColtDirective):
+    has_content = False
+
+    required_arguments = 1
+    optional_arguments = 0
+    option_spec = {
+            'name': str,
+    }
+    
+    def _load_questions(self):
+
+        try:
+            with open(self.arguments[0], 'r') as f:
+                questions = f.read()
+        except:
+            msg = f'Could not find module {self.arguments}'
+            raise Exception(msg)
+        #
+        return QuestionGenerator(questions)
+
 
 def setup(app):
     app.add_directive("colt", ColtDirective)
+    app.add_directive("colt_qfile", ColtQFileDirective)
 
     return {
             'version': '0.1',
