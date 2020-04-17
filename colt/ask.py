@@ -32,7 +32,7 @@ def with_attribute(attr, value):
 class AskQuestions(GeneratorNavigator):
     """Main Object to handle question request"""
 
-    __slots__ = ("name", "literals", "questions", "answers",
+    __slots__ = ("literals", "questions", "answers",
                  "is_only_checking", "check_failed", '_no_failure_setting_answers')
 
     def __init__(self, questions, config=None):
