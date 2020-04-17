@@ -183,6 +183,8 @@ def add_parser_argument(name, parser, question, type_parser, names):
     _, metavar_name = rpartition_by_separator(name)
     if question.comment is NOT_DEFINED:
         comment = None
+    else:
+        comment = question.comment
     if question.default is NOT_DEFINED:
         parser.add_argument(f'{name}', metavar=metavar_name, type=type_parser[question.typ],
                             help=comment)
