@@ -15,7 +15,7 @@ def _call(self, *args, **kwargs):
     return self._function(**answers)
 
 
-def _from_config(cls, answers):
+def _from_config(cls, answers, *args, **kwargs):
     return answers
 
 
