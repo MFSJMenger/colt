@@ -68,18 +68,18 @@ def questions():
 
 
 def test_basic_ask_questions(questions):
-    questions = AskQuestions("name", questions)
+    questions = AskQuestions(questions)
     assert type(questions.questions) == _Questions
 
 
 def test_basic_ask_questions_from_configfile(questions, askini):
-    questions = AskQuestions("name", questions, config=askini)
+    questions = AskQuestions(questions, config=askini)
     answers = questions.ask()
     assert answers['value'] == 2
 
 
 def test_basic_ask_questions_from_config(questions, configini):
-    questions = AskQuestions("name", questions, config=configini)
+    questions = AskQuestions(questions, config=configini)
     answers = questions.ask()
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200
@@ -90,7 +90,7 @@ def test_basic_ask_questions_from_config(questions, configini):
 
 
 def test_basic_ask_questions_from_config_file(questions, configini, configiniout):
-    questions = AskQuestions("name", questions, config=configini)
+    questions = AskQuestions(questions, config=configini)
     answers = questions.ask(configiniout)
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200
@@ -102,7 +102,7 @@ def test_basic_ask_questions_from_config_file(questions, configini, configiniout
 
 
 def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
-    questions = AskQuestions("name", questions, config=configini)
+    questions = AskQuestions(questions, config=configini)
     answers = questions.check_only()
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200
@@ -113,7 +113,7 @@ def test_basic_ask_questions_from_config_checkonly_pass(questions, configini):
 
 
 def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configini, configiniout):
-    questions = AskQuestions("name", questions, config=configini)
+    questions = AskQuestions(questions, config=configini)
     answers = questions.check_only()
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200
@@ -126,7 +126,7 @@ def test_basic_ask_questions_from_config_checkonly_pass_file(questions, configin
 
 def test_basic_ask_questions_from_config_checkonly_fail_default_set(questions, configini):
     questions = questions.replace("nqm = 200 :: int", "nqm = yes :: bool")
-    questions = AskQuestions("name", questions, config=configini)
+    questions = AskQuestions(questions, config=configini)
     answers = questions.check_only()
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200

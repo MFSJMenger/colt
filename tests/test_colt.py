@@ -26,7 +26,7 @@ def base():
             self.screening = screening
 
         @classmethod
-        def from_config(cls, answers):
+        def from_config(cls, answers, *args, **kwargs):
             return cls(answers['nstates'], answers['natoms'],
                        answers['factor'], answers['screening'])
 

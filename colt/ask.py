@@ -35,14 +35,10 @@ class AskQuestions(GeneratorNavigator):
     __slots__ = ("name", "literals", "questions", "answers",
                  "is_only_checking", "check_failed", '_no_failure_setting_answers')
 
-    def __init__(self, name, questions, config=None):
+    def __init__(self, questions, config=None):
         """Main Object to handle question request
 
         Args:
-            name (str):
-                Name of the questions name, will be added to each block
-                of the corresponding config
-
             questions (obj):
                 Questions object, can be
                           1) Dict, dictionary object
@@ -51,17 +47,15 @@ class AskQuestions(GeneratorNavigator):
                           From there the real questions will be generated!
 
         Kwargs:
-            config (str):
+            config (str), optional:
                 None, a single or multiple configfiles
                 from which default answers are set!
-
         """
         questions = QuestionGenerator(questions)
         self._blocks = list(questions.keys())
         self.literals = questions.literals
         #
         self.answers = None
-        self.name = name
         # setup
         self.questions = self._setup(questions, config)
         #
@@ -70,10 +64,10 @@ class AskQuestions(GeneratorNavigator):
         self._no_failure_setting_answers = True
 
     @classmethod
-    def questions_from_file(cls, name, filename, config=None):
+    def questions_from_file(cls, filename, config=None):
         with open(filename, "r") as fhandle:
             txt = fhandle.read()
-        return cls(name, txt, config)
+        return cls(txt, config)
 
     def ask(self, filename=None):
         """ask the actual question"""
@@ -133,10 +127,7 @@ class AskQuestions(GeneratorNavigator):
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
         self.questions = parse_question(questions.questions, parent=self)
-        for key in questions.keys():
-            node = self.get_node_from_tree(key, self.questions)
-            node.set_name(key)
-
+        #
         if config is not None:
             if os.path.isfile(config):
                 self.set_answers_from_file(config)
@@ -228,7 +219,7 @@ class AskQuestions(GeneratorNavigator):
                 result[default_name][answers.name] = ", ".join(str(ele) for ele in answers.value)
             else:
                 result[default_name][answers.name] = str(answers.value)
-            result.update(cls._unfold_answers_helper(f"{answers.name}({answers.value})", answers))
+            result.update(cls._unfold_answers_helper(cls.join_keys(answers.name, answers.value), answers))
         else:
             result.update(cls._unfold_answers_helper(default_name, answers, default_name))
         return result
@@ -244,9 +235,9 @@ class AskQuestions(GeneratorNavigator):
         for key, answer in answers.items():
             if isinstance(answer, SubquestionsAnswer):
                 default[key] = str(answer.value)
-                result.update(cls._unfold_answers_helper(f"{name}{key}({answer.value})", answer))
+                result.update(cls._unfold_answers_helper(cls.join_keys(name, cls.join_case(key, answer.value)), answer))
             elif isinstance(answer, dict):
-                result.update(cls._unfold_answers_helper(f"{name}{key}", answer))
+                result.update(cls._unfold_answers_helper(cls.join_keys(name, key), answer))
             elif isinstance(answer, list):
                 default[key] = ", ".join(str(ele) for ele in answer)
             else:

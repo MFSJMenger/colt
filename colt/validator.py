@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+
 __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
 
 
@@ -145,6 +146,7 @@ def as_python_numpy_array(string):
 
 # empty class
 class NotDefined:
+    """Empty class to use something analogue to None"""
     __slots__ = ()
 
     def __repr__(self):
@@ -188,11 +190,11 @@ class Validator:
     }
 
     def __init__(self, typ, default=NOT_DEFINED, choices=None):
-        #
         self._parse = self._parsers[typ]
         #
         self._value = self._set_value(default)
         self._choices = self._set_choices(choices)
+        #
 
     def _set_value(self, default):
         if default is not NOT_DEFINED:
@@ -207,7 +209,7 @@ class Validator:
             return [self._parse(choice) for choice in choices]
         except ValueError:
             pass
-        raise ValueError("Choises ({' ,'.join(choices)}) cannot be converted")
+        raise ValueError(f"Choises ({' ,'.join(choices)}) cannot be converted")
 
     def validate(self, value):
         return self._parse(str(value))

@@ -325,7 +325,6 @@ class _ConcreteQuestion(_QuestionBase):
                                 choices=question.choices)
         #
         self._accept_enter = True
-        self._answer_set = False
         self._comment = question.comment
         self.question = question.question
         self.typ = question.typ
@@ -333,10 +332,11 @@ class _ConcreteQuestion(_QuestionBase):
         self._setup(question)
         # generate the question
         self.question = self._generate_question(question)
+        self.is_set = False
 
     def _ask(self):
         if self.parent is None or self.parent.is_only_checking is False:
-            self._ask_implementation()
+            return self._ask_implementation()
         return self.answer
 
     def _perform_questions(self):
@@ -357,11 +357,11 @@ class _ConcreteQuestion(_QuestionBase):
            the question is ask again
         """
         #
-        if self._answer_set is True:
+        if self.is_set is True:
             return self.answer
         #
         answer = self._perform_questions()
-
+        #
         if answer.is_set is True:
             # if answer is set, return unparsed answer
             return answer.value
@@ -383,7 +383,7 @@ class _ConcreteQuestion(_QuestionBase):
            only consistent inputs values are accepted
         """
         self.answer = value
-        self._answer_set = True
+        self.is_set = True
 
     def _ask_question(self):
         """Helper routine which asks the actual question"""
@@ -456,16 +456,11 @@ class _Questions(_QuestionsContainerBase):
         #
         self.questions = {name: parse_question(question, parent=parent)
                           for (name, question) in questions.items()}
-        #
-        self._name = NOT_DEFINED
         # init super()
         _QuestionsContainerBase.__init__(self, parent, self.questions)
 
     def set_answer(self, value):
         raise Exception("For _Questions class no set_answer is possible at the moment!")
-
-    def set_name(self, name):
-        self._name = name
 
     def print(self):
         string = ""
@@ -491,11 +486,12 @@ class _Subquestions(_QuestionsContainerBase):
         # subquestions
         self.subquestions = {name: parse_question(question, parent=parent)
                              for name, question in questions.items()}
-
+        # ensure that choices are only subquestions options!
         main_question = Question(question=main_question.question, typ=main_question.typ,
                                  default=main_question.default,
                                  choices=self.subquestions.keys(),
                                  comment=main_question.comment)
+        #
         self.main_question = _ConcreteQuestion(main_question, parent=parent)
         # setup data container
         _QuestionsContainerBase.__init__(self, parent, self.subquestions)
@@ -512,8 +508,7 @@ class _Subquestions(_QuestionsContainerBase):
 
     def _ask(self):
         main_answer = self.main_question.ask()
-        subquestion = self.get(main_answer, None)
-        return SubquestionsAnswer(self.name, main_answer, subquestion.ask())
+        return SubquestionsAnswer(self.name, main_answer, self[main_answer].ask())
 
 
 def parse_question(question, parent=None):

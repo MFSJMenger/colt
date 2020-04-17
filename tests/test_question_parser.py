@@ -46,7 +46,7 @@ def check_uniform_types():
             natoms = :: {typ}
         """
 
-        questions = AskQuestions("test", questions)
+        questions = AskQuestions(questions)
         with mock_input_to_value(solution_string):
             answers = questions.ask()
 

@@ -93,15 +93,16 @@ class Colt(metaclass=ColtMeta):
         return self.__class__.questions
 
     @classmethod
-    def generate_questions(cls, name, config=None):
-        return AskQuestions(name, cls.questions, config=config)
+    def generate_questions(cls, config=None):
+        return AskQuestions(cls.questions, config=config)
 
     @classmethod
-    def from_questions(cls, name, *args, check_only=False, config=None, savefile=None, **kwargs):
+    def from_questions(cls, *args, check_only=False, config=None, savefile=None, **kwargs):
         questions = cls.generate_questions(name, config=config)
         if check_only is True:
-            return questions.check_only(savefile)
-        answers = questions.ask(savefile)
+            answers = questions.check_only(savefile)
+        else:
+            answers = questions.ask(savefile)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
@@ -110,18 +111,23 @@ class Colt(metaclass=ColtMeta):
                         "also from_questions depend on that!")
 
     @classmethod
-    def from_commandline(cls, description=None):
+    def from_commandline(cls, *args, description=None, **kwargs):
         """Initialize file from commandline options"""
         answers = cls.get_commandline_args(description=description)
-        return cls.from_config(answers)
+        return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
     def get_commandline_args(cls, description=None):
         """for the moment we accept only linear trees!"""
-
         parser, names = commandline_parser_from_questions(cls.questions, description)
         results = parser.parse_args()
         return fold_commandline_answers({key: getattr(results, key) for key in names})
+
+    @classmethod
+    def generate_input(cls, filename, config=None):
+        questions = cls.generate_questions(config)
+        answers = questions.ask()
+        questions.create_config_from_answers(filename, answers)
 
 
 def fold_commandline_answers(answers, separator='::'):
