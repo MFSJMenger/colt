@@ -437,6 +437,7 @@ class _ConcreteQuestion(_QuestionBase):
 # Used to save status of a concrete answer
 _Answer = slottedcls("_Answer", ("value", "is_set"))
 
+
 class _QuestionsContainerBase(_QuestionBase, UserDict):
 
     def __init__(self, parent, data):
