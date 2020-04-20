@@ -357,7 +357,7 @@ class _LiteralBlock(_QuestionBase):
     def set_answer(self, value):
         """answer"""
         if self.parent is not None:
-            return self.parent.literals[self.name] = value
+            self.parent.literals[self.name] = value
         raise NotImplementedError("set_answer not supported for literalblock")
 
     def _ask(self):
