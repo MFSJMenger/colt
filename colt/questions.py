@@ -1,6 +1,7 @@
 """Definitions of all Question Classes"""
 from abc import ABC, abstractmethod
 from collections import UserDict
+from collections.abc import Mapping
 #
 from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
@@ -62,6 +63,41 @@ class QuestionContainer(UserDict):
                 yield key, question.main
 
 
+class LiteralContainer(Mapping):
+
+    def __init__(self):
+        self._literals = {}
+        self.data = {}
+
+    def add(self, name, literal, value=None): 
+        self._literals[name] = literal
+        self.data[name] = value
+
+    def update(self, name, questions, parentnode=None):
+        blockname = QuestionGenerator.join_keys(parentnode, name)
+        for name, literal, value in questions.literals._all_items():
+            name = QuestionGenerator.join_keys(blockname, name)
+            literal.name = name
+            self.add(name, literal, value)
+
+    def __getitem__(self, key):                
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def __len__(self):            
+        return len(self.data)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def _all_items(self):
+        for key in self.data:
+            yield key, self._literals[key], self.data[key]
+
+
+
 class QuestionGenerator(GeneratorBase):
     """Contains all tools to automatically generate questions from
        a given file
@@ -96,7 +132,7 @@ class QuestionGenerator(GeneratorBase):
         if isinstance(questions, QuestionGenerator):
             self.literals = questions.literals
         elif isinstance(questions, str):
-            self.literals = {}
+            self.literals = LiteralContainer()
         else:
             raise TypeError("Generator only accepts type string!")
         GeneratorBase.__init__(self, questions)
@@ -150,8 +186,9 @@ class QuestionGenerator(GeneratorBase):
         # check for literal block
         if value.typ == 'literal':
             name = self.join_keys(parent, name)
-            self.literals[name] = None
-            return LiteralBlock(name)
+            block = LiteralBlock(name)
+            self.literals.add(name, block)
+            return block
         # get default
         default = self._parse_default(value.default)
         # get question
@@ -189,13 +226,13 @@ class QuestionGenerator(GeneratorBase):
         #
         for name, questions in subquestions.items():
             name = self.join_case(key, name)
-            self._update_literals(name, questions, parentnode=block)
+            self.literals.update(name, questions, parentnode=block)
 
     def add_questions_to_block(self, questions, block=None, overwrite=True):
         """add questions to a particular block """
         questions = QuestionGenerator(questions)
         self.add_elements(questions, parentnode=block, overwrite=overwrite)
-        self._update_literals(block, questions)
+        self.literals.update(block, questions)
 
     def generate_block(self, name, questions, block=None):
         """Register `questions` at a given `key` in given `block`
@@ -222,12 +259,7 @@ class QuestionGenerator(GeneratorBase):
         """
         questions = QuestionGenerator(questions)
         self.add_node(name, questions, parentnode=block)
-        self._update_literals(name, questions, parentnode=block)
-
-    def _update_literals(self, name, questions, parentnode=None):
-        blockname = self.join_keys(parentnode, name)
-        self.literals.update({self.join_keys(blockname, key): value 
-                              for key, value in questions.literals.items()})
+        self.literals.update(name, questions, parentnode=block)
 
     @classmethod
     def questions_from_file(cls, filename):
@@ -324,6 +356,8 @@ class _LiteralBlock(_QuestionBase):
 
     def set_answer(self, value):
         """answer"""
+        if self.parent is not None:
+            return self.parent.literals[self.name] = value
         raise NotImplementedError("set_answer not supported for literalblock")
 
     def _ask(self):
