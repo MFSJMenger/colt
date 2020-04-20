@@ -118,25 +118,6 @@ class QuestionGenerator(GeneratorBase):
     def tree_container():
         return QuestionContainer()
 
-    @staticmethod
-    def _preprocess_string(string):
-        """Basic Preprocessor to handle in file comments!"""
-
-        parsed_string = []
-        comment_lines = []
-        for line in string.splitlines():
-            line = line.strip()
-            if line == "":
-                continue
-            if line.startswith('#'):
-                comment_lines.append(line[1:])
-                continue
-            if comment_lines != []:
-                line += "###" + "#n".join(comment_lines)
-                comment_lines = []
-            parsed_string.append(line)
-        return "\n".join(parsed_string)
-
     def leaf_from_string(self, name, value, parent=None):
         """Create a leaf from an entry in the config file
 
@@ -200,11 +181,21 @@ class QuestionGenerator(GeneratorBase):
             >>> questions.generate_cases("sampling", {name: sampling.questions for name, sampling
                                                       in cls._sampling_methods.items()})
         """
+        #
+        subquestions = {name: QuestionGenerator(questions) 
+                        for name, questions in subquestions.items()}
+        #
         self.add_branching(key, subquestions, parentnode=block)
+        #
+        for name, questions in subquestions.items():
+            name = self.join_case(key, name)
+            self._update_literals(name, questions, parentnode=block)
 
     def add_questions_to_block(self, questions, block=None, overwrite=True):
         """add questions to a particular block """
+        questions = QuestionGenerator(questions)
         self.add_elements(questions, parentnode=block, overwrite=overwrite)
+        self._update_literals(block, questions)
 
     def generate_block(self, name, questions, block=None):
         """Register `questions` at a given `key` in given `block`
@@ -229,7 +220,14 @@ class QuestionGenerator(GeneratorBase):
             >>> questions.generate_block("software", {name: software.questions for name, software
                                                       in cls._softwares.items()})
         """
+        questions = QuestionGenerator(questions)
         self.add_node(name, questions, parentnode=block)
+        self._update_literals(name, questions, parentnode=block)
+
+    def _update_literals(self, name, questions, parentnode=None):
+        blockname = self.join_keys(parentnode, name)
+        self.literals.update({self.join_keys(blockname, key): value 
+                              for key, value in questions.literals.items()})
 
     @classmethod
     def questions_from_file(cls, filename):
@@ -254,6 +252,25 @@ class QuestionGenerator(GeneratorBase):
         else:
             comment = comment.replace("#n", "\n")
         return line, comment
+
+    @staticmethod
+    def _preprocess_string(string):
+        """Basic Preprocessor to handle in file comments!"""
+
+        parsed_string = []
+        comment_lines = []
+        for line in string.splitlines():
+            line = line.strip()
+            if line == "":
+                continue
+            if line.startswith('#'):
+                comment_lines.append(line[1:])
+                continue
+            if comment_lines != []:
+                line += "###" + "#n".join(comment_lines)
+                comment_lines = []
+            parsed_string.append(line)
+        return "\n".join(parsed_string)
 
     @classmethod
     def _parse_choices(cls, typ, line):
