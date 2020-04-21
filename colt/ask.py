@@ -102,14 +102,9 @@ class AskQuestions(GeneratorNavigator):
         answers = self._unfold_answers(answers, default_name)
         with open(filename, 'w') as f:
             ""
-            out = ""
-            for key, answerdct in answers.items():
-                if isinstance(answerdct, LiteralBlockString): 
-                    out += answer + "\n"
-                else:
-                    for answer in answer_iter(key, answerdct, default_name):
-                        out += answer + "\n"
-            f.write(out)
+            f.write("\n".join(answer for key, answerdct in answers.items()
+                              for answer in answer_iter(key, answerdct, default_name)))
+                    
 
     @with_attribute('is_only_checking', True)
     def check_only(self, filename=None):
@@ -218,8 +213,8 @@ class AskQuestions(GeneratorNavigator):
            with the config header as keys
         """
 
-        result = {}
 
+        result = {}
         if isinstance(answers, SubquestionsAnswer):
             result[default_name] = {}
             if isinstance(answers.value, list):
@@ -243,22 +238,27 @@ class AskQuestions(GeneratorNavigator):
             if isinstance(answer, SubquestionsAnswer):
                 default[key] = str(answer.value)
                 result.update(cls._unfold_answers_helper(cls.join_keys(name, cls.join_case(key, answer.value)), answer))
+            elif isinstance(answer, LiteralBlockString):
+                result[cls.join_keys(name, key)] = answer
             elif isinstance(answer, dict):
                 result.update(cls._unfold_answers_helper(cls.join_keys(name, key), answer))
             elif isinstance(answer, list):
                 default[key] = ", ".join(str(ele) for ele in answer)
-            elif isinstance(answer, LiteralBlockString):
-                result[self.join_keys(name, answer)] = answer
             else:
                 default[key] = str(answer)
         return result
 
 
 def answer_iter(name, dct, default_name):
+
     if name != default_name:
         yield f'[{name}]'
     else:
-        yield f'\n'
-    for name, value in dct.items():
-        yield f"{name} = {value}"
-    yield ''
+        yield ''
+
+    if isinstance(dct, LiteralBlockString):
+        yield dct.data
+    else:
+        for name, value in dct.items():
+            yield f"{name} = {value}"
+        yield ''
