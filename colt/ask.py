@@ -6,7 +6,7 @@ from .answers import SubquestionsAnswer, Answers
 from .generator import GeneratorNavigator
 from .config import ConfigParser
 from .questions import QuestionGenerator, ValidatorErrorNotInChoices
-from .questions import _Subquestions, _Questions, _ConcreteQuestion
+from .questions import _Subquestions, _Questions, _ConcreteQuestion, LiteralBlockString
 from .questions import parse_question
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
@@ -101,8 +101,15 @@ class AskQuestions(GeneratorNavigator):
         default_name = '__DEFAULT__ANSWERS__'
         answers = self._unfold_answers(answers, default_name)
         with open(filename, 'w') as f:
-            f.write('\n'.join(answer for key, answerdct in answers.items()
-                              for answer in answer_iter(key, answerdct, default_name)))
+            ""
+            out = ""
+            for key, answerdct in answers.items():
+                if isinstance(answerdct, LiteralBlockString): 
+                    out += answer + "\n"
+                else:
+                    for answer in answer_iter(key, answerdct, default_name):
+                        out += answer + "\n"
+            f.write(out)
 
     @with_attribute('is_only_checking', True)
     def check_only(self, filename=None):
@@ -240,6 +247,8 @@ class AskQuestions(GeneratorNavigator):
                 result.update(cls._unfold_answers_helper(cls.join_keys(name, key), answer))
             elif isinstance(answer, list):
                 default[key] = ", ".join(str(ele) for ele in answer)
+            elif isinstance(answer, LiteralBlockString):
+                result[self.join_keys(name, answer)] = answer
             else:
                 default[key] = str(answer)
         return result

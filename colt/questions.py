@@ -1,6 +1,6 @@
 """Definitions of all Question Classes"""
 from abc import ABC, abstractmethod
-from collections import UserDict
+from collections import UserDict, UserString
 from collections.abc import Mapping
 #
 from .answers import SubquestionsAnswer
@@ -63,6 +63,12 @@ class QuestionContainer(UserDict):
                 yield key, question.main
 
 
+class LiteralBlockString(UserString):
+
+    def __init__(self, string):
+        UserString.__init__(self, string)
+
+
 class LiteralContainer(Mapping):
 
     def __init__(self):
@@ -71,7 +77,7 @@ class LiteralContainer(Mapping):
 
     def add(self, name, literal, value=None): 
         self._literals[name] = literal
-        self.data[name] = value
+        self.data[name] = LiteralBlockString(value)
 
     def update(self, name, questions, parentnode=None):
         blockname = QuestionGenerator.join_keys(parentnode, name)
@@ -84,7 +90,7 @@ class LiteralContainer(Mapping):
         return self.data[key]
 
     def __setitem__(self, key, value):
-        self.data[key] = value
+        self.data[key] = LiteralBlockString(value)
 
     def __len__(self):            
         return len(self.data)
@@ -95,7 +101,6 @@ class LiteralContainer(Mapping):
     def _all_items(self):
         for key in self.data:
             yield key, self._literals[key], self.data[key]
-
 
 
 class QuestionGenerator(GeneratorBase):
