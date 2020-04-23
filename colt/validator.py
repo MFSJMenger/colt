@@ -193,7 +193,7 @@ class Validator:
         self._parse = self._parsers[typ]
         #
         self._value = self._set_value(default)
-        self._choices = self._set_choices(choices)
+        self.choices = self._set_choices(choices)
         #
 
     def _set_value(self, default):
@@ -220,8 +220,8 @@ class Validator:
 
     def set(self, value):
         value = self.validate(value)
-        if self._choices is not None:
-            if value not in self._choices:
+        if self.choices is not None:
+            if value not in self.choices:
                 raise ValidatorErrorNotInChoices("Answer is not in choices")
         self._value = value
 

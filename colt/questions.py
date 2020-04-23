@@ -18,7 +18,7 @@ Question = slottedcls("Question", {"question": "",
                                    })
 
 # identify literal blocks
-LiteralBlock = slottedcls("LiteralBlock", ("name", ))
+_LiteralBlock = slottedcls("_LiteralBlock", ("name", ))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -170,7 +170,7 @@ class QuestionGenerator(GeneratorBase):
         if value.typ == 'literal':
             name = self.join_keys(parent, name)
             self.literals[name] = None
-            return LiteralBlock(name)
+            return _LiteralBlock(name)
         # get default
         default = self._parse_default(value.default)
         # get question
@@ -298,7 +298,7 @@ class _QuestionBase(ABC):
         return self._ask()
 
 
-class _LiteralBlock(_QuestionBase):
+class LiteralBlock(_QuestionBase):
     """parse literal blocks"""
 
     def __init__(self, literal, parent):
@@ -315,7 +315,7 @@ class _LiteralBlock(_QuestionBase):
         return None
 
 
-class _ConcreteQuestion(_QuestionBase):
+class ConcreteQuestion(_QuestionBase):
 
     def __init__(self, question, parent=None):
         # setup
@@ -326,7 +326,7 @@ class _ConcreteQuestion(_QuestionBase):
         #
         self._accept_enter = True
         self._comment = question.comment
-        self.question = question.question
+        self.raw_question = question.question
         self.typ = question.typ
         #
         self._setup(question)
@@ -404,6 +404,10 @@ class _ConcreteQuestion(_QuestionBase):
     def answer(self, value):
         self._value.set(value)
 
+    @property
+    def choices(self):
+        return self._value.choices
+
     def __repr__(self):
         return f"{self.question}\n"
 
@@ -445,13 +449,13 @@ class _QuestionsContainerBase(_QuestionBase, UserDict):
         UserDict.__init__(self, data)
 
     def concrete_items(self):
-        types = (_Subquestions, _Questions, _LiteralBlock)
+        types = (Subquestions, Questions, LiteralBlock)
         for key, value in self.items():
             if not isinstance(value, types):
                 yield key, value
 
 
-class _Questions(_QuestionsContainerBase):
+class Questions(_QuestionsContainerBase):
 
     def __init__(self, questions, parent=None):
         #
@@ -461,7 +465,7 @@ class _Questions(_QuestionsContainerBase):
         _QuestionsContainerBase.__init__(self, parent, self.questions)
 
     def set_answer(self, value):
-        raise Exception("For _Questions class no set_answer is possible at the moment!")
+        raise Exception("For Questions class no set_answer is possible at the moment!")
 
     def print(self):
         string = ""
@@ -476,7 +480,7 @@ class _Questions(_QuestionsContainerBase):
         return answers
 
 
-class _Subquestions(_QuestionsContainerBase):
+class Subquestions(_QuestionsContainerBase):
 
     def __init__(self, name, main_question, questions, parent=None):
         # main question
@@ -493,7 +497,7 @@ class _Subquestions(_QuestionsContainerBase):
                                  choices=self.subquestions.keys(),
                                  comment=main_question.comment)
         #
-        self.main_question = _ConcreteQuestion(main_question, parent=parent)
+        self.main_question = ConcreteQuestion(main_question, parent=parent)
         # setup data container
         _QuestionsContainerBase.__init__(self, parent, self.subquestions)
 
@@ -515,13 +519,13 @@ class _Subquestions(_QuestionsContainerBase):
 def parse_question(question, parent=None):
 
     if isinstance(question, QuestionContainer):
-        result = _Questions(question, parent=parent)
+        result = Questions(question, parent=parent)
     elif isinstance(question, Question):
-        result = _ConcreteQuestion(question, parent=parent)
-    elif isinstance(question, LiteralBlock):
-        return _LiteralBlock(question, parent=parent)
+        result = ConcreteQuestion(question, parent=parent)
+    elif isinstance(question, _LiteralBlock):
+        return LiteralBlock(question, parent=parent)
     elif isinstance(question, ConditionalQuestion):
-        result = _Subquestions(question.name, question.main, question.subquestions, parent=parent)
+        result = Subquestions(question.name, question.main, question.subquestions, parent=parent)
     else:
         raise TypeError("Type of question not known!", question)
     return result

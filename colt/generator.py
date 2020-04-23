@@ -290,7 +290,8 @@ class GeneratorBase(GeneratorNavigator, Mapping):
         return len(self._keys)
 
     def __iter__(self):
-        return iter(self._keys)
+        """return sorted keys just in case"""
+        return iter(sorted(self._keys))
 
     def block_items(self):
         for key, value in self.items():
