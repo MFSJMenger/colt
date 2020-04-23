@@ -1,8 +1,8 @@
 from flask import render_template
 from flask import request
 #
-from jsapp import app
-from jsapp.forms import QuestionForm
+from . import app
+from .forms import QuestionForm
 import json
 #
 
