@@ -192,13 +192,13 @@ class Validator:
     def __init__(self, typ, default=NOT_DEFINED, choices=None):
         self._parse = self._parsers[typ]
         #
-        self._value = self._set_value(default)
         self.choices = self._set_choices(choices)
+        self._value = self._set_value(default)
         #
 
     def _set_value(self, default):
         if default is not NOT_DEFINED:
-            default = self.validate(default)
+            default = self._get_value(default)
         return default
 
     def _set_choices(self, choices):
@@ -218,12 +218,15 @@ class Validator:
         """Return self._value if its set or not!"""
         return self._value
 
-    def set(self, value):
+    def _get_value(self, value):
         value = self.validate(value)
         if self.choices is not None:
             if value not in self.choices:
                 raise ValidatorErrorNotInChoices("Answer is not in choices")
-        self._value = value
+        return value
+
+    def set(self, value):
+        self._value = self._get_value(value)
 
     @classmethod
     def register_parser(cls, name, parser):

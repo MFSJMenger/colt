@@ -5,7 +5,9 @@ from abc import ABCMeta
 from .questions import QuestionGenerator
 from .questions import Validator, NOT_DEFINED
 from .questions import Question, LiteralBlock, ConditionalQuestion
+from. slottedcls import slottedcls
 from .ask import AskQuestions
+from .presets import set_preset
 
 
 __all__ = ["Colt"]
@@ -93,8 +95,8 @@ class Colt(metaclass=ColtMeta):
         return self.__class__.questions
 
     @classmethod
-    def generate_questions(cls, config=None):
-        return AskQuestions(cls.questions, config=config)
+    def generate_questions(cls, config=None, presets=None):
+        return AskQuestions(cls._set_presets(presets), config)
 
     @classmethod
     def from_questions(cls, *args, check_only=False, config=None, savefile=None, **kwargs):
@@ -124,10 +126,22 @@ class Colt(metaclass=ColtMeta):
         return fold_commandline_answers({key: getattr(results, key) for key in names})
 
     @classmethod
-    def generate_input(cls, filename, config=None):
-        questions = cls.generate_questions(config)
+    def generate_input(cls, filename, config=None, presets=None):
+        questions = cls.generate_questions(config=config, presets=presets)
         answers = questions.ask()
         questions.create_config_from_answers(filename, answers)
+
+    @classmethod
+    def _set_presets(cls, presets):
+        if presets is None:
+            return cls.questions 
+        return cls._questions_with_presets(presets)
+
+    @classmethod
+    def _questions_with_presets(cls, presets):
+        questions = cls.questions
+        set_preset(questions, presets)
+        return questions
 
 
 def fold_commandline_answers(answers, separator='::'):
