@@ -1,6 +1,6 @@
 from colt import QuestionGenerator, AskQuestions
 from colt.ask import ErrorSettingAnswerFromDict
-from colt import NOT_DEFINED
+from colt.validator import NOT_DEFINED, ValidatorErrorNotInChoices
 
 
 def get_answer(question):
@@ -170,6 +170,14 @@ class QuestionForm:
 
         return self.blocks[block], key
 
+    def set_answer_f(self, name, answer):
+        if answer == "":
+            return False
+        block, key = self._split_keys(name)
+        #
+        block.concrete[key].answer = answer
+        return True
+
     def set_answer(self, name, answer):
         if answer == "":
             return False
@@ -180,6 +188,8 @@ class QuestionForm:
             block.concrete[key].answer = answer
             is_set = True
         except ValueError:
+            is_set = False
+        except ValidatorErrorNotInChoices:
             is_set = False
         #
         return is_set
