@@ -553,6 +553,10 @@ class _Subquestions(_QuestionsContainerBase):
         # setup data container
         _QuestionsContainerBase.__init__(self, parent, self.subquestions)
 
+    @property
+    def choices(self):
+        return self.main_question.choices
+
     def set_answer(self, value):
         """set answer for main question"""
         self.main_question.set_answer(value)
