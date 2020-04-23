@@ -1,8 +1,8 @@
 from colt import QuestionGenerator, AskQuestions
 from colt.ask import ErrorSettingAnswerFromDict
 from colt import NOT_DEFINED
-#
-#
+
+
 def get_answer(question):
     if question.answer is NOT_DEFINED:
         value = ""
@@ -74,6 +74,15 @@ class QuestionBlock:
         #
         return out
 
+    def setup_iterator(self):
+        yield self.name, {
+            'fields': {quest.name: quest.settings for quest in self.concrete.values()},
+            'previous': None}
+        
+        for blocks in self.blocks.values():
+            for ele in blocks.setup_iterator():
+                yield ele
+
     def get_blocks(self):
         return sum((block.get_blocks() for block in self.blocks.values()), 
                    [self.name])
@@ -89,6 +98,14 @@ class SubquestionBlock:
         self.settings = {qname: QuestionBlock(AskQuestions.join_case(name, qname), quest, parent)
                          for qname, quest in question.items()}
 
+    def setup_iterator(self):
+        answer = self.answer
+        if answer == "":
+            return
+        else:
+            for ele in self.settings[answer].setup_iterator():
+                yield ele
+        
     def generate_setup(self):
         answer = self.answer
         if answer == "":
@@ -142,13 +159,51 @@ class QuestionForm:
         self.blocks = {}
         self.form = QuestionBlock("", self.ask.questions, self)
 
-    def split_keys(self, name):
+    def _split_keys(self, name):
         block, key = self.ask.rsplit_keys(name)
         if key is None:
             key = block
             block = ""
-        return block, key
+        
+        if block not in self.blocks:
+            raise Exception("block unknown")
+
+        return self.blocks[block], key
+
+    def set_answer(self, name, answer):
+        if answer == "":
+            return False
+        #
+        block, key = self._split_keys(name)
+        #
+        try:
+            block.concrete[key].answer = answer
+            is_set = True
+        except ValueError:
+            is_set = False
+        #
+        return is_set
+
+    def update_select(self, name, answer):
+        out = {'delete': {}, 'setup': {}}
+        if answer == "":
+            return out
+        block, key = self._split_keys(name)
+        if key in block.blocks:
+            block = block.blocks[key]
+            if block.answer == answer:
+                return out
+            else:
+                out['delete'] = block.get_delete_blocks()
+                #
+                block.answer = answer
+                out['setup'] = block.generate_setup()
+        else:
+            block.concrete[key].answer = answer
+        return out
 
     def generate_setup(self):
         return self.form.generate_setup()
 
+    def setup_iterator(self):
+        return self.form.setup_iterator()

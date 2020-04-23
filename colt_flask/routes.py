@@ -80,28 +80,9 @@ def question_update_select():
         return 
     name = json_sent['name']
     value = json_sent['value']
-    if value == "":
-        return app.response_class(
-        response=json.dumps({}),
-        status=200,
-        mimetype='application/json')
     #
-    block, key = qform.split_keys(name)
+    out = qform.update_select(name, value)
     #
-    block = qform.blocks[block]
-    if key in block.blocks:
-        select = block.blocks[key]
-        if value == select.answer:
-            out = {}
-        else:
-            delete = select.get_delete_blocks()
-            # update answer
-            select.answer = value
-            setup = select.generate_setup()
-            out = {'delete': delete,
-                   'setup': setup}
-    else:
-        out = {}
     response = app.response_class(
         response=json.dumps(out),
         status=200,
@@ -118,18 +99,10 @@ def question_validation():
         return 
     name = json_sent['name']
     value = json_sent['value']
-    #
-    block, key = qform.split_keys(json_sent['name'])
-    #
-    block = qform.blocks[block]
-    try:
-        block.concrete[key].answer = value
-        answer = """{"answer": true}"""
-    except ValueError:
-        answer = """{"answer": false}"""
+    answer = qform.set_answer(name, value)
 
     response = app.response_class(
-        response=answer,
+        response=json.dumps({'answer': answer}),
         status=200,
         mimetype='application/json')
     return response
