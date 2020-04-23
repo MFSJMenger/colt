@@ -66,6 +66,13 @@ class QuestionContainer(UserDict):
 class LiteralBlockString(UserString):
 
     def __init__(self, string):
+        if string is None:
+            self.is_none = True
+        elif isinstance(string, LiteralBlockString):
+            self.is_none = string.is_none
+        else:
+            self.is_none = False
+        #
         UserString.__init__(self, string)
 
 

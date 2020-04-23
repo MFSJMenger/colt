@@ -260,8 +260,10 @@ class AskQuestions(GeneratorNavigator):
                 default[key] = str(answer)
         return result
 
-
 def answer_iter(name, dct, default_name):
+    if isinstance(dct, LiteralBlockString):
+        if dct.is_none is True:
+            return
 
     if name != default_name:
         yield f'[{name}]'
