@@ -6,7 +6,7 @@ from .answers import SubquestionsAnswer, Answers
 from .generator import GeneratorNavigator
 from .config import ConfigParser
 from .questions import QuestionGenerator, ValidatorErrorNotInChoices
-from .questions import _Subquestions, _Questions, _ConcreteQuestion, LiteralBlockString
+from .questions import Subquestions, Questions, ConcreteQuestion, LiteralBlock, LiteralBlockString
 from .questions import parse_question
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
@@ -124,7 +124,19 @@ class AskQuestions(GeneratorNavigator):
 
     @staticmethod
     def is_concrete_question(value):
-        return isinstance(value, _ConcreteQuestion)
+        return isinstance(value, ConcreteQuestion)
+
+    @staticmethod
+    def is_literal_block(value):
+        return isinstance(value, LiteralBlock)
+
+    @staticmethod
+    def is_question_block(value):
+        return isinstance(value, Questions)
+
+    @staticmethod
+    def is_subquestion_block(value):
+        return isinstance(value, Subquestions)
 
     def _setup(self, questions, config):
         """setup questions and read config file in case a default file is give"""
@@ -173,9 +185,9 @@ class AskQuestions(GeneratorNavigator):
             #
             if question is None:
                 print(f"""Section = {section} unknown, maybe typo?""")
-            elif isinstance(question, _ConcreteQuestion):
+            elif isinstance(question, ConcreteQuestion):
                 print(f"""Section '{section}' is concrete question, maybe typo?""")
-            elif isinstance(question, _Subquestions):
+            elif isinstance(question, Subquestions):
                 if len(parsed[section].items()) == 1:
                     for key, value in parsed[section].items():
                         if key == question.name:
@@ -190,7 +202,7 @@ class AskQuestions(GeneratorNavigator):
                             errmsg += f"\n{key} = UNKNOWN"
                     print(f"Input Error: question instance is ConditionalQuestion, "
                           f"but multiple values are defined!")
-            elif isinstance(question, _Questions):
+            elif isinstance(question, Questions):
                 for key, value in parsed[section].items():
                     concre_question = question[key]
                     if concre_question is None:
@@ -248,8 +260,10 @@ class AskQuestions(GeneratorNavigator):
                 default[key] = str(answer)
         return result
 
-
 def answer_iter(name, dct, default_name):
+    if isinstance(dct, LiteralBlockString):
+        if dct.is_none is True:
+            return
 
     if name != default_name:
         yield f'[{name}]'

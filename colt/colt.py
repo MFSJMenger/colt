@@ -98,7 +98,7 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def from_questions(cls, *args, check_only=False, config=None, savefile=None, **kwargs):
-        questions = cls.generate_questions(name, config=config)
+        questions = cls.generate_questions(config=config)
         if check_only is True:
             answers = questions.check_only(savefile)
         else:

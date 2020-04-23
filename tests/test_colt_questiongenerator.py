@@ -1,9 +1,10 @@
 import pytest
 #
 from colt import QuestionGenerator
+from colt import AskQuestions
 from colt import Question
 from colt.validator import NOT_DEFINED
-from colt.questions import LiteralBlock
+from colt.questions import _LiteralBlock
 
 
 @pytest.fixture
@@ -337,4 +338,4 @@ def test_generator_parsing_error(questions):
 
     questions = questions_generator.questions
 
-    assert isinstance(questions['system']['mem'], LiteralBlock)
+    assert isinstance(questions['system']['mem'], _LiteralBlock)

@@ -3,7 +3,7 @@ import pytest
 import os
 #
 from colt import AskQuestions
-from colt.questions import _Questions
+from colt.questions import Questions
 
 
 path = os.path.dirname(os.path.abspath(__file__))
@@ -69,7 +69,7 @@ def questions():
 
 def test_basic_ask_questions(questions):
     questions = AskQuestions(questions)
-    assert type(questions.questions) == _Questions
+    assert type(questions.questions) == Questions
 
 
 def test_basic_ask_questions_from_configfile(questions, askini):
