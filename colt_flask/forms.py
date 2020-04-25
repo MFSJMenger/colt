@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from collections import UserDict
 from colt.generator import GeneratorNavigator
 from colt import QuestionGenerator
-from colt.questions import Question, QuestionContainer, ConditionalQuestion
-from colt.ask import ErrorSettingAnswerFromDict, ConfigParser
+from colt.questions import Question, QuestionContainer, ConditionalQuestion, _LiteralBlock
+from colt.ask import ErrorSettingAnswerFromDict, ConfigParser, ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
+from colt.ask import SubquestionsAnswer, LiteralBlockString
 from colt.validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
 
 
@@ -17,15 +18,17 @@ class _QuestionsContainerBase(GeneratorNavigator):
         self.parent.blocks[name] = self
 
     @abstractmethod
-    def get_answer(self):
+    def get_answer(self, check=False):
         """get answer dict"""
 
 
 class _ConcreteQuestionBase(ABC):
 
-    def __init__(self, name, question):
+    def __init__(self, name, question, parent):
         self.name = name
         self._settings = self._generate_settings(name, question)
+        self.parent = parent
+        self.is_set = False
 
     @property
     def settings(self):
@@ -33,7 +36,7 @@ class _ConcreteQuestionBase(ABC):
         return self._settings
 
     @abstractmethod
-    def get_answer(self):
+    def get_answer(self, check=False):
         """get answer"""
 
     @abstractmethod
@@ -44,48 +47,62 @@ class _ConcreteQuestionBase(ABC):
     def _generate_dynamic_settings(self):
         """generate additional runtime dependent settings"""
 
+    def generate_label(self, label):
+        return f"{label}: "
 
 class LiteralBlock(_ConcreteQuestionBase):
 
     def __init__(self, name, question, parent):
-        _ConcreteQuestionBase.__init__(self, name, question)
+        #
+        self._blockname, self._name = GeneratorNavigator.rsplit_keys(name)
+        #
+        _ConcreteQuestionBase.__init__(self, name, question, parent)
         # register self
         self.parent.literals[name] = self
-        self._answer = None
+        self._answer = LiteralBlockString(None)
 
     @property
     def answer(self):
         answer = self.get_answer()
         if answer is NOT_DEFINED:
             return ""
-        return answer
+        return LiteralBlockString(answer)
 
     @answer.setter
     def answer(self, value):
-        self._answer = value
+        self._answer = LiteralBlockString(value)
+        self.is_set = True
 
-    def get_answer(self):
+    def get_answer(self, check=False):
+        if self._answer.is_none is True:
+            return None
         return self._answer
 
     def _generate_dynamic_settings(self):
-        if self._answer is None:
+        if self._answer.is_none is True:
             return {"value": ""}
         return {"value": self._answer}
 
     def _generate_settings(self, name, question):
         return {"type": "literal",
-                "label": self._generate_label(question.question) }
+                "label": self.generate_label(self._name) }
 
 
 class ConcreteQuestion(_ConcreteQuestionBase):
 
-    def __init__(self, name, question):
-        _ConcreteQuestionBase.__init__(self, name, question)
+    def __init__(self, name, question, parent):
+        _ConcreteQuestionBase.__init__(self, name, question, parent)
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
         self._comment = question.comment
 
-    def get_answer(self):
-        return self._value.get()
+    def get_answer(self, check=False):
+        if check is False:
+            return self._value.get()
+        answer = self._value.get()
+        if answer is NOT_DEFINED:
+            self.parent.unset[name] = True
+            return None
+        return answer
 
     @property
     def answer(self):
@@ -97,29 +114,33 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @answer.setter
     def answer(self, value):
         self._value.set(value)
+        self.is_set = True
+
+    @property
+    def choices(self):
+        return self._value.choices
 
     def _generate_dynamic_settings(self):
-        return {"value": self.answer}
+        return {"value": self.answer,
+                "is_set": self.is_set}
 
     def _generate_settings(self, name, question):
         if question.choices is None:
             return self._input_form_settings(name, question)
         return self._select_form_settings(name, question)
-
-    def _generate_label(self, label):
-        return f"{label}: "
     
     def _select_form_settings(self, name, question):
+        options = list(question.choices)
         return {"type": "select",
-                "label": self._generate_label(question.question),
+                "label": self.generate_label(question.question),
                 "id": name,
-                "options": question.choices,
+                "options": options,
                 }
 
     def _input_form_settings(self, name, question):
         """get settings for input form"""
         return {"type": "input",
-                "label": self._generate_label(question.question),
+                "label": self.generate_label(question.question),
                 "id": name,
                 "placeholder": question.typ,
                 }
@@ -148,9 +169,9 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
     def answer(self):
         raise Exception("Answer not available for QuestionBlock")
 
-    def get_answer(self):
-        dct = {name: quest.get_answer() for name, quest in self.concrete.items()}
-        dct.update({name: quest.get_answer() for name, quest in self.blocks.items()})
+    def get_answer(self, check=False):
+        dct = {name: quest.get_answer(check=check) for name, quest in self.concrete.items()}
+        dct.update({name: quest.get_answer(check=check) for name, quest in self.blocks.items()})
         return dct
 
     def setup_iterator(self):
@@ -176,16 +197,16 @@ class SubquestionBlock(_QuestionsContainerBase):
             self._blockname = ""
         _QuestionsContainerBase.__init__(self, name, parent)
         #
-        self.main_question = ConcreteQuestion(name, main_question)
+        self.main_question = main_question
         #
         self.settings = {qname: QuestionBlock(self.join_case(name, qname), quest, parent)
                          for qname, quest in questions.items()}
 
-    def get_answer(self):
-        answer = self.main_question.get_answer()
+    def get_answer(self, check=False):
+        answer = self.main_question.get_answer(check=check)
         if answer is NOT_DEFINED:
             return SubquestionsAnswer(self._name, answer, {})
-        return SubquestionsAnswer(self._name, answer, self[answer].get_answer())
+        return SubquestionsAnswer(self._name, answer, self.settings[answer].get_answer(check=check))
 
     def setup_iterator(self):
         answer = self.answer
@@ -226,11 +247,11 @@ def create_forms(name, questions, parent):
     for key, question in questions.items():
         qname = GeneratorNavigator.join_keys(name, key)
         if isinstance(question, Question):
-            concrete[key] = ConcreteQuestion(qname, question)
+            concrete[key] = ConcreteQuestion(qname, question, parent)
         elif isinstance(question, QuestionContainer):
             blocks[key] = QuestionBlock(qname, question, parent)
-        elif isinstance(question, ConcreteQuestion):
-            concrete[key] = ConcreteQuestion(qname, question.main)
+        elif isinstance(question, ConditionalQuestion):
+            concrete[key] = ConcreteQuestion(qname, question.main, parent)
             blocks[key] = SubquestionBlock(qname, concrete[key], question, parent)
         elif isinstance(question, _LiteralBlock):
             concrete[key] = LiteralBlock(qname, question, parent)
@@ -303,14 +324,36 @@ class QuestionForm:
             block.concrete[key].answer = answer
         return out
 
-    def get_answer(self):
-        return self.form.get_answer()
+    def get_answer(self, check=False):
+        return self.form.get_answer(check=check)
 
     def generate_setup(self):
         return self.form.generate_setup()
 
     def setup_iterator(self):
         return self.form.setup_iterator()
+
+    def get_answers(self, check=True):
+        if check is False:
+            return self.form.get_answer()
+        self.unset = {}
+        answers = self.form.get_answer(check=True)
+        if self.unset != {}:
+            raise Exception('answer need to be set..')
+        del self.unset
+
+    def write_config(self, filename):
+        """ get a linear config and write it to the file"""
+        config = {}
+        for blockname in self.form.get_blocks():
+            config[blockname] = {key: question.answer 
+                                 for key, question in self.blocks[blockname].concrete.items()}
+            
+        default_name = ''
+        with open(filename, 'w') as f:
+            ""
+            f.write("\n".join(answer for key, answers in config.items()
+                              for answer in answer_iter(key, answers, default_name)))
 
     def set_answers_from_file(self, filename):
         errmsg = self._set_answers_from_file(filename)
@@ -373,3 +416,21 @@ class QuestionForm:
         if errmsg != "":
             return error + errmsg
         return ""
+
+
+def answer_iter(name, dct, default_name):
+    if isinstance(dct, LiteralBlockString):
+        if dct.is_none is True:
+            return
+
+    if name != default_name:
+        yield f'[{name}]'
+    else:
+        yield ''
+
+    if isinstance(dct, LiteralBlockString):
+        yield dct.data
+    else:
+        for name, value in dct.items():
+            yield f"{name} = {value}"
+        yield ''

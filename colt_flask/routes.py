@@ -44,7 +44,9 @@ c = 8 :: int
 
 
 qform = QuestionForm(question)
-
+def update_form(form):
+    global qform
+    qform = form
 
 @app.route('/', methods=['GET', 'POST'])
 def questions():

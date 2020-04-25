@@ -33,6 +33,7 @@ class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
         self.subquestions = self.subnodes
         # updatable view!
         self.main.choices = self.subquestions.keys()
+        #
 
     @property
     def main_choices(self):

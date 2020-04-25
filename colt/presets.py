@@ -12,6 +12,12 @@ class Preset:
         self.default = default
         self.choices = choices
 
+    def __str__(self):
+        return f"Preset(default={self.default}, choices={self.choices})"
+
+    def __repr__(self):
+        return f"Preset(default={self.default}, choices={self.choices})"
+
 
 class PresetGenerator(GeneratorBase):
 
@@ -85,7 +91,10 @@ def set_preset(questions, presets):
         for key, preset in fields.items():
             if key not in block:
                 return
+            print("set key", key)
             if preset.default is not None:
                 block[key].default = preset.default
             if preset.choices is not None:
                 block[key].choices = preset.choices
+
+            print(block[key])
