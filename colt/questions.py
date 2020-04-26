@@ -13,6 +13,7 @@ Question = slottedcls("Question", {"question": "",
                                    "default": NOT_DEFINED,
                                    "choices": None,
                                    "comment": NOT_DEFINED,
+                                   "is_optional": False
                                    })
 
 # identify literal blocks
@@ -91,7 +92,8 @@ class QuestionGenerator(GeneratorBase):
     LeafString = slottedcls("LeafString", {"default": NOT_DEFINED,
                                            "typ": "str",
                                            "choices": NOT_DEFINED,
-                                           "question": NOT_DEFINED})
+                                           "question": NOT_DEFINED,
+                                           "is_optional": False})
 
     def __init__(self, questions):
         """Main Object to generate questions from string
@@ -106,7 +108,6 @@ class QuestionGenerator(GeneratorBase):
                            False, `questions` is a string
 
         """
-        print(type(questions))
         GeneratorBase.__init__(self, questions)
         #
         self.questions = self.tree
@@ -152,8 +153,8 @@ class QuestionGenerator(GeneratorBase):
         value, comment = self._parse_comment(value)
         # try to parse line
         try:
-            value = self.LeafString(*(ele.strip() for ele in value.split(self.seperator)))
-        except TypeError:
+            value = self._parse_string(value)
+        except ValueError:
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
@@ -168,7 +169,42 @@ class QuestionGenerator(GeneratorBase):
         # get choices
         choices = self._parse_choices(value.typ, value.choices)
         # return leaf node
-        return Question(question, value.typ, default, choices, comment)
+        return Question(question, value.typ, default, choices, comment, value.is_optional)
+
+    def _parse_string(self, string):
+        # set default parameters
+        default = NOT_DEFINED
+        typ = "str"
+        choices = NOT_DEFINED
+        question = NOT_DEFINED
+        #
+        value = tuple(ele.strip() for ele in string.split(self.seperator))
+        if len(value) == 1:
+            default = value[0]
+        elif len(value) == 2:
+            default, typ = value
+        elif len(value) == 3:
+            default, typ, choices = value
+        elif len(value) == 4:
+            default, typ, choices, question = value
+        else:
+            raise ValueError(f"Cannot parse string {string}")
+        #
+        typ, optional = self._parse_typ(typ)
+        #
+        return self.LeafString(default=default, typ=typ, choices=choices,
+                               question=question, is_optional=optional)
+
+    @staticmethod            
+    def _parse_typ(typ):
+        if "," not in typ:
+            return typ, False
+        #
+        typ, setting = tuple(ele.strip() for ele in typ.split(","))
+
+        if setting == 'optional':
+            return typ, True
+        raise ValueError(f"Dont understand setting {setting}")
 
     def generate_cases(self, key, subquestions, block=None):
         """Register `subquestions` at a given `key` in given `block`

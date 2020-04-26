@@ -57,8 +57,12 @@ class AskQuestions(QuestionForm):
 
     def _ask(self, idname, text, accept_enter, default):
         answer = self._perform_ask_question(text, accept_enter, default)
+        # if None, answer is optional!
+        if answer is None:
+            return
         try:
             self.set_answer_f(idname, answer)
+            return
         except ValueError:
             print(f"Unknown input type '{answer}', redo")
         except ValidatorErrorNotInChoices:
@@ -82,21 +86,27 @@ class AskQuestions(QuestionForm):
 
     @staticmethod
     def _select_question_text(settings):
-        accept_enter = False
+        accept_enter = True
         txt = f"{settings['label']}"
-        if settings['value'] != "":
+        if settings['value'] is None:
+            txt += f" [optional], "
+        elif settings['value'] != "":
             txt += f" [{settings['value']}], "
-            accept_enter = True
+        else:
+            accept_enter = False
         txt += "choices = (%s)" % (", ".join(str(opt) for opt in settings['options']))
         return txt + ": ", accept_enter, settings['value']
 
     @staticmethod
     def _input_question_text(settings):
-        accept_enter = False
+        accept_enter = True
         txt = f"{settings['label']}"
-        if settings['value'] != "":
-            txt += f" [{settings['value']}]"
-            accept_enter = True
+        if settings['value'] is None:
+            txt += f" [optional], "
+        elif settings['value'] != "":
+            txt += f" [{settings['value']}], "
+        else:
+            accept_enter = False
         return txt + ": ", accept_enter, settings['value']
 
     def _config_and_presets(self, config, presets):

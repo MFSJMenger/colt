@@ -110,16 +110,23 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def __init__(self, name, question, parent):
         _ConcreteQuestionBase.__init__(self, name, question, parent)
+        #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
         self._comment = question.comment
         self._label = question.question
+        self.is_optional = question.is_optional
 
     def get_answer(self, check=False):
-        if check is False:
-            return self._value.get()
+        """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
+        if check is False:
+            if answer is NOT_DEFINED and self.is_optional:
+                return None
+            return answer
+        #
         if answer is NOT_DEFINED:
-            self.parent.unset[self.name] = True
+            if self.is_optional is False:
+                self.parent.unset[self.name] = True
             return None
         return answer
 
@@ -147,7 +154,8 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def _update_settings(self, choices):
         if self.settings['type'] != 'select':
-            self._settings = self._select_form_settings(self.name, self._label, choices)
+            self._settings = self._select_form_settings(self.name, self._label,
+                                                        choices, self.is_optional)
             return
         self._settings['options'] = choices
 
@@ -161,23 +169,29 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def _generate_settings(self, name, question):
         if question.choices is None:
-            return self._input_form_settings(name, question.question, question.typ)
-        return self._select_form_settings(name, question.question, question.choices)
+            return self._input_form_settings(name, question.question,
+                                             question.typ, question.is_optional)
+        return self._select_form_settings(name, question.question,
+                                          question.choices, question.is_optional)
 
-    def _select_form_settings(self, name, label, options):
+    @staticmethod
+    def _select_form_settings(name, label, options, is_optional):
         options = list(options)
         return {"type": "select",
-                "label": self.generate_label(label),
+                "label": label,
                 "id": name,
                 "options": options,
+                'is_optional': is_optional,
                 }
 
-    def _input_form_settings(self, name, label, typ):
+    @staticmethod
+    def _input_form_settings(name, label, typ, is_optional):
         """get settings for input form"""
         return {"type": "input",
-                "label": self.generate_label(label),
+                "label": label,
                 "id": name,
                 "placeholder": typ,
+                'is_optional': is_optional,
                 }
 
 
@@ -237,6 +251,10 @@ class SubquestionBlock(_QuestionsContainerBase):
         self.settings = {qname: QuestionBlock(self.join_case(name, qname), quest, parent)
                          for qname, quest in questions.items()}
 
+    @property
+    def is_optional(self):
+        return self.main_question.is_optional
+
     def get_answer(self, check=False):
         answer = self.main_question.get_answer(check=check)
         if answer is NOT_DEFINED:
@@ -252,7 +270,7 @@ class SubquestionBlock(_QuestionsContainerBase):
 
     def generate_setup(self):
         answer = self.answer
-        if answer == "":
+        if answer in ("", None):
             return {}
         return self.settings[answer].generate_setup()
 
@@ -266,7 +284,7 @@ class SubquestionBlock(_QuestionsContainerBase):
 
     def get_blocks(self):
         answer = self.answer
-        if answer == "":
+        if answer in ("", None):
             return []
         return self.settings[answer].get_blocks()
 
