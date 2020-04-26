@@ -5,7 +5,6 @@ from abc import ABCMeta
 from .questions import QuestionGenerator
 from .questions import Validator, NOT_DEFINED
 from .questions import Question, LiteralBlock, ConditionalQuestion
-from. slottedcls import slottedcls
 from .ask import AskQuestions
 from .presets import set_preset
 
@@ -134,7 +133,7 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def _set_presets(cls, presets):
         if presets is None:
-            return cls.questions 
+            return cls.questions
         return cls._questions_with_presets(presets)
 
     @classmethod

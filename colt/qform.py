@@ -1,11 +1,14 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABC
 from collections import UserDict
-from colt.generator import GeneratorNavigator
-from colt import QuestionGenerator
-from colt.questions import Question, QuestionContainer, ConditionalQuestion, _LiteralBlock
-from colt.ask import ErrorSettingAnswerFromDict, ConfigParser, ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
-from colt.ask import SubquestionsAnswer, LiteralBlockString
-from colt.validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
+#
+from .answers import SubquestionsAnswer
+from .generator import GeneratorNavigator
+from .config import ConfigParser
+from .questions import QuestionGenerator, ValidatorErrorNotInChoices
+from .questions import Question, ConditionalQuestion, QuestionContainer
+from .questions import _LiteralBlock, LiteralBlockString
+from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
+from .validator import Validator, NOT_DEFINED
 
 
 class _QuestionsContainerBase(GeneratorNavigator):
@@ -50,6 +53,7 @@ class _ConcreteQuestionBase(ABC):
     def generate_label(self, label):
         return f"{label}: "
 
+
 class LiteralBlock(_ConcreteQuestionBase):
 
     def __init__(self, name, question, parent):
@@ -85,7 +89,7 @@ class LiteralBlock(_ConcreteQuestionBase):
 
     def _generate_settings(self, name, question):
         return {"type": "literal",
-                "label": self.generate_label(self._name) }
+                "label": self.generate_label(self._name)}
 
 
 class ConcreteQuestion(_ConcreteQuestionBase):
@@ -100,7 +104,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
             return self._value.get()
         answer = self._value.get()
         if answer is NOT_DEFINED:
-            self.parent.unset[name] = True
+            self.parent.unset[self.name] = True
             return None
         return answer
 
@@ -128,7 +132,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         if question.choices is None:
             return self._input_form_settings(name, question)
         return self._select_form_settings(name, question)
-    
+
     def _select_form_settings(self, name, question):
         options = list(question.choices)
         return {"type": "select",
@@ -161,7 +165,7 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
             'previous': None}}
         #
         for blocks in self.blocks.values():
-            out.update(blocks.generate_setup());
+            out.update(blocks.generate_setup())
         #
         return out
 
@@ -178,13 +182,13 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
         yield self.name, {
             'fields': {quest.name: quest.settings for quest in self.concrete.values()},
             'previous': None}
-        
+
         for blocks in self.blocks.values():
             for ele in blocks.setup_iterator():
                 yield ele
 
     def get_blocks(self):
-        return sum((block.get_blocks() for block in self.blocks.values()), 
+        return sum((block.get_blocks() for block in self.blocks.values()),
                    [self.name])
 
 
@@ -215,7 +219,7 @@ class SubquestionBlock(_QuestionsContainerBase):
         else:
             for ele in self.settings[answer].setup_iterator():
                 yield ele
-        
+
     def generate_setup(self):
         answer = self.answer
         if answer == "":
@@ -264,7 +268,7 @@ class QuestionForm:
 
     def __init__(self, questions):
         questions = QuestionGenerator(questions).tree
-        #self._blocks = list(questions.key())
+        #
         self.blocks = {}
         # literal blocks
         self.literals = {}
@@ -276,7 +280,7 @@ class QuestionForm:
         if key is None:
             key = block
             block = ""
-        
+
         if block not in self.blocks:
             raise Exception("block unknown")
 
@@ -341,14 +345,15 @@ class QuestionForm:
         if self.unset != {}:
             raise Exception('answer need to be set..')
         del self.unset
+        return answers
 
     def write_config(self, filename):
         """ get a linear config and write it to the file"""
         config = {}
         for blockname in self.form.get_blocks():
-            config[blockname] = {key: question.answer 
+            config[blockname] = {key: question.answer
                                  for key, question in self.blocks[blockname].concrete.items()}
-            
+
         default_name = ''
         with open(filename, 'w') as f:
             ""
@@ -385,7 +390,7 @@ class QuestionForm:
                 if blockname in self.literals:
                     self.literals[blockname].answer = answers
                     continue
-                print(f"""Section = {section} unknown, maybe typo?""")
+                print(f"""Section = {blockname} unknown, maybe typo?""")
                 continue
 
             errstr += self._set_block_answers(blockname, answers)

@@ -69,46 +69,13 @@ class LiteralBlockString(UserString):
     def __init__(self, string):
         if string is None:
             self.is_none = True
+            string = ''
         elif isinstance(string, LiteralBlockString):
             self.is_none = string.is_none
         else:
             self.is_none = False
         #
         UserString.__init__(self, string)
-
-
-class LiteralContainer(Mapping):
-
-    def __init__(self):
-        self._literals = {}
-        self.data = {}
-
-    def add(self, name, literal, value=None): 
-        self._literals[name] = literal
-        self.data[name] = LiteralBlockString(value)
-
-    def update(self, name, questions, parentnode=None):
-        blockname = QuestionGenerator.join_keys(parentnode, name)
-        for name, literal, value in questions.literals._all_items():
-            name = QuestionGenerator.join_keys(blockname, name)
-            literal.name = name
-            self.add(name, literal, value)
-
-    def __getitem__(self, key):                
-        return self.data[key]
-
-    def __setitem__(self, key, value):
-        self.data[key] = LiteralBlockString(value)
-
-    def __len__(self):            
-        return len(self.data)
-
-    def __iter__(self):
-        return iter(self.data)
-
-    def _all_items(self):
-        for key in self.data:
-            yield key, self._literals[key], self.data[key]
 
 
 class QuestionGenerator(GeneratorBase):
@@ -142,12 +109,6 @@ class QuestionGenerator(GeneratorBase):
                            False, `questions` is a string
 
         """
-        if isinstance(questions, QuestionGenerator):
-            self.literals = questions.literals
-        elif isinstance(questions, str):
-            self.literals = LiteralContainer()
-        else:
-            raise TypeError("Generator only accepts type string!")
         GeneratorBase.__init__(self, questions)
         #
         self.questions = self.tree
@@ -198,10 +159,7 @@ class QuestionGenerator(GeneratorBase):
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
-            name = self.join_keys(parent, name)
-            block = _LiteralBlock(name)
-            self.literals.add(name, block)
-            return block
+            return _LiteralBlock(name)
         # get default
         default = self._parse_default(value.default)
         # get question
@@ -236,16 +194,11 @@ class QuestionGenerator(GeneratorBase):
                         for name, questions in subquestions.items()}
         #
         self.add_branching(key, subquestions, parentnode=block)
-        #
-        for name, questions in subquestions.items():
-            name = self.join_case(key, name)
-            self.literals.update(name, questions, parentnode=block)
 
     def add_questions_to_block(self, questions, block=None, overwrite=True):
         """add questions to a particular block """
         questions = QuestionGenerator(questions)
         self.add_elements(questions, parentnode=block, overwrite=overwrite)
-        self.literals.update(block, questions)
 
     def generate_block(self, name, questions, block=None):
         """Register `questions` at a given `key` in given `block`
@@ -272,7 +225,6 @@ class QuestionGenerator(GeneratorBase):
         """
         questions = QuestionGenerator(questions)
         self.add_node(name, questions, parentnode=block)
-        self.literals.update(name, questions, parentnode=block)
 
     @classmethod
     def questions_from_file(cls, filename):

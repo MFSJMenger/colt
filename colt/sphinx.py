@@ -96,6 +96,7 @@ class ColtDirective(SphinxDirective):
             return obj.questions
         raise Exception('could import module')
 
+
 class ColtQFileDirective(ColtDirective):
     has_content = False
 
@@ -104,7 +105,7 @@ class ColtQFileDirective(ColtDirective):
     option_spec = {
             'name': str,
     }
-    
+
     def _load_questions(self):
 
         try:
