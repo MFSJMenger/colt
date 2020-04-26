@@ -29,11 +29,11 @@ class GeneratorNavigator:
         return cls._get_node(node_name, tree)
 
     @classmethod
-    def is_branching(cls, node):
+    def get_branching(cls, node):
         """check if node is a branching node"""
         branch = cls.is_branching_regex.match(node)
         if branch is None:
-            return False
+            return branch
         return cls.Branch(branch.group("branch"), branch.group("node"))
 
     @classmethod
@@ -84,8 +84,8 @@ class GeneratorNavigator:
                     string to determine the next node
         """
 
-        conditions = cls.is_branching(node)
-        if conditions is False:
+        conditions = cls.get_branching(node)
+        if conditions is None:
             return tree.get(node, None)
 
         node, case = conditions.branch, conditions.node
@@ -362,8 +362,8 @@ class GeneratorBase(GeneratorNavigator, Mapping):
         if node is None:
             return None
         # if is not decission, create the new node as an dict
-        conditions = self.is_branching(node)
-        if conditions is False:
+        conditions = self.get_branching(node)
+        if conditions is None:
             if node in tree:
                 block, _, _ = nodeblock.rpartition(self.seperator)
                 raise KeyError(f"{block} already exists in {nodeblock}")

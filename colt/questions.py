@@ -1,12 +1,9 @@
 """Definitions of all Question Classes"""
-from abc import ABC, abstractmethod
 from collections import UserDict, UserString
-from collections.abc import Mapping
 #
-from .answers import SubquestionsAnswer
 from .generator import GeneratorBase, BranchingNode
 #
-from .validator import Validator, NOT_DEFINED, ValidatorErrorNotInChoices
+from .validator import NOT_DEFINED
 from .slottedcls import slottedcls
 
 
@@ -19,7 +16,7 @@ Question = slottedcls("Question", {"question": "",
                                    })
 
 # identify literal blocks
-_LiteralBlock = slottedcls("_LiteralBlock", ("name", ))
+LiteralBlockQuestion = slottedcls("LiteralBlockQuestion", ("name", ))
 
 
 class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
@@ -109,6 +106,7 @@ class QuestionGenerator(GeneratorBase):
                            False, `questions` is a string
 
         """
+        print(type(questions))
         GeneratorBase.__init__(self, questions)
         #
         self.questions = self.tree
@@ -159,7 +157,7 @@ class QuestionGenerator(GeneratorBase):
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
-            return _LiteralBlock(name)
+            return LiteralBlockQuestion(name)
         # get default
         default = self._parse_default(value.default)
         # get question
@@ -190,7 +188,7 @@ class QuestionGenerator(GeneratorBase):
                                                       in cls._sampling_methods.items()})
         """
         #
-        subquestions = {name: QuestionGenerator(questions) 
+        subquestions = {name: QuestionGenerator(questions)
                         for name, questions in subquestions.items()}
         #
         self.add_branching(key, subquestions, parentnode=block)
@@ -236,7 +234,7 @@ class QuestionGenerator(GeneratorBase):
     @staticmethod
     def _parse_default(default):
         """Handle default value"""
-        if default == 'NOT_DEFINED' or default == "":
+        if default in ('NOT_DEFINED', ""):
             return NOT_DEFINED
         return default
 
@@ -280,272 +278,3 @@ class QuestionGenerator(GeneratorBase):
             return None
         line = line.replace("[", "").replace("]", "")
         return [choice.strip() for choice in line.split(",")]
-
-
-def register_parser(key, function):
-    """register a parser for the Questions class
-
-       The parser function needs to take  a single
-       argument which is a string and return a
-       single python object, which should not be a
-       **dict**!
-    """
-    Validator.register_parser(key, function)
-
-
-class _QuestionBase(ABC):
-
-    def __init__(self, parent):
-        self._set_answer = None
-        self.parent = parent
-
-    @abstractmethod
-    def set_answer(self, value):
-        """set an answer"""
-
-    @abstractmethod
-    def _ask(self):
-        """Actual ask routine"""
-
-    def ask(self):
-        """User interface, returns Answer"""
-        return self._ask()
-
-
-class LiteralBlock(_QuestionBase):
-    """parse literal blocks"""
-
-    def __init__(self, literal, parent=None):
-        _QuestionBase.__init__(self, parent)
-        self.name = literal.name
-
-    def set_answer(self, value):
-        """answer"""
-        if self.parent is not None:
-            self.parent.literals[self.name] = value
-        raise NotImplementedError("set_answer not supported for literalblock")
-
-    def _ask(self):
-        if self.parent is not None:
-            return self.parent.literals.get(self.name, None)
-        return None
-
-
-class ConcreteQuestion(_QuestionBase):
-
-    def __init__(self, question, parent=None):
-        # setup
-        _QuestionBase.__init__(self, parent)
-        #
-        self._value = Validator(question.typ, default=question.default,
-                                choices=question.choices)
-        #
-        self._accept_enter = True
-        self._comment = question.comment
-        self.raw_question = question.question
-        self.typ = question.typ
-        #
-        self._setup(question)
-        # generate the question
-        self.question = self._generate_question(question)
-        self.is_set = False
-
-    def _ask(self):
-        if self.parent is None or self.parent.is_only_checking is False:
-            return self._ask_implementation()
-        return self.answer
-
-    def _perform_questions(self):
-        answer = self._ask_question()
-        # return set answer!
-        if answer.is_set:
-            return answer
-        #
-        if any(answer.value == helper for helper in (":help", ":h")):
-            print(self._comment)
-            # re-ask
-            answer = self._perform_questions()
-        return answer
-
-    def _ask_implementation(self):
-        """Helper routine that checks if an answer is set,
-           else, tries to parse the answer, if that fails
-           the question is ask again
-        """
-        #
-        if self.is_set is True:
-            return self.answer
-        #
-        answer = self._perform_questions()
-        #
-        if answer.is_set is True:
-            # if answer is set, return unparsed answer
-            return answer.value
-        #
-        try:
-            if answer.value == "":
-                raise ValueError("No default set, empty string not allowed!")
-            self.answer = answer.value
-            return self.answer
-        except ValueError:
-            print(f"Unknown input '{answer.value}', redo")
-        except ValidatorErrorNotInChoices:
-            print(f"Answer '{answer.value}' not in choices!")
-        # reask!
-        return self._ask_implementation()
-
-    def set_answer(self, value: str):
-        """set the answer to a suitable value, also here parse is called!
-           only consistent inputs values are accepted
-        """
-        self.answer = value
-        self.is_set = True
-
-    def _ask_question(self):
-        """Helper routine which asks the actual question"""
-        is_set = False
-        answer = input(self.question).strip()  # strip is important!
-        if answer == "":
-            if self._accept_enter:
-                answer = self.answer
-                is_set = True
-        #
-        return _Answer(answer, is_set)
-
-    @property
-    def answer(self):
-        return self._value.get()
-
-    @answer.setter
-    def answer(self, value):
-        self._value.set(value)
-
-    @property
-    def choices(self):
-        return self._value.choices
-
-    def __repr__(self):
-        return f"{self.question}\n"
-
-    def __str__(self):
-        return f"{self.question}\n"
-
-    def _generate_question(self, question):
-        """generate actual question"""
-        if question.question is NOT_DEFINED:
-            if question.default is NOT_DEFINED:
-                txt = ""
-            else:
-                txt = f"{question.default}"
-        else:
-            txt = question.question.strip()
-        # add default option
-        if question.default is not NOT_DEFINED:
-            txt += " [%s]" % (str(question.default))
-        if question.choices is not None:
-            txt += ", choices = (%s)" % (", ".join(question.choices))
-        return txt + ": "
-
-    def _setup(self, question):
-        if question.default is NOT_DEFINED:
-            self._accept_enter = False
-
-    def print(self):
-        return f"{self.question}\n"
-
-
-# Used to save status of a concrete answer
-_Answer = slottedcls("_Answer", ("value", "is_set"))
-
-
-class _QuestionsContainerBase(_QuestionBase, UserDict):
-
-    def __init__(self, parent, data):
-        _QuestionBase.__init__(self, parent)
-        UserDict.__init__(self, data)
-
-    def concrete_items(self):
-        types = (Subquestions, Questions, LiteralBlock)
-        for key, value in self.items():
-            if not isinstance(value, types):
-                yield key, value
-
-
-class Questions(_QuestionsContainerBase):
-
-    def __init__(self, questions, parent=None):
-        #
-        self.questions = {name: parse_question(question, parent=parent)
-                          for (name, question) in questions.items()}
-        # init super()
-        _QuestionsContainerBase.__init__(self, parent, self.questions)
-
-    def set_answer(self, value):
-        raise Exception("For Questions class no set_answer is possible at the moment!")
-
-    def print(self):
-        string = ""
-        for name, question in self.items():
-            string += f"{name}: {question.print()}\n"
-        return string
-
-    def _ask(self):
-        answers = {}
-        for name, question in self.items():
-            answers[name] = question.ask()
-        return answers
-
-
-class Subquestions(_QuestionsContainerBase):
-
-    def __init__(self, name, main_question, questions, parent=None):
-        # main question
-        self.name = name
-        #
-        if main_question.typ != 'str':
-            raise ValueError("Cases can only be of type string!")
-        # subquestions
-        self.subquestions = {name: parse_question(question, parent=parent)
-                             for name, question in questions.items()}
-        # ensure that choices are only subquestions options!
-        main_question = Question(question=main_question.question, typ=main_question.typ,
-                                 default=main_question.default,
-                                 choices=self.subquestions.keys(),
-                                 comment=main_question.comment)
-        #
-        self.main_question = ConcreteQuestion(main_question, parent=parent)
-        # setup data container
-        _QuestionsContainerBase.__init__(self, parent, self.subquestions)
-
-    @property
-    def choices(self):
-        return self.main_question.choices
-
-    def set_answer(self, value):
-        """set answer for main question"""
-        self.main_question.set_answer(value)
-
-    def print(self):
-        string = f"{self.main_question}\n"
-        for name, question in self.items():
-            string += f"{name}: {question.print()}\n"
-        return string
-
-    def _ask(self):
-        main_answer = self.main_question.ask()
-        return SubquestionsAnswer(self.name, main_answer, self[main_answer].ask())
-
-
-def parse_question(question, parent=None):
-
-    if isinstance(question, QuestionContainer):
-        result = Questions(question, parent=parent)
-    elif isinstance(question, Question):
-        result = ConcreteQuestion(question, parent=parent)
-    elif isinstance(question, _LiteralBlock):
-        return LiteralBlock(question, parent=parent)
-    elif isinstance(question, ConditionalQuestion):
-        result = Subquestions(question.name, question.main, question.subquestions, parent=parent)
-    else:
-        raise TypeError("Type of question not known!", question)
-    return result

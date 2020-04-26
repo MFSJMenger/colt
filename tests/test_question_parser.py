@@ -15,17 +15,14 @@ currently the following options are checked:
 
 """
 import pytest
-import mock
 import numpy.random as random
 import numpy as np
 #
 from colt import AskQuestions
 import colt.validator as LineParser
+from colt.validator import Validator
 from colt import register_parser
 
-
-def mock_input_to_value(value):
-    return mock.patch('builtins.input', new=lambda x: f"{value}")
 
 
 def check_solution(values, solutions, is_array=False):
@@ -40,18 +37,10 @@ def check_solution(values, solutions, is_array=False):
 
 @pytest.fixture
 def check_uniform_types():
-    def check_solutions(typ, solution, solution_string, is_array=False):
-        questions = f"""
-            nstates = :: {typ}
-            natoms = :: {typ}
-        """
-
-        questions = AskQuestions(questions)
-        with mock_input_to_value(solution_string):
-            answers = questions.ask()
-
-        check_solution(answers['nstates'], solution, is_array)
-        check_solution(answers['natoms'], solution, is_array)
+    def check_solutions(typ, solution, solution_string, choices=None, is_array=False):
+        validator = Validator(typ, choices=choices)
+        answer = validator.validate(solution_string)
+        check_solution(answer, solution, is_array)
     return check_solutions
 
 

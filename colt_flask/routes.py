@@ -2,7 +2,7 @@ from flask import render_template
 from flask import request
 #
 from . import app
-from .forms import QuestionForm
+from colt.qform import QuestionForm
 import json
 #
 

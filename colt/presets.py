@@ -1,22 +1,8 @@
 from .generator import GeneratorBase
-from .validator import NOT_DEFINED
+from .slottedcls import slottedcls
 
 
-class Preset:
-    
-    __slots__ = ("default", "choices")
-
-    def __init__(self, default=None, choices=None):
-        if default == "":
-            default = None
-        self.default = default
-        self.choices = choices
-
-    def __str__(self):
-        return f"Preset(default={self.default}, choices={self.choices})"
-
-    def __repr__(self):
-        return f"Preset(default={self.default}, choices={self.choices})"
+Preset = slottedcls("Preset", {"default": None, "choices": None})
 
 
 class PresetGenerator(GeneratorBase):
@@ -53,7 +39,11 @@ class PresetGenerator(GeneratorBase):
         """
         default, _, choices = value.partition(self.seperator)
         choices = self._parse_choices(choices)
-        return Preset(default.strip(), choices)
+        default = default.strip()
+        if default == "":
+            default = None
+        return Preset(default, choices)
+
 
     def _update_tree(self):
         main = ""
@@ -65,36 +55,19 @@ class PresetGenerator(GeneratorBase):
                 dct[key] = value
         return dct
 
-    @classmethod        
-    def _is_subblock(cls, block):
+    @staticmethod
+    def _is_subblock(block):
         """prevent creation of subblocks!"""
         return False
 
-    def _parse_choices(self, line):
+    @staticmethod
+    def _parse_choices(line):
         """Handle choices"""
         if line == "":
             return None
-        if line is NOT_DEFINED:
-            return None
         line = line.replace("[", "").replace("]", "")
         line = line.replace("(", "").replace(")", "")
-        return [choice.strip() for choice in line.split(",")]
-
-
-def set_preset(questions, presets):
-    #
-    presets = PresetGenerator(presets).tree
-    #
-    print(presets)
-    for block, fields in presets.items():
-        block = questions[block]
-        for key, preset in fields.items():
-            if key not in block:
-                return
-            print("set key", key)
-            if preset.default is not None:
-                block[key].default = preset.default
-            if preset.choices is not None:
-                block[key].choices = preset.choices
-
-            print(block[key])
+        choices = [choice.strip() for choice in line.split(",")]
+        if choices == []:
+            return None
+        return choices

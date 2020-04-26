@@ -3,10 +3,9 @@ import argparse
 from abc import ABCMeta
 #
 from .questions import QuestionGenerator
-from .questions import Validator, NOT_DEFINED
-from .questions import Question, LiteralBlock, ConditionalQuestion
+from .validator import Validator, NOT_DEFINED
+from .questions import Question, LiteralBlockQuestion, ConditionalQuestion
 from .ask import AskQuestions
-from .presets import set_preset
 
 
 __all__ = ["Colt"]
@@ -95,7 +94,7 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def generate_questions(cls, config=None, presets=None):
-        return AskQuestions(cls._set_presets(presets), config)
+        return AskQuestions(cls.questions, config=config, presets=presets)
 
     @classmethod
     def from_questions(cls, *args, check_only=False, config=None, savefile=None, **kwargs):
@@ -127,20 +126,7 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
         questions = cls.generate_questions(config=config, presets=presets)
-        answers = questions.ask()
-        questions.create_config_from_answers(filename, answers)
-
-    @classmethod
-    def _set_presets(cls, presets):
-        if presets is None:
-            return cls.questions
-        return cls._questions_with_presets(presets)
-
-    @classmethod
-    def _questions_with_presets(cls, presets):
-        questions = cls.questions
-        set_preset(questions, presets)
-        return questions
+        questions.generate_input(filename)
 
 
 def fold_commandline_answers(answers, separator='::'):
@@ -179,13 +165,13 @@ def commandline_parser_from_questions(questions, description=None):
     return parser, names
 
 
-def add_parser_arguments(name, question, parser, type_parser, names):
-    if isinstance(question, Question):
-        add_parser_argument(name, parser, question, type_parser, names)
-    elif isinstance(question, dict):
-        for key, question in question.items():
+def add_parser_arguments(name, questions, parser, type_parser, names):
+    if isinstance(questions, Question):
+        add_parser_argument(name, parser, questions, type_parser, names)
+    elif isinstance(questions, dict):
+        for key, question in questions.items():
             add_parser_arguments(f"{name}::{key}", question, parser, type_parser, names)
-    elif isinstance(question, (LiteralBlock, ConditionalQuestion)):
+    elif isinstance(questions, (LiteralBlockQuestion, ConditionalQuestion)):
         raise ValueError("NO commandline args from Literalblocks or ConditionalQuestions")
     else:
         raise ValueError("question needs to be a Question or QuestionBlock")

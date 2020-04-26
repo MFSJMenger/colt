@@ -3,7 +3,6 @@ import pytest
 import os
 #
 from colt import AskQuestions
-from colt.questions import Questions
 
 
 path = os.path.dirname(os.path.abspath(__file__))
