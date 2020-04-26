@@ -15,6 +15,7 @@ from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoice
 #
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
+
 class _QuestionsContainerBase(GeneratorNavigator):
 
     def __init__(self, name, parent):

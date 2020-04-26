@@ -19,7 +19,7 @@ class AskQuestions(QuestionForm):
         for name, setting in self.setup_iterator(presets=presets):
             if name != "":
                 print(f"[{name}]")
-            for key, value in setting['fields'].items():
+            for _, value in setting['fields'].items():
                 self._select_question_and_ask(value, ask_all=ask_all)
         return self.get_answers(check=False)
 

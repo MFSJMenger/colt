@@ -14,7 +14,7 @@ class ColtDirective(SphinxDirective):
     optional_arguments = 0
     option_spec = {'name': str,
                    'class': str,
-                  }
+                   }
 
     def run(self):
         questions = self._load_questions()
@@ -105,7 +105,7 @@ class ColtQFileDirective(ColtDirective):
     required_arguments = 1
     optional_arguments = 0
     option_spec = {'name': str,
-                  }
+                   }
 
     def _load_questions(self):
 
@@ -126,4 +126,4 @@ def setup(app):
     return {'version': '0.1',
             'parallel_read_safe': True,
             'parallel_write_safe': True,
-           }
+            }

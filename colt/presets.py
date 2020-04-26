@@ -44,7 +44,6 @@ class PresetGenerator(GeneratorBase):
             default = None
         return Preset(default, choices)
 
-
     def _update_tree(self):
         main = ""
         dct = {main: {}}
