@@ -1,10 +1,8 @@
 import argparse
-#
 from abc import ABCMeta
 #
 from .questions import QuestionGenerator
-from .validator import Validator, NOT_DEFINED
-from .questions import Question, LiteralBlockQuestion, ConditionalQuestion
+from .qform import QuestionForm, LiteralBlock, ConcreteQuestion
 from .ask import AskQuestions
 
 
@@ -117,11 +115,9 @@ class Colt(metaclass=ColtMeta):
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
-    def get_commandline_args(cls, description=None):
+    def get_commandline_args(cls, description=None, presets=None):
         """for the moment we accept only linear trees!"""
-        parser, names = commandline_parser_from_questions(cls.questions, description)
-        results = parser.parse_args()
-        return fold_commandline_answers({key: getattr(results, key) for key in names})
+        return get_config_from_commandline(cls.questions, description=description, presets=presets)
 
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
@@ -129,65 +125,39 @@ class Colt(metaclass=ColtMeta):
         questions.generate_input(filename)
 
 
-def fold_commandline_answers(answers, separator='::'):
-    result = {}
-    for key, value in answers.items():
-        fold_cline_answers(key, value, result, separator)
-    return result
-
-
-def fold_cline_answers(name, answer, result, separator='::'):
-    if separator in name:
-        parent, _, name = name.partition(separator)
-        if parent not in result:
-            result[parent] = {}
-        fold_cline_answers(name, answer, result[parent], separator)
-    else:
-        result[name] = answer
-
-
-def rpartition_by_separator(string, separator='::'):
-    if separator not in string:
-        return None, string
-    start, _, end = string.rpartition(separator)
-    return start, end
-
-
-def commandline_parser_from_questions(questions, description=None):
-    parser = argparse.ArgumentParser(description=description,
-                                     formatter_class=argparse.RawTextHelpFormatter)
+def get_config_from_commandline(questions, description=None, presets=None):
     #
-    type_parser = Validator.get_parsers()
+    parser = get_parser(description)
     #
-    names = []
-    for name, question in questions[""].items():
-        add_parser_arguments(name, question, parser, type_parser, names)
-    return parser, names
+    qform = QuestionForm(questions, presets=presets)
+    #
+    for _, block in qform.items():
+        for name, question in block.concrete.items():
+            if isinstance(question, LiteralBlock):
+                continue
+            if not isinstance(question, ConcreteQuestion):
+                raise Exception("question can only be concretequestion")
+            #
+            settings = question.settings
+            #
+            validate = question.set_answer
+            #
+            add_parser_argument(parser, name, settings, validate, None)
+    # parse commandline args
+    parser.parse_args()
+    return qform.get_answers()
 
 
-def add_parser_arguments(name, questions, parser, type_parser, names):
-    if isinstance(questions, Question):
-        add_parser_argument(name, parser, questions, type_parser, names)
-    elif isinstance(questions, dict):
-        for key, question in questions.items():
-            add_parser_arguments(f"{name}::{key}", question, parser, type_parser, names)
-    elif isinstance(questions, (LiteralBlockQuestion, ConditionalQuestion)):
-        raise ValueError("NO commandline args from Literalblocks or ConditionalQuestions")
+def get_parser(description):
+    return argparse.ArgumentParser(description=description,
+                                   formatter_class=argparse.RawTextHelpFormatter)
+
+
+def add_parser_argument(parser, name, settings, validate_func, comment):
+    if settings['value'] not in ('', None):
+        keyname = f"-{settings['id']}"
+        default = validate_func(settings['value'])
     else:
-        raise ValueError("question needs to be a Question or QuestionBlock")
-
-
-def add_parser_argument(name, parser, question, type_parser, names):
-    """Add a single parser argument"""
-    _, metavar_name = rpartition_by_separator(name)
-    if question.comment is NOT_DEFINED:
-        comment = None
-    else:
-        comment = question.comment
-    if question.default is NOT_DEFINED:
-        parser.add_argument(f'{name}', metavar=metavar_name, type=type_parser[question.typ],
-                            help=comment)
-    else:
-        parser.add_argument(f'-{name}', metavar=metavar_name, type=type_parser[question.typ],
-                            default=question.default, help=comment)
-    names.append(name)
+        keyname = f"{settings['id']}"
+        default = None
+    parser.add_argument(keyname, metavar=name, type=validate_func, default=default, help=comment)

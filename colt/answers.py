@@ -10,6 +10,7 @@ from .exceptions import Error
 class ColtErrorAnswerNotDefined(Error):
 
     def __init__(self, filename, msg):
+        super().__init__()
         self.msg = msg
         self.filename = filename
 

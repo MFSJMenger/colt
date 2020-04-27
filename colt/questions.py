@@ -195,7 +195,7 @@ class QuestionGenerator(GeneratorBase):
         return self.LeafString(default=default, typ=typ, choices=choices,
                                question=question, is_optional=optional)
 
-    @staticmethod            
+    @staticmethod
     def _parse_typ(typ):
         if "," not in typ:
             return typ, False

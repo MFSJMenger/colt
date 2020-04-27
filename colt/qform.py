@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from collections import UserDict
+from collections.abc import Mapping
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
@@ -139,6 +140,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     @answer.setter
     def answer(self, value):
+        self._value.set(value)
+        self.is_set = True
+
+    def set_answer(self, value):
         self._value.set(value)
         self.is_set = True
 
@@ -311,9 +316,9 @@ def create_forms(name, questions, parent):
     return concrete, blocks
 
 
-class QuestionForm:
+class QuestionForm(Mapping):
 
-    def __init__(self, questions):
+    def __init__(self, questions, presets=None):
         questions = QuestionGenerator(questions).tree
         #
         self.blocks = {}
@@ -323,6 +328,9 @@ class QuestionForm:
         self.unset = {}
         # generate QuestionBlock
         self.form = QuestionBlock("", questions, self)
+        #
+        if presets is not None:
+            self._set_presets(presets)
 
     def set_answer_f(self, name, answer):
         if answer == "":
@@ -331,6 +339,15 @@ class QuestionForm:
         #
         block.concrete[key].answer = answer
         return True
+
+    def __iter__(self):
+        return iter(self.get_blocks())
+
+    def __len__(self):
+        return len(self.get_blocks())
+
+    def __getitem__(self, key):
+        return self.blocks[key]
 
     def set_answer(self, name, answer):
         if answer == "":
@@ -388,10 +405,13 @@ class QuestionForm:
         del self.unset
         return answers
 
+    def get_blocks(self):
+        return self.form.get_blocks()
+
     def write_config(self, filename):
         """ get a linear config and write it to the file"""
         config = {}
-        for blockname in self.form.get_blocks():
+        for blockname in self.get_blocks():
             config[blockname] = {key: question.answer
                                  for key, question in self.blocks[blockname].concrete.items()}
 
