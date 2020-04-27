@@ -117,7 +117,9 @@ def remove_brackets_and_quotes(string):
     return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")
 
 
-def _as_python_object(string, obj, name, dct={}):
+def _as_python_object(string, obj, name, dct=None):
+    if dct is None:
+        dct = {}
     try:
         result = eval(string, dct)
     except SyntaxError:

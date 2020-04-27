@@ -515,9 +515,11 @@ class BranchingNode(MutableMapping):
 
     __slots__ = ('name', 'leaf', 'subnodes')
 
-    def __init__(self, name, leaf, subnodes=OrderedDict()):
+    def __init__(self, name, leaf, subnodes=None):
         self.name = name
         self.leaf = leaf
+        if subnodes is None:
+            subnodes = {}
         self.subnodes = subnodes
 
     def __getitem__(self, key):
