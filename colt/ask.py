@@ -2,38 +2,77 @@ from .qform import QuestionForm, ValidatorErrorNotInChoices
 
 
 class AskQuestions(QuestionForm):
+    """Questionform to ask questions from the commandline"""
 
     _helpkeys = (":help", ":h")
 
-    def __init__(self, questions, config=None, presets=None):
-        QuestionForm.__init__(self, questions)
-        #
-        if presets is not None:
-            self._set_presets(presets)
-        #
-        if config is not None:
-            self.set_answers_from_file(config)
-
     def ask(self, config=None, ask_all=False, presets=None):
-        self._config_and_presets(config, presets)
+        """Main routine to get settings from the user,
+           if all answers are set, and ask_all is not True 
+
+            Kwargs:
+                config, str:
+                    name of an existing config file
+
+                ask_all, bool:
+                    whether to ask all questions, or skip those already set
+
+                presets, str:
+                    presets to be used
+        """
+        self.set_answers_and_presets(config, presets)
+        if ask_all is True:
+            return self._ask_impl(ask_all=ask_all)
+        #
+        if self.is_all_set():
+            return self.get_answers()
+        #
+        return self._ask_impl(ask_all=ask_all)
+
+    def _ask_impl(self, config=None, ask_all=False, presets=None):
+        """Actuall routine to get settings from the user
+
+            Kwargs:
+                config, str:
+                    name of an existing config file
+
+                ask_all, bool:
+                    whether to ask all questions, or skip those already set
+
+                presets, str:
+                    presets to be used
+        """
+        self.set_answers_and_presets(config, presets)
         for name, setting in self.setup_iterator(presets=presets):
             if name != "":
                 print(f"[{name}]")
             for _, value in setting['fields'].items():
                 self._select_question_and_ask(value, ask_all=ask_all)
+        if config is not None:
+            self.write_config(config)
         return self.get_answers(check=False)
 
     def check_only(self, config=None, presets=None):
-        self._config_and_presets(config, presets)
+        """Check that all answers set by config are correct and
+           return the settings
+
+            Kwargs:
+                config, str:
+                    name of an existing config file
+
+                presets, str:
+                    presets to be used
+        """
+        self.set_answers_and_presets(config, presets)
         return self.get_answers(check=True)
 
     def generate_input(self, filename, config=None, presets=None, ask_all=False):
-        if presets is not None:
-            self._set_presets(presets)
-        if config is not None:
-            self.set_answers_from_file(config)
-        self.ask(presets=presets, ask_all=ask_all)
+        #
+        self.set_answers_and_presets(config, presets)
+        #
+        answer = self.ask(presets=presets, ask_all=ask_all)
         self.write_config(filename)
+        return answer
 
     def _select_question_and_ask(self, settings, ask_all=False):
         if settings['type'] in ('select', 'input'):
@@ -108,9 +147,3 @@ class AskQuestions(QuestionForm):
         else:
             accept_enter = False
         return txt + ": ", accept_enter, settings['value']
-
-    def _config_and_presets(self, config, presets):
-        if presets is not None:
-            self._set_presets(presets)
-        if config is not None:
-            self.set_answers_from_file(config)

@@ -11,10 +11,18 @@ from .questions import Question, ConditionalQuestion, QuestionContainer
 from .questions import LiteralBlockQuestion, LiteralBlockString
 #
 from .presets import PresetGenerator
-from .validator import Validator, NOT_DEFINED
+from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
 #
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
+
+
+def is_existing_file(config):
+    try:
+        config = file_exists(config)
+        return True
+    except ValueError:
+        return False
 
 
 class _QuestionsContainerBase(GeneratorNavigator):
@@ -116,6 +124,9 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self._comment = question.comment
         self._label = question.question
         self.is_optional = question.is_optional
+        #
+        if not self.is_optional:
+            self.parent.n_unset += 1
 
     def get_answer(self, check=False):
         """get answer back, if is optional, return None if NOT_DEFINED"""
@@ -141,10 +152,15 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @answer.setter
     def answer(self, value):
         self._value.set(value)
-        self.is_set = True
+        self._set_is_set()
 
     def set_answer(self, value):
         self._value.set(value)
+        self._set_is_set()
+
+    def _set_is_set(self):
+        if not self.is_optional:
+            self.parent.n_unset -= 1
         self.is_set = True
 
     def preset(self, value, choices):
@@ -318,8 +334,10 @@ def create_forms(name, questions, parent):
 
 class QuestionForm(Mapping):
 
-    def __init__(self, questions, presets=None):
+    def __init__(self, questions, config=None, presets=None):
         questions = QuestionGenerator(questions).tree
+        # number of not set
+        self.n_unset = 0
         #
         self.blocks = {}
         # literal blocks
@@ -329,8 +347,7 @@ class QuestionForm(Mapping):
         # generate QuestionBlock
         self.form = QuestionBlock("", questions, self)
         #
-        if presets is not None:
-            self._set_presets(presets)
+        self.set_answers_and_presets(config, presets)
 
     def set_answer_f(self, name, answer):
         if answer == "":
@@ -339,15 +356,6 @@ class QuestionForm(Mapping):
         #
         block.concrete[key].answer = answer
         return True
-
-    def __iter__(self):
-        return iter(self.get_blocks())
-
-    def __len__(self):
-        return len(self.get_blocks())
-
-    def __getitem__(self, key):
-        return self.blocks[key]
 
     def set_answer(self, name, answer):
         if answer == "":
@@ -382,20 +390,25 @@ class QuestionForm(Mapping):
             block.concrete[key].answer = answer
         return out
 
-    def get_answer(self, check=False):
-        return self.form.get_answer(check=check)
-
     def generate_setup(self, presets=None):
         if presets is not None:
-            self._set_presets(presets)
+            self.set_presets(presets)
         return self.form.generate_setup()
 
     def setup_iterator(self, presets=None):
         if presets is not None:
-            self._set_presets(presets)
+            self.set_presets(presets)
         return self.form.setup_iterator()
 
     def get_answers(self, check=True):
+        """Get the answers from the forms
+
+            Kwargs:
+                check, bool:
+                    if True, raise exception in case answers are not answered!
+                    if False, dont check, missing answers are given as ""
+        
+        """
         if check is False:
             return self.form.get_answer()
         self.unset = {}
@@ -430,7 +443,15 @@ class QuestionForm(Mapping):
         if errmsg is not None:
             raise ErrorSettingAnswerFromDict(errmsg)
 
-    def _set_presets(self, presets):
+    def set_answers_and_presets(self, config=None, presets=None):
+        """set both presets and answers"""
+        if presets is not None:
+            self.set_presets(presets)
+        
+        if config is not None and is_existing_file(config):
+            self.set_answers_from_file(config)
+
+    def set_presets(self, presets):
         """reset some of the question possibilites"""
         presets = PresetGenerator(presets).tree
         #
@@ -449,6 +470,18 @@ class QuestionForm(Mapping):
                     print((f"Could not update choices in '{blockname}' entry '{key}' as choices ",
                            "not subset of previous choices, continue"))
 
+    def __iter__(self):
+        return iter(self.get_blocks())
+
+    def __len__(self):
+        return len(self.get_blocks())
+
+    def __getitem__(self, key):
+        return self.blocks[key]
+
+    def is_all_set(self):
+        return self.n_unset == 0
+
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
         try:
@@ -458,6 +491,7 @@ class QuestionForm(Mapping):
         return self._set_answers_from_dct(parsed)
 
     def _set_answers_from_dct(self, dct):
+        """Set the answers from a dictionary"""
         #
         errstr = ""
         #
@@ -490,13 +524,19 @@ class QuestionForm(Mapping):
             if key not in block:
                 print("key not known")
                 continue
+            question = block[key]
+            if answer == "": 
+                if not question.is_optional:
+                    errmsg += f"\n{key} = , Answer not set!"
+                continue
+            #
             try:
-                block[key].answer = answer
+                question.answer = answer
             except ValueError:
-                errmsg += f"\n{key} = {answer}, ValueError expected: '{block[key].typ}'"
+                errmsg += f"\n{key} = {answer}, ValueError"
             except ValidatorErrorNotInChoices:
                 errmsg += (f"\n{key} = {answer}, Wrong Choice: can only be"
-                           f"({', '.join(str(choice) for choice in block[key].choices)})")
+                           f"({', '.join(str(choice) for choice in question.choices)})")
         if errmsg != "":
             return error + errmsg
         return ""
