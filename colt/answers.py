@@ -10,6 +10,7 @@ from .exceptions import Error
 class ColtErrorAnswerNotDefined(Error):
 
     def __init__(self, filename, msg):
+        super().__init__()
         self.msg = msg
         self.filename = filename
 
@@ -44,7 +45,8 @@ class Answers(UserDict, GeneratorNavigator):
         if errmsg != "":
             raise ColtErrorAnswerNotDefined(self.filename, errmsg)
 
-    def _errmsg(self, block, items):
+    @staticmethod
+    def _errmsg(block, items):
         out = "\n".join(f"{item} = NOT_SET" for item in items)
         if block == "":
             return out + "\n"
@@ -59,8 +61,8 @@ class Answers(UserDict, GeneratorNavigator):
         return not_defined
 
     def _get_not_defined_from_block(self, key, answers):
-        answer = self.is_branching(key)
-        if answer is False:
+        answer = self.get_branching(key)
+        if answer is None:
             return self._check_block(key, answers)
         return self._check_branching(key, answer.branch, answer.node, answers)
 
@@ -83,7 +85,8 @@ class Answers(UserDict, GeneratorNavigator):
             return None
         return self._check_items(node)
 
-    def _check_items(self, node):
+    @staticmethod
+    def _check_items(node):
         return tuple(key for key, value in node.items()
                      if value is NOT_DEFINED)
 

@@ -2,7 +2,7 @@ from flask import render_template
 from flask import request
 #
 from . import app
-from .forms import QuestionForm
+from colt.qform import QuestionForm
 import json
 #
 
@@ -44,7 +44,9 @@ c = 8 :: int
 
 
 qform = QuestionForm(question)
-
+def update_form(form):
+    global qform
+    qform = form
 
 @app.route('/', methods=['GET', 'POST'])
 def questions():

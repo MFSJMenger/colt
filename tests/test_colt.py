@@ -33,7 +33,7 @@ def base():
     return Base
 
 
-def test_colt_form_commandline(base):
+def test_colt_from_commandline(base):
     """Test ask question"""
     # modify sys.argv
     # test_colt.py 10 231 -factor 2.8
@@ -45,7 +45,7 @@ def test_colt_form_commandline(base):
     assert cls.screening is True
 
 
-def test_colt_form_commandline_base(base):
+def test_colt_from_commandline_base(base):
     """Test ask question"""
     # modify sys.argv
     # test_colt.py 231 10

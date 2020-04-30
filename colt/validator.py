@@ -162,9 +162,11 @@ NOT_DEFINED = NotDefined()
 
 
 class ValidatorErrorNotInChoices(Exception):
+    pass
 
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
+
+class ValidatorErrorNotChoicesSubset(Exception):
+    pass
 
 
 class Validator:
@@ -194,14 +196,34 @@ class Validator:
     def __init__(self, typ, default=NOT_DEFINED, choices=None):
         self._parse = self._parsers[typ]
         #
-        self.choices = self._set_choices(choices)
+        self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
-        #
 
-    def _set_value(self, default):
-        if default is not NOT_DEFINED:
-            default = self._get_value(default)
-        return default
+    @property
+    def choices(self):
+        return self._choices
+
+    @choices.setter
+    def choices(self, choices):
+        """  """
+        # will raise an value error if choices wrong!
+        choices = self._set_choices(choices)
+        #
+        if self._choices is not None and any(choice not in self._choices for choice in choices):
+            raise ValidatorErrorNotChoicesSubset(("cannot update choices,",
+                                                  " needs to be subset of the original ones"))
+        # overwrite existing ones
+        self._choices = choices
+        # validate choice, if existing default is not in choices, reset
+        try:
+            self._value = self._set_value(self._value)
+        except ValidatorErrorNotInChoices:
+            self._value = NOT_DEFINED
+
+    def _set_value(self, value):
+        if value is not NOT_DEFINED:
+            value = self._get_value(value)
+        return value
 
     def _set_choices(self, choices):
         """set choices"""
@@ -241,3 +263,14 @@ class Validator:
     @classmethod
     def get_parsers(cls):
         return cls._parsers
+
+
+def register_parser(key, function):
+    """register a parser for the Questions class
+
+       The parser function needs to take  a single
+       argument which is a string and return a
+       single python object, which should not be a
+       **dict**!
+    """
+    Validator.register_parser(key, function)

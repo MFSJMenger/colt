@@ -1,15 +1,18 @@
+""" Create slottedcls in analogue to a namedtuple"""
 from collections.abc import Mapping
 from .validator import NOT_DEFINED
 
 
 class Snone:
+    """empty object used as own None"""
     __slots__ = ()
 
 
 SNONE = Snone()
 
 
-def slottedcls(name, entries, mutable=False):
+def slottedcls(name, entries):
+    """create a slotted class in analogue to a namedtuple """
 
     if isinstance(entries, str):
         entries = (entries, )
@@ -19,15 +22,15 @@ def slottedcls(name, entries, mutable=False):
         _args = tuple(name for name, value in entries.items()
                       if value is SNONE)
         _kwargs = []
-        for name, value in entries.items():
+        for _name, value in entries.items():
             if value is SNONE:
                 continue
             if isinstance(value, str):
-                string = f"{name}='{value}'"
+                string = f"{_name}='{value}'"
             elif value is NOT_DEFINED:
-                string = f"{name}=NOT_DEFINED"
+                string = f"{_name}=NOT_DEFINED"
             else:
-                string = f"{name}={value}"
+                string = f"{_name}={value}"
             _kwargs.append(string)
     else:
         _slots = tuple(list(entries))
@@ -50,8 +53,9 @@ def slottedcls(name, entries, mutable=False):
     _init = f"def __init__(self, {args_str}):\n{''.join(setattr for setattr in attributes)}"
 
     def __repr__(self):
-        return f"{self._name}(" + (", ".join(f"{slot}={getattr(self, slot)}"
-                                   for slot in self.__slots__)) + ")"
+        return (f"{self._name}("
+                + (", ".join(f"{slot}={getattr(self, slot)}" for slot in self.__slots__))
+                + ")")
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):

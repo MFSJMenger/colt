@@ -12,10 +12,9 @@ class ColtDirective(SphinxDirective):
 
     required_arguments = 1
     optional_arguments = 0
-    option_spec = {
-            'name': str,
-            'class': str,
-    }
+    option_spec = {'name': str,
+                   'class': str,
+                   }
 
     def run(self):
         questions = self._load_questions()
@@ -28,9 +27,9 @@ class ColtDirective(SphinxDirective):
 #                node += nodes.strong(f'[{key}]', f'[{key}]')
             _nodes = [node]
             # print(f"{key}: {type(value)}")
-            for key, question in value.concrete_items():
+            for _key, question in value.concrete_items():
                 body, content = self._generate_body_as_literal(question)
-                _nodes.append(self._generate_title_line(key, question, content))
+                _nodes.append(self._generate_title_line(_key, question, content))
                 if content:
                     _nodes.append(body)
             for node in _nodes:
@@ -44,12 +43,14 @@ class ColtDirective(SphinxDirective):
 
         return node
 
-    def _make_title(self, txt):
+    @staticmethod
+    def _make_title(txt):
         node = nodes.line('', '')
         node += nodes.strong(txt, txt)
         return node
 
-    def _generate_title_line(self, key, question, content):
+    @staticmethod
+    def _generate_title_line(key, question, content):
         node = nodes.line(f'{key}', f"{key}, ")
         node += nodes.strong(f'{question.typ}:',
                              f'{question.typ}:')
@@ -57,7 +58,8 @@ class ColtDirective(SphinxDirective):
             node += nodes.raw(':', ':')
         return node
 
-    def _generate_body_as_literal(self, question):
+    @staticmethod
+    def _generate_body_as_literal(question):
         content = False
         text = ""
         #
@@ -96,22 +98,22 @@ class ColtDirective(SphinxDirective):
             return obj.questions
         raise Exception('could import module')
 
+
 class ColtQFileDirective(ColtDirective):
     has_content = False
 
     required_arguments = 1
     optional_arguments = 0
-    option_spec = {
-            'name': str,
-    }
-    
+    option_spec = {'name': str,
+                   }
+
     def _load_questions(self):
 
         try:
-            with open(self.arguments[0], 'r') as f:
-                questions = f.read()
-        except:
-            msg = f'Could not find module {self.arguments}'
+            with open(self.arguments[0], 'r') as fhandle:
+                questions = fhandle.read()
+        except IOError:
+            msg = f'Could not find file {self.arguments}'
             raise Exception(msg)
         #
         return QuestionGenerator(questions)
@@ -121,8 +123,7 @@ def setup(app):
     app.add_directive("colt", ColtDirective)
     app.add_directive("colt_qfile", ColtQFileDirective)
 
-    return {
-            'version': '0.1',
+    return {'version': '0.1',
             'parallel_read_safe': True,
             'parallel_write_safe': True,
-    }
+            }

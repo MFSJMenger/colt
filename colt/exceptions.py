@@ -5,6 +5,7 @@ class Error(Exception):
 class ErrorSettingAnswerFromFile(Error):
 
     def __init__(self, filename, msg):
+        super().__init__()
         self.filename = filename
         self.msg = msg
 
@@ -18,6 +19,7 @@ class ErrorSettingAnswerFromFile(Error):
 class ErrorSettingAnswerFromDict(Error):
 
     def __init__(self, msg):
+        super().__init__()
         self.msg = msg
 
     def __repr__(self):
