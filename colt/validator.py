@@ -5,6 +5,10 @@ import numpy as np
 __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
 
 
+class StringList(list):
+    pass
+
+
 def abspath(answer):
     return os.path.abspath(os.path.expanduser(answer))
 
@@ -48,7 +52,7 @@ def bool_parser(answer):
 def list_parser(answer):
     """convert string to list of strings"""
     split_char, answer = _prepare_list_parsing(answer)
-    return [ele.strip() for ele in answer.split(split_char) if ele.strip() != ""]
+    return StringList([ele.strip() for ele in answer.split(split_char) if ele.strip() != ""])
 
 
 def flist_parser(answer):

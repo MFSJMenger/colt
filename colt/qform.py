@@ -13,6 +13,7 @@ from .questions import LiteralBlockQuestion, LiteralBlockString
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
+from .validator import StringList
 #
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
@@ -553,6 +554,14 @@ class QuestionForm(Mapping):
         return self.blocks[block], key
 
 
+def generate_string(name, value):
+    if value is None:
+        return f"{name} ="
+    if isinstance(value, StringList):
+        return f"{name} = {', '.join(ele for ele in value)}"
+    return f"{name} = {value}"
+
+
 def answer_iter(name, dct, default_name):
     if isinstance(dct, LiteralBlockString):
         if dct.is_none is True:
@@ -567,8 +576,5 @@ def answer_iter(name, dct, default_name):
         yield dct.data
     else:
         for _name, _value in dct.items():
-            if _value is None:
-                yield f"{_name} ="
-            else:
-                yield f"{_name} = {_value}"
+            yield generate_string(_name, _value)
         yield ''
