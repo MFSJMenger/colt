@@ -122,7 +122,7 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
         questions = cls.generate_questions(config=config, presets=presets)
-        questions.generate_input(filename)
+        return questions.generate_input(filename)
 
 
 def get_config_from_commandline(questions, description=None, presets=None):
