@@ -350,6 +350,10 @@ class QuestionForm(Mapping):
         #
         self.set_answers_and_presets(config, presets)
 
+    @property
+    def is_all_set(self):
+        return self.n_unset == 0
+
     def set_answer_f(self, name, answer):
         if answer == "":
             return False
@@ -479,9 +483,6 @@ class QuestionForm(Mapping):
 
     def __getitem__(self, key):
         return self.blocks[key]
-
-    def is_all_set(self):
-        return self.n_unset == 0
 
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""

@@ -24,33 +24,10 @@ class AskQuestions(QuestionForm):
         if ask_all is True:
             return self._ask_impl(ask_all=ask_all)
         #
-        if self.is_all_set():
+        if self.is_all_set:
             return self.get_answers()
         #
         return self._ask_impl(ask_all=ask_all)
-
-    def _ask_impl(self, config=None, ask_all=False, presets=None):
-        """Actuall routine to get settings from the user
-
-            Kwargs:
-                config, str:
-                    name of an existing config file
-
-                ask_all, bool:
-                    whether to ask all questions, or skip those already set
-
-                presets, str:
-                    presets to be used
-        """
-        self.set_answers_and_presets(config, presets)
-        for name, setting in self.setup_iterator(presets=presets):
-            if name != "":
-                print(f"[{name}]")
-            for _, value in setting['fields'].items():
-                self._select_question_and_ask(value, ask_all=ask_all)
-        if config is not None:
-            self.write_config(config)
-        return self.get_answers(check=False)
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
@@ -74,6 +51,31 @@ class AskQuestions(QuestionForm):
         self.write_config(filename)
         return answer
 
+    def _ask_impl(self, config=None, ask_all=False, presets=None):
+        """Actuall routine to get settings from the user
+
+            Kwargs:
+                config, str:
+                    name of an existing config file
+
+                ask_all, bool:
+                    whether to ask all questions, or skip those already set
+
+                presets, str:
+                    presets to be used
+        """
+        self.set_answers_and_presets(config, presets)
+        for name, setting in self.setup_iterator(presets=presets):
+            if name != "":
+                print(f"[{name}]")
+            for _, value in setting['fields'].items():
+                self._select_question_and_ask(value, ask_all=ask_all)
+        #
+        if config is not None:
+            self.write_config(config)
+        #
+        return self.get_answers(check=False)
+
     def _select_question_and_ask(self, settings, ask_all=False):
         if settings['type'] in ('select', 'input'):
             return self._ask_question_concrete_question(settings, ask_all=ask_all)
@@ -85,7 +87,6 @@ class AskQuestions(QuestionForm):
         if ask_all is True or settings['is_set'] is False:
             text, accept_enter, default = self._generate_question_text(settings)
             self._ask(settings['id'], text, accept_enter, default)
-        #
 
     def _generate_question_text(self, settings):
         if settings['type'] == 'select':

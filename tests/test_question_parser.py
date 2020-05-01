@@ -20,7 +20,7 @@ import numpy as np
 #
 from colt import AskQuestions
 import colt.validator as LineParser
-from colt.validator import Validator
+from colt.validator import Validator, StringList
 from colt import register_parser
 
 
@@ -101,11 +101,11 @@ def test_parser_bool_n():
 
 
 def test_parser_list_csv():
-    check_solution(LineParser.list_parser("a, b, c"), ['a', 'b', 'c'], is_array=True)
+    check_solution(LineParser.list_parser("a, b, c"), StringList(['a', 'b', 'c']), is_array=True)
 
 
 def test_parser_list_ssv():
-    check_solution(LineParser.list_parser("a  b  c"), ['a', 'b', 'c'], is_array=True)
+    check_solution(LineParser.list_parser("a  b  c"), StringList(['a', 'b', 'c']), is_array=True)
 
 
 def test_parser_ilist_csv():
@@ -228,7 +228,7 @@ def test_question_generator_floats(check_uniform_types):
 
 
 def test_question_generator_lists(check_uniform_types):
-    solution = ['halo', 'qchem', 'gaussian']
+    solution = StringList(['halo', 'qchem', 'gaussian'])
     solution_string = str(solution)
     check_uniform_types("list", solution, solution_string, is_array=True)
 
