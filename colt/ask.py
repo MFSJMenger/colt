@@ -121,6 +121,8 @@ class AskQuestions(QuestionForm):
         if answer == "":
             if accept_enter is True:
                 return default
+            else:
+                print("Empty entry not possiple, please enter answer")
             return self._ask_question_implementation(text, accept_enter, default)
         return answer
 
