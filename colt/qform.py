@@ -567,5 +567,8 @@ def answer_iter(name, dct, default_name):
         yield dct.data
     else:
         for _name, _value in dct.items():
-            yield f"{_name} = {_value}"
+            if _value is None:
+                yield f"{_name} ="
+            else:
+                yield f"{_name} = {_value}"
         yield ''
