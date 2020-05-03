@@ -1,6 +1,5 @@
 """Basic Logic for an INI based code generator"""
 from abc import abstractmethod
-from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
 #
 import configparser

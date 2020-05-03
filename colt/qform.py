@@ -306,7 +306,8 @@ class SubquestionBlock(_QuestionsContainerBase):
         #
         self.main_question = main_question
         #
-        self.settings = {qname: QuestionBlock(self.join_case(name, qname), quest, parent, callbacks=callbacks)
+        self.settings = {qname: QuestionBlock(self.join_case(name, qname),
+                                              quest, parent, callbacks=callbacks)
                          for qname, quest in questions.items()}
 
     @property
@@ -317,7 +318,8 @@ class SubquestionBlock(_QuestionsContainerBase):
         answer = self.main_question.get_answer(check=check)
         if answer is NOT_DEFINED:
             return SubquestionsAnswer(self._name, answer, {})
-        return SubquestionsAnswer(self._name, answer, self.settings[answer].get_answer(check=check))
+        return SubquestionsAnswer(self._name, answer,
+                                  self.settings[answer].get_answer(check=check))
 
     def setup_iterator(self):
         answer = self.answer
@@ -361,7 +363,8 @@ def create_forms(name, questions, parent, callbacks):
             blocks[key] = QuestionBlock(qname, question, parent, callbacks=callbacks)
         elif isinstance(question, ConditionalQuestion):
             concrete[key] = ConcreteQuestion(qname, question.main, parent, callbacks=callbacks)
-            blocks[key] = SubquestionBlock(qname, concrete[key], question, parent, callbacks=callbacks)
+            blocks[key] = SubquestionBlock(qname, concrete[key], question, parent,
+                                           callbacks=callbacks)
         elif isinstance(question, LiteralBlockQuestion):
             concrete[key] = LiteralBlock(qname, question, parent, callbacks=callbacks)
         else:

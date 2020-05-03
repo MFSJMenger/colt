@@ -1,4 +1,4 @@
-from .qform import QuestionForm, ValidatorErrorNotInChoices
+from .qform import QuestionForm
 
 
 def empty_entry(answer, settings):

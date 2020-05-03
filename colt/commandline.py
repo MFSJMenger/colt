@@ -1,5 +1,6 @@
 from .colt import Colt
 
+
 def _init(self, function):
     self.function = function
     self.__doc__ = self.function.__doc__
