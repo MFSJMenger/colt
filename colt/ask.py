@@ -1,14 +1,34 @@
 from .qform import QuestionForm, ValidatorErrorNotInChoices
 
 
+def empty_entry(answer, settings):
+    print("Empty entry not possiple, please enter answer")
+
+
+def value_error(answer, settings):
+    print(f"Could not parse '{answer}', should be '{settings['typ']}', redo")
+
+
+def wrong_choice(answer, settings):
+    print(f"Answer '{answer}' not in choices!")
+
+
 class AskQuestions(QuestionForm):
     """Questionform to ask questions from the commandline"""
 
     _helpkeys = (":help", ":h")
+    _callbacks = {'EmptyEntry': empty_entry,
+                  'ValueError': value_error,
+                  'WrongChoice': wrong_choice,
+                  }
+
+    def __init__(self, questions, config=None, presets=None):
+        QuestionForm.__init__(self, questions, config=config,
+                              presets=presets, callbacks=self._callbacks)
 
     def ask(self, config=None, ask_all=False, presets=None):
         """Main routine to get settings from the user,
-           if all answers are set, and ask_all is not True 
+           if all answers are set, and ask_all is not True
 
             Kwargs:
                 config, str:
@@ -68,8 +88,8 @@ class AskQuestions(QuestionForm):
         for name, setting in self.setup_iterator(presets=presets):
             if name != "":
                 print(f"[{name}]")
-            for _, value in setting['fields'].items():
-                self._select_question_and_ask(value, ask_all=ask_all)
+            for _, question in setting['fields'].items():
+                self._select_question_and_ask(question, ask_all=ask_all)
         #
         if config is not None:
             self.write_config(config)
@@ -85,8 +105,8 @@ class AskQuestions(QuestionForm):
 
     def _ask_question_concrete_question(self, settings, ask_all=False):
         if ask_all is True or settings['is_set'] is False:
-            text, accept_enter, default = self._generate_question_text(settings)
-            self._ask(settings['id'], text, accept_enter, default)
+            text = self._generate_question_text(settings)
+            self._ask_question(text, settings['self'], None)
 
     def _generate_question_text(self, settings):
         if settings['type'] == 'select':
@@ -95,58 +115,34 @@ class AskQuestions(QuestionForm):
             return self._input_question_text(settings)
         raise Exception(f"unknown type {settings['type']}")
 
-    def _ask(self, idname, text, accept_enter, default):
-        answer = self._perform_ask_question(text, accept_enter, default)
-        # if None, answer is optional!
-        if answer is None:
-            return
-        try:
-            self.set_answer_f(idname, answer)
-            return
-        except ValueError:
-            print(f"Unknown input type '{answer}', redo")
-        except ValidatorErrorNotInChoices:
-            print(f"Answer '{answer}' not in choices!")
-        self._ask(idname, text, accept_enter, default)
-
-    def _perform_ask_question(self, text, accept_enter, default, comment=None):
-        answer = self._ask_question_implementation(text, accept_enter, default)
-        if any(answer == helper for helper in self._helpkeys):
-            print(comment)
-            return self._perform_ask_question(text, accept_enter, default, comment)
-        return answer
-
-    def _ask_question_implementation(self, text, accept_enter, default):
+    def _ask_question(self, text, question, comment):
+        """Ask the question, and handle events like :h, :help"""
         answer = input(text).strip()  # strip is important!
-        if answer == "":
-            if accept_enter is True:
-                return default
+        if any(answer == helper for helper in self._helpkeys):
+            if comment is None:
+                print("No help available")
             else:
-                print("Empty entry not possiple, please enter answer")
-            return self._ask_question_implementation(text, accept_enter, default)
-        return answer
+                print(comment)
+            return self._ask_question(text, question, comment)
+        elif question.set(answer) is True:
+            return
+        return self._ask_question(text, question, comment)
 
     @staticmethod
     def _select_question_text(settings):
-        accept_enter = True
         txt = f"{settings['label']}"
         if settings['value'] is None:
-            txt += f" [optional], "
+            txt += f" [optional]"
         elif settings['value'] != "":
-            txt += f" [{settings['value']}], "
-        else:
-            accept_enter = False
-        txt += "choices = (%s)" % (", ".join(str(opt) for opt in settings['options']))
-        return txt + ": ", accept_enter, settings['value']
+            txt += f" [{settings['value']}]"
+        txt += ", choices = (%s)" % (", ".join(str(opt) for opt in settings['options']))
+        return txt + ": "
 
     @staticmethod
     def _input_question_text(settings):
-        accept_enter = True
         txt = f"{settings['label']}"
         if settings['value'] is None:
-            txt += f" [optional], "
+            txt += f" [optional]"
         elif settings['value'] != "":
-            txt += f" [{settings['value']}], "
-        else:
-            accept_enter = False
-        return txt + ": ", accept_enter, settings['value']
+            txt += f" [{settings['value']}]"
+        return txt + ": "

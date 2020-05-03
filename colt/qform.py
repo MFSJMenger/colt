@@ -41,16 +41,45 @@ class _QuestionsContainerBase(GeneratorNavigator):
 
 
 class _ConcreteQuestionBase(ABC):
+    """Logic of each actual question
 
-    def __init__(self, name, question, parent):
+       acts also as a StringVar used in tkinter, as it makes a lot of logic simpler
+       it uses therefore callback functions, to perform actions.
+    """
+
+    def __init__(self, name, question, parent, accept_empty=False, callbacks=None):
         self.name = name
         self._settings = self._generate_settings(name, question)
         self.parent = parent
         self.is_set = False
+        self.accept_empty = accept_empty
+        self._callbacks = callbacks
+
+    def set(self, answer):
+        """ Handle all set events """
+        if answer == "":
+            if self.accept_empty is False:
+                self._callbacks['EmptyEntry'](answer, self._settings)
+            return self.accept_empty
+        #
+        try:
+            self.answer = answer
+            return True
+        except ValueError:
+            self._callbacks['ValueError'](answer, self._settings)
+        except ValidatorErrorNotInChoices:
+            self._callbacks['WrongChoice'](answer, self._settings)
+        return False
+
+    def get(self):
+        return self.answer
 
     @property
     def settings(self):
+        """settings"""
         self._settings.update(self._generate_dynamic_settings())
+        if self._callbacks is not None:
+            self._settings.update({"self": self})
         return self._settings
 
     @abstractmethod
@@ -77,11 +106,13 @@ class _ConcreteQuestionBase(ABC):
 
 class LiteralBlock(_ConcreteQuestionBase):
 
-    def __init__(self, name, question, parent):
+    def __init__(self, name, question, parent, callbacks=None):
         #
         self._blockname, self._name = GeneratorNavigator.rsplit_keys(name)
         #
-        _ConcreteQuestionBase.__init__(self, name, question, parent)
+        _ConcreteQuestionBase.__init__(self, name, question, parent,
+                                       accept_empty=True,
+                                       callbacks=callbacks)
         # register self
         self.parent.literals[name] = self
         self._answer = LiteralBlockString(None)
@@ -118,13 +149,15 @@ class LiteralBlock(_ConcreteQuestionBase):
 
 class ConcreteQuestion(_ConcreteQuestionBase):
 
-    def __init__(self, name, question, parent):
-        _ConcreteQuestionBase.__init__(self, name, question, parent)
+    def __init__(self, name, question, parent, callbacks=None):
+        _ConcreteQuestionBase.__init__(self, name, question, parent, callbacks=callbacks)
         #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
         self._comment = question.comment
         self._label = question.question
         self.is_optional = question.is_optional
+        # check if accept_empty is true
+        self.accept_empty = (self._value.get() is not NOT_DEFINED or self.is_optional)
         #
         if not self.is_optional:
             self.parent.n_unset += 1
@@ -187,23 +220,25 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def _generate_dynamic_settings(self):
         return {"value": self.answer,
-                "is_set": self.is_set}
+                "is_set": self.is_set,
+                }
 
     def _generate_settings(self, name, question):
         if question.choices is None:
             return self._input_form_settings(name, question.question,
                                              question.typ, question.is_optional)
         return self._select_form_settings(name, question.question,
-                                          question.choices, question.is_optional)
+                                          question.choices, question.typ, question.is_optional)
 
     @staticmethod
-    def _select_form_settings(name, label, options, is_optional):
+    def _select_form_settings(name, label, options, typ, is_optional):
         options = list(options)
         return {"type": "select",
                 "label": label,
                 "id": name,
                 "options": options,
-                'is_optional': is_optional,
+                "is_optional": is_optional,
+                "typ": typ,
                 }
 
     @staticmethod
@@ -213,17 +248,18 @@ class ConcreteQuestion(_ConcreteQuestionBase):
                 "label": label,
                 "id": name,
                 "placeholder": typ,
-                'is_optional': is_optional,
+                "is_optional": is_optional,
+                "typ": typ,
                 }
 
 
 class QuestionBlock(_QuestionsContainerBase, UserDict):
 
-    def __init__(self, name, question, parent):
+    def __init__(self, name, question, parent, callbacks=None):
         _QuestionsContainerBase.__init__(self, name, parent)
         #
         UserDict.__init__(self)
-        self.concrete, self.blocks = create_forms(name, question, parent)
+        self.concrete, self.blocks = create_forms(name, question, parent, callbacks)
         self.data = self.concrete
 
     def generate_setup(self):
@@ -261,7 +297,7 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
 
 class SubquestionBlock(_QuestionsContainerBase):
 
-    def __init__(self, name, main_question, questions, parent):
+    def __init__(self, name, main_question, questions, parent, callbacks=None):
         self._blockname, self._name = GeneratorNavigator.rsplit_keys(name)
         if self._name is None:
             self._name = self._blockname
@@ -270,7 +306,7 @@ class SubquestionBlock(_QuestionsContainerBase):
         #
         self.main_question = main_question
         #
-        self.settings = {qname: QuestionBlock(self.join_case(name, qname), quest, parent)
+        self.settings = {qname: QuestionBlock(self.join_case(name, qname), quest, parent, callbacks=callbacks)
                          for qname, quest in questions.items()}
 
     @property
@@ -314,20 +350,20 @@ class SubquestionBlock(_QuestionsContainerBase):
         return {block: None for block in self.get_blocks()}
 
 
-def create_forms(name, questions, parent):
+def create_forms(name, questions, parent, callbacks):
     concrete = {}
     blocks = {}
     for key, question in questions.items():
         qname = GeneratorNavigator.join_keys(name, key)
         if isinstance(question, Question):
-            concrete[key] = ConcreteQuestion(qname, question, parent)
+            concrete[key] = ConcreteQuestion(qname, question, parent, callbacks=callbacks)
         elif isinstance(question, QuestionContainer):
-            blocks[key] = QuestionBlock(qname, question, parent)
+            blocks[key] = QuestionBlock(qname, question, parent, callbacks=callbacks)
         elif isinstance(question, ConditionalQuestion):
-            concrete[key] = ConcreteQuestion(qname, question.main, parent)
-            blocks[key] = SubquestionBlock(qname, concrete[key], question, parent)
+            concrete[key] = ConcreteQuestion(qname, question.main, parent, callbacks=callbacks)
+            blocks[key] = SubquestionBlock(qname, concrete[key], question, parent, callbacks=callbacks)
         elif isinstance(question, LiteralBlockQuestion):
-            concrete[key] = LiteralBlock(qname, question, parent)
+            concrete[key] = LiteralBlock(qname, question, parent, callbacks=callbacks)
         else:
             raise TypeError("Type of question not known!", type(question))
     return concrete, blocks
@@ -335,7 +371,10 @@ def create_forms(name, questions, parent):
 
 class QuestionForm(Mapping):
 
-    def __init__(self, questions, config=None, presets=None):
+    def __init__(self, questions, config=None, presets=None, callbacks=None):
+        #
+        callbacks = self._validate_callbacks(callbacks)
+        #
         questions = QuestionGenerator(questions).tree
         # number of not set
         self.n_unset = 0
@@ -346,7 +385,7 @@ class QuestionForm(Mapping):
         # not set variables
         self.unset = {}
         # generate QuestionBlock
-        self.form = QuestionBlock("", questions, self)
+        self.form = QuestionBlock("", questions, self, callbacks=callbacks)
         #
         self.set_answers_and_presets(config, presets)
 
@@ -412,7 +451,7 @@ class QuestionForm(Mapping):
                 check, bool:
                     if True, raise exception in case answers are not answered!
                     if False, dont check, missing answers are given as ""
-        
+
         """
         if check is False:
             return self.form.get_answer()
@@ -452,7 +491,7 @@ class QuestionForm(Mapping):
         """set both presets and answers"""
         if presets is not None:
             self.set_presets(presets)
-        
+
         if config is not None and is_existing_file(config):
             self.set_answers_from_file(config)
 
@@ -527,7 +566,7 @@ class QuestionForm(Mapping):
                 print("key not known")
                 continue
             question = block[key]
-            if answer == "": 
+            if answer == "":
                 if not question.is_optional:
                     errmsg += f"\n{key} = , Answer not set!"
                 continue
@@ -542,6 +581,21 @@ class QuestionForm(Mapping):
         if errmsg != "":
             return error + errmsg
         return ""
+
+    def _validate_callbacks(self, callbacks):
+        """Validate callbacks"""
+
+        if callbacks is None:
+            return callbacks
+
+        if not isinstance(callbacks, Mapping):
+            raise ValueError("callback needs to be a Mapping!")
+
+        for key in ('ValueError', 'WrongChoice', 'EmptyEntry'):
+            if key not in callbacks:
+                # enter empty entry
+                callbacks[key] = lambda x, y: None
+        return callbacks
 
     def _split_keys(self, name):
         block, key = GeneratorNavigator.rsplit_keys(name)
