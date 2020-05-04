@@ -158,9 +158,6 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.is_optional = question.is_optional
         # check if accept_empty is true
         self.accept_empty = (self._value.get() is not NOT_DEFINED or self.is_optional)
-        #
-        if not self.is_optional:
-            self.parent.n_unset += 1
 
     def get_answer(self, check=False):
         """get answer back, if is optional, return None if NOT_DEFINED"""
@@ -186,15 +183,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @answer.setter
     def answer(self, value):
         self._value.set(value)
-        self._set_is_set()
+        self.is_set = True
 
     def set_answer(self, value):
         self._value.set(value)
-        self._set_is_set()
-
-    def _set_is_set(self):
-        if not self.is_optional:
-            self.parent.n_unset -= 1
         self.is_set = True
 
     def preset(self, value, choices):
@@ -261,6 +253,10 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
         UserDict.__init__(self)
         self.concrete, self.blocks = create_forms(name, question, parent, callbacks)
         self.data = self.concrete
+
+    @property
+    def is_set(self):
+        return all(question.is_set for question in self.concrete.values())
 
     def generate_setup(self):
         out = {self.name: {
@@ -379,8 +375,6 @@ class QuestionForm(Mapping):
         callbacks = self._validate_callbacks(callbacks)
         #
         questions = QuestionGenerator(questions).tree
-        # number of not set
-        self.n_unset = 0
         #
         self.blocks = {}
         # literal blocks
@@ -394,7 +388,7 @@ class QuestionForm(Mapping):
 
     @property
     def is_all_set(self):
-        return self.n_unset == 0
+        return all(block.is_set for block in self.values())
 
     def set_answer_f(self, name, answer):
         if answer == "":
@@ -495,8 +489,11 @@ class QuestionForm(Mapping):
         if presets is not None:
             self.set_presets(presets)
 
-        if config is not None and is_existing_file(config):
-            self.set_answers_from_file(config)
+        if config is not None:
+            if isinstance(config, Mapping):
+                return self.set_answers_from_dct(config)
+            if is_existing_file(config):
+                self.set_answers_from_file(config)
 
     def set_presets(self, presets):
         """reset some of the question possibilites"""
