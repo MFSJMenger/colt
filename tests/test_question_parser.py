@@ -337,7 +337,7 @@ def test_question_generator_flists_np_string_ssv(check_uniform_types):
 
 def test_question_generator_python_nparray(check_uniform_types):
     solution = np.array([1.2, 2.1, 3.3, 4.8, 5.1, 6.10])
-    solution_string = "np.array([1.2, 2.1, 3.3, 4.8, 5.1, 6.10])"
+    solution_string = "[1.2, 2.1, 3.3, 4.8, 5.1, 6.10]"
     check_uniform_types("python(np.array)", solution, solution_string, is_array=True)
 
 

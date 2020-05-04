@@ -1,4 +1,5 @@
 import os
+import ast
 import numpy as np
 
 
@@ -121,16 +122,16 @@ def remove_brackets_and_quotes(string):
     return string.replace("[", "").replace("]", "").replace("'", "").replace('"', "")
 
 
-def _as_python_object(string, obj, name, dct=None):
-    if dct is None:
-        dct = {}
-    try:
-        result = eval(string, dct)
-    except SyntaxError:
-        raise ValueError(f"Could not parse {string}") from None
+def _as_python_object(string, obj, name):
+    result = ast.literal_eval(string)
     if not isinstance(result, obj):
         raise ValueError(f"Value is not a python {name}!")
     return result
+
+
+def as_python_tuple(string):
+    """try to convert string to python tuple"""
+    return _as_python_object(string, tuple, "tuple")
 
 
 def as_python_list(string):
@@ -145,9 +146,7 @@ def as_python_dict(string):
 
 def as_python_numpy_array(string):
     """try to convert string to python list"""
-    return _as_python_object(string, np.ndarray,
-                             "np.array",
-                             dct={'numpy': np, 'np': np, 'array': np.array})
+    return np.array(as_python_list(string))
 
 
 # empty class
@@ -194,6 +193,7 @@ class Validator:
         # python objects
         'python(list)': as_python_list,
         'python(dict)': as_python_dict,
+        'python(tuple)': as_python_tuple,
         'python(np.array)': as_python_numpy_array,
     }
 
