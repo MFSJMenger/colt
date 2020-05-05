@@ -21,7 +21,6 @@ import numpy as np
 from colt import AskQuestions
 import colt.validator as LineParser
 from colt.validator import Validator, StringList
-from colt import register_parser
 
 
 
@@ -42,24 +41,6 @@ def check_uniform_types():
         answer = validator.validate(solution_string)
         check_solution(answer, solution, is_array)
     return check_solutions
-
-
-def test_add_new_parser_fail():
-    with pytest.raises(ValueError):
-        register_parser("hi", 0)
-
-
-def test_add_new_parser_fail_key():
-    with pytest.raises(ValueError):
-        register_parser(0, lambda x: x)
-
-
-def test_add_new_parser():
-
-    def literal_parser(answer):
-        return answer
-
-    register_parser("literal", literal_parser)
 
 
 # simple tests

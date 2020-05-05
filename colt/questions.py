@@ -167,7 +167,7 @@ class QuestionGenerator(GeneratorBase):
         else:
             question = value.question
         # get choices
-        choices = self._parse_choices(value.typ, value.choices)
+        choices = self._parse_choices(value.choices)
         # return leaf node
         return Question(question, value.typ, default, choices, comment, value.is_optional)
 
@@ -303,14 +303,11 @@ class QuestionGenerator(GeneratorBase):
             parsed_string.append(line)
         return "\n".join(parsed_string)
 
-    @classmethod
-    def _parse_choices(cls, typ, line):
+    @staticmethod
+    def _parse_choices(line):
         """Handle choices"""
         if line == "":
             return None
         if line is NOT_DEFINED:
             return None
-        if typ not in cls._allowed_choices_types:
-            return None
-        line = line.replace("[", "").replace("]", "")
-        return [choice.strip() for choice in line.split(",")]
+        return line

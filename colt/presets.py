@@ -64,9 +64,4 @@ class PresetGenerator(GeneratorBase):
         """Handle choices"""
         if line == "":
             return None
-        line = line.replace("[", "").replace("]", "")
-        line = line.replace("(", "").replace(")", "")
-        choices = [choice.strip() for choice in line.split(",")]
-        if choices == []:
-            return None
-        return choices
+        return line

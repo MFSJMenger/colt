@@ -6,9 +6,11 @@ __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
 __version__ = '0.1.0'
 
-__all__ = ["Colt", "PluginBase", "FromCommandline", "AskQuestions",
+__all__ = ["Colt", "PluginBase", 
+           "FromCommandline", 
+           "AskQuestions",
            "ColtErrorAnswerNotDefined", "QuestionGenerator",
-           "register_parser", "Validator", "NOT_DEFINED"]
+           "Validator", "NOT_DEFINED"]
 
 # Helper class to handle easily questions with classes
 from .colt import Colt
@@ -22,4 +24,4 @@ from .answers import ColtErrorAnswerNotDefined
 # Generate questions from a reference config file
 from .questions import QuestionGenerator
 # Validator
-from .validator import Validator, NOT_DEFINED, register_parser
+from .validator import Validator, NOT_DEFINED

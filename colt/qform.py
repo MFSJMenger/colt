@@ -196,6 +196,11 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         if choices is not None:
             self._value.choices = choices
             self._update_settings(choices)
+            #
+            answer = self._value.get()
+            #
+            if answer is NOT_DEFINED:
+                self.is_set = False
         if value is not None:
             self._value.set(value)
 
@@ -203,8 +208,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         if self.settings['type'] != 'select':
             self._settings = self._select_form_settings(self.name, self._label,
                                                         choices, self.is_optional)
-            return
-        self._settings['options'] = choices
+        self._settings['options'] = str(self._value.choices)
 
     @property
     def choices(self):
@@ -575,9 +579,9 @@ class QuestionForm(Mapping):
                 question.answer = answer
             except ValueError:
                 errmsg += f"\n{key} = {answer}, ValueError"
-            except ValidatorErrorNotInChoices:
+            except ValidatorErrorNotInChoices as error:
                 errmsg += (f"\n{key} = {answer}, Wrong Choice: can only be"
-                           f"({', '.join(str(choice) for choice in question.choices)})")
+                           f"{error}")
         if errmsg != "":
             return error + errmsg
         return ""

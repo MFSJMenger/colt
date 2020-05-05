@@ -1,9 +1,116 @@
 import os
+from collections.abc import KeysView
 import ast
 import numpy as np
 
 
 __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
+
+
+class NoChoice:
+
+    __slots__ = ()
+
+    def is_subset(self, rhs):
+        if isinstance(rhs, NoChoice):
+            return True
+        return False
+
+    def validate(self, value):
+        return True
+
+NO_CHOICE = NoChoice()
+
+class Choices:
+
+    __slots__ = ('choices')
+
+    def __init__(self, choices):
+        self.choices = choices
+
+    def __str__(self):
+        return ", ".join(str(choice) for choice in self.choices)
+
+    def __repr__(self):
+        return ", ".join(str(choice) for choice in self.choices)
+
+    def validate(self, value):
+        return (value in self.choices)
+
+    def is_subset(self, rhs):
+        if rhs is None:
+            return True
+        if not isinstance(rhs, Choices):
+            return False
+        return all(choice in rhs.choices for choice in self.choices)
+
+
+class RangeExpression:
+    """Simple class to handle mathematical ranges"""
+
+    __slots__ = ('lower', 'upper')
+
+    def __init__(self, expr):
+        self.lower, self.upper = self._parse(expr)
+
+    def _parse(self, expr):
+        if '>' in expr:
+            upper, lower = (ele.strip() for ele in expr.split('>'))
+        elif '<' in expr:
+            lower, upper = (ele.strip() for ele in expr.split('<'))
+        else:
+            raise ValueError("Could not parse Expr")
+        upper = self._parse_value(upper)
+        lower = self._parse_value(lower)
+        if self._larger(lower, upper):
+            raise ValueError("Range is None")
+        return lower, upper
+
+    def validate(self, value):
+        if self.lower is not None:
+            if value < self.lower:
+                return False
+        if self.upper is not None:
+            if value > self.upper:
+                return False
+        return True
+
+    def is_subset(self, rhs):
+        """Can only be subset of range expression!"""
+        if rhs is None:
+            return True
+        if not isinstance(rhs, RangeExpression):
+            return False
+
+        if self._smaller(self.lower, rhs.lower):
+            return False
+        if self._larger(self.upper, rhs.upper):
+            return False
+        return True
+
+    @staticmethod
+    def _larger(value1, value2):
+        """value1 > value2"""
+        if value1 is None:
+            return True
+        if value2 is None:
+            return False
+        return value1 > value2
+
+    @staticmethod
+    def _smaller(value1, value2):
+        """value1 < value2"""
+        if value1 is None:
+            return False
+        if value2 is None:
+            return True
+        return value1 < value2
+    
+    @staticmethod        
+    def _parse_value(value):
+        if value == "":
+            return None
+        return float(value)
 
 
 class StringList(list):
@@ -172,12 +279,135 @@ class ValidatorErrorNotChoicesSubset(Exception):
     pass
 
 
+class ValidatorBase:
+
+    __slots__ = ('_choices', '_value')
+
+    _parse = None
+    
+    def __init__(self, default=NOT_DEFINED, choices=None):
+        self._choices = self._set_choices(choices)
+        self._value = self._set_value(default)
+
+    def validate(self, value):
+        """Parse a string and return its value, 
+           raises ValueError on failure
+
+           Args:
+                value, str
+                    
+           Returns:
+                parsed value
+           Raises:
+                ValueError, if value does not fullfill condition
+        """
+        value = self._parse(str(value))
+        if not self._choices.validate(value):
+            raise ValidatorErrorNotInChoices("Answer is not in choices")
+        return value
+
+    def get(self):
+        """Return self._value if its set or not!"""
+        return self._value
+
+    def set(self, value):
+        """set the value"""
+        self._value = self._get_value(value)
+
+    @property
+    def choices(self):
+        if self._choices is NO_CHOICE:
+            return None
+        return self._choices
+
+    @choices.setter
+    def choices(self, choices):
+        """  """
+        # will raise an value error if choices wrong!
+        choices = self._set_choices(choices)
+        # check that the new choices are a subset of the old ones
+        if not choices.is_subset(self._choices):
+            raise ValidatorErrorNotChoicesSubset(("cannot update choices,",
+                                                  " needs to be subset of the original ones"))
+        # overwrite existing ones
+        self._choices = choices
+        # validate choice, if existing default is not in choices, reset
+        if not self._choices.validate(self._value):
+            self._value = NOT_DEFINED
+
+    def _set_value(self, value):
+        if value is not NOT_DEFINED:
+            value = self._get_value(value)
+        return value
+
+    def _set_choices(self, in_choices):
+        """set choices"""
+        if in_choices is None:
+            return NO_CHOICE
+        return self.set_choices(in_choices)
+
+    def set_choices(self, in_choices):
+        """set choices"""
+        if isinstance(in_choices, KeysView):
+            return Choices([self._parse(choice) for choice in in_choices])
+        try:
+            choices = [self._parse(choice) for choice in list_parser(in_choices)]
+        except ValueError:
+            choices = None
+        if choices is None:
+            raise ValueError(f"Choices '{in_choices}' cannot be parsed")
+        return Choices(choices)
+
+    def _get_value(self, value):
+        value = self.validate(value)
+        if not self._choices.validate(value):
+            raise ValidatorErrorNotInChoices("Answer is not in choices")
+        return value
+
+
+class RangeValidator(ValidatorBase):
+    """
+    Allowed expressions:
+    > 2
+    3 > 1
+    """
+
+    def set_choices(self, in_choices):
+        """set choices"""
+        if isinstance(in_choices, KeysView):
+            return Choices([self._parse(choice) for choice in in_choices])
+        #
+        try:
+            return RangeExpression(in_choices)
+        except ValueError:
+            pass
+        #
+        try:
+            choices = [self._parse(choice) for choice in list_parser(in_choices)]
+        except ValueError:
+            choices = None
+        #
+        if choices is None:
+            raise ValueError(f"Choices '{in_choices}' cannot be parsed")
+        return Choices(choices)
+
+
+def create_validators(base_validators, range_validators):
+    out = {}
+    for name, parser in base_validators.items():
+        parser_name = name.capitalize() + "Validator"
+        out[name] = type(parser_name, (ValidatorBase,), {'_parse': staticmethod(parser)})
+    for name, parser in range_validators.items():
+        parser_name = name.capitalize() + "Validator"
+        out[name] = type(parser_name, (RangeValidator,), {'_parse': staticmethod(parser)})
+    return out
+
+
 class Validator:
 
-    _parsers = {
+    _parsers = create_validators(
+        {
         'str': str,
-        'float': float,
-        'int': int,
         'bool': bool_parser,
         'list': list_parser,
         'ilist': ilist_parser,
@@ -195,86 +425,11 @@ class Validator:
         'python(dict)': as_python_dict,
         'python(tuple)': as_python_tuple,
         'python(np.array)': as_python_numpy_array,
-    }
+    }, {
+        'int': int,
+        'float': float,
+        })
 
-    def __init__(self, typ, default=NOT_DEFINED, choices=None):
-        self._parse = self._parsers[typ]
-        #
-        self._choices = self._set_choices(choices)
-        self._value = self._set_value(default)
-
-    @property
-    def choices(self):
-        return self._choices
-
-    @choices.setter
-    def choices(self, choices):
-        """  """
-        # will raise an value error if choices wrong!
-        choices = self._set_choices(choices)
-        #
-        if self._choices is not None and any(choice not in self._choices for choice in choices):
-            raise ValidatorErrorNotChoicesSubset(("cannot update choices,",
-                                                  " needs to be subset of the original ones"))
-        # overwrite existing ones
-        self._choices = choices
-        # validate choice, if existing default is not in choices, reset
-        try:
-            self._value = self._set_value(self._value)
-        except ValidatorErrorNotInChoices:
-            self._value = NOT_DEFINED
-
-    def _set_value(self, value):
-        if value is not NOT_DEFINED:
-            value = self._get_value(value)
-        return value
-
-    def _set_choices(self, choices):
-        """set choices"""
-        if choices is None:
-            return None
-        try:
-            return [self._parse(choice) for choice in choices]
-        except ValueError:
-            pass
-        raise ValueError(f"Choises ({' ,'.join(choices)}) cannot be converted")
-
-    def validate(self, value):
-        return self._parse(str(value))
-
-    def get(self):
-        """Return self._value if its set or not!"""
-        return self._value
-
-    def _get_value(self, value):
-        value = self.validate(value)
-        if self.choices is not None:
-            if value not in self.choices:
-                raise ValidatorErrorNotInChoices("Answer is not in choices")
-        return value
-
-    def set(self, value):
-        self._value = self._get_value(value)
-
-    @classmethod
-    def register_parser(cls, name, parser):
-        if not isinstance(name, str):
-            raise ValueError("key needs to be a string")
-        if not callable(parser):
-            raise ValueError("parser needs to be callable with a single argument")
-        cls._parsers[name] = parser
-
-    @classmethod
-    def get_parsers(cls):
-        return cls._parsers
-
-
-def register_parser(key, function):
-    """register a parser for the Questions class
-
-       The parser function needs to take  a single
-       argument which is a string and return a
-       single python object, which should not be a
-       **dict**!
-    """
-    Validator.register_parser(key, function)
+    def __new__(cls, typ, default=NOT_DEFINED, choices=None):
+        parser = cls._parsers[typ]
+        return parser(default=default, choices=choices)
