@@ -59,16 +59,16 @@ class _ConcreteQuestionBase(ABC):
         """ Handle all set events """
         if answer == "":
             if self.accept_empty is False:
-                self._callbacks['EmptyEntry'](answer, self._settings)
+                self._callbacks['EmptyEntry'](answer, self.settings)
             return self.accept_empty
         #
         try:
             self.answer = answer
             return True
         except ValueError:
-            self._callbacks['ValueError'](answer, self._settings)
+            self._callbacks['ValueError'](answer, self.settings)
         except ValidatorErrorNotInChoices:
-            self._callbacks['WrongChoice'](answer, self._settings)
+            self._callbacks['WrongChoice'](answer, self.settings)
         return False
 
     def get(self):
@@ -157,7 +157,12 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
         self.name = name
-        self._comment = question.comment
+        #
+        if question.comment is NOT_DEFINED:
+            self._comment = None
+        else:
+            self._comment = question.comment
+        #
         self.question = question.question
         self.typ = question.typ
 
@@ -593,9 +598,9 @@ class QuestionForm(Mapping):
                 question.answer = answer
             except ValueError:
                 errmsg += f"\n{key} = {answer}, ValueError"
-            except ValidatorErrorNotInChoices as error:
-                errmsg += (f"\n{key} = {answer}, Wrong Choice: can only be"
-                           f"{error}")
+            except ValidatorErrorNotInChoices as err_choices:
+                errmsg += (f"\n{key} = {answer}, Wrong Choice: can only be "
+                           f"{err_choices}")
         if errmsg != "":
             return error + errmsg
         return ""

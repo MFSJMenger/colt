@@ -105,7 +105,7 @@ class AskQuestions(QuestionForm):
     def _ask_question_concrete_question(self, settings, ask_all=False):
         if ask_all is True or settings['is_set'] is False:
             text = self._generate_question_text(settings)
-            self._ask_question(text, settings['self'], None)
+            self._ask_question(text, settings['self'], settings['comment'])
 
     def _generate_question_text(self, settings):
         if settings['type'] == 'select':
