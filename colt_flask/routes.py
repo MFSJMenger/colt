@@ -10,7 +10,7 @@ question = """
 key = :: str :: [hi, du, mhm]
 
 [a]
-hi = 25 :: int
+hi = :: int :: >20
 b = case
 
 [a::b(case)]
@@ -44,6 +44,7 @@ c = 8 :: int
 
 
 qform = QuestionForm(question)
+
 def update_form(form):
     global qform
     qform = form

@@ -1,6 +1,7 @@
 import os
-from collections.abc import KeysView
 import ast
+from collections.abc import KeysView
+#
 import numpy as np
 
 
@@ -19,7 +20,9 @@ class NoChoice:
     def validate(self, value):
         return True
 
+
 NO_CHOICE = NoChoice()
+
 
 class Choices:
 
@@ -33,6 +36,9 @@ class Choices:
 
     def __repr__(self):
         return ", ".join(str(choice) for choice in self.choices)
+
+    def as_list(self):
+        return list(self.choices)
 
     def validate(self, value):
         return (value in self.choices)
@@ -48,23 +54,11 @@ class Choices:
 class RangeExpression:
     """Simple class to handle mathematical ranges"""
 
-    __slots__ = ('lower', 'upper')
+    __slots__ = ('lower', 'upper', 'expr')
 
     def __init__(self, expr):
+        self.expr = expr
         self.lower, self.upper = self._parse(expr)
-
-    def _parse(self, expr):
-        if '>' in expr:
-            upper, lower = (ele.strip() for ele in expr.split('>'))
-        elif '<' in expr:
-            lower, upper = (ele.strip() for ele in expr.split('<'))
-        else:
-            raise ValueError("Could not parse Expr")
-        upper = self._parse_value(upper)
-        lower = self._parse_value(lower)
-        if self._larger(lower, upper):
-            raise ValueError("Range is None")
-        return lower, upper
 
     def validate(self, value):
         if self.lower is not None:
@@ -74,6 +68,9 @@ class RangeExpression:
             if value > self.upper:
                 return False
         return True
+
+    def as_str(self):
+        return self.expr
 
     def is_subset(self, rhs):
         """Can only be subset of range expression!"""
@@ -87,6 +84,19 @@ class RangeExpression:
         if self._larger(self.upper, rhs.upper):
             return False
         return True
+
+    def _parse(self, expr):
+        if '>' in expr:
+            upper, lower = (ele.strip() for ele in expr.split('>'))
+        elif '<' in expr:
+            lower, upper = (ele.strip() for ele in expr.split('<'))
+        else:
+            raise ValueError("Could not parse Expr")
+        upper = self._parse_value(upper)
+        lower = self._parse_value(lower)
+        if self._larger(lower, upper):
+            raise ValueError("Range is None")
+        return lower, upper
 
     @staticmethod
     def _larger(value1, value2):

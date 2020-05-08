@@ -13,7 +13,7 @@ from .questions import LiteralBlockQuestion, LiteralBlockString
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
-from .validator import StringList
+from .validator import StringList, Choices, RangeExpression
 #
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
@@ -46,10 +46,10 @@ class _ConcreteQuestionBase(ABC):
        acts also as a StringVar used in tkinter, as it makes a lot of logic simpler
        it uses therefore callback functions, to perform actions.
     """
+    __slots__ = ("name", "parent", "is_set", "accept_empty", "_callbacks")
 
-    def __init__(self, name, question, parent, accept_empty=False, callbacks=None):
+    def __init__(self, name, parent, accept_empty=False, callbacks=None):
         self.name = name
-        self._settings = self._generate_settings(name, question)
         self.parent = parent
         self.is_set = False
         self.accept_empty = accept_empty
@@ -77,10 +77,11 @@ class _ConcreteQuestionBase(ABC):
     @property
     def settings(self):
         """settings"""
-        self._settings.update(self._generate_dynamic_settings())
+        settings = self._generate_settings()
+        settings.update(self._generate_dynamic_settings())
         if self._callbacks is not None:
-            self._settings.update({"self": self})
-        return self._settings
+            settings.update({"self": self})
+        return settings
 
     @abstractmethod
     def get_answer(self, check=False):
@@ -91,7 +92,7 @@ class _ConcreteQuestionBase(ABC):
         """preset new value and choices!"""
 
     @abstractmethod
-    def _generate_settings(self, name, question):
+    def _generate_settings(self):
         """generate core settings"""
 
     @abstractmethod
@@ -106,13 +107,13 @@ class _ConcreteQuestionBase(ABC):
 
 class LiteralBlock(_ConcreteQuestionBase):
 
-    def __init__(self, name, question, parent, callbacks=None):
+    __slots__ = ("_blockname", "_name", "_answer")
+
+    def __init__(self, name, parent, callbacks=None):
         #
         self._blockname, self._name = GeneratorNavigator.rsplit_keys(name)
         #
-        _ConcreteQuestionBase.__init__(self, name, question, parent,
-                                       accept_empty=True,
-                                       callbacks=callbacks)
+        _ConcreteQuestionBase.__init__(self, name, parent, accept_empty=True, callbacks=callbacks)
         # register self
         self.parent.literals[name] = self
         self._answer = LiteralBlockString(None)
@@ -142,19 +143,24 @@ class LiteralBlock(_ConcreteQuestionBase):
             return {"value": ""}
         return {"value": self._answer}
 
-    def _generate_settings(self, name, question):
+    def _generate_settings(self):
         return {"type": "literal",
                 "label": self.generate_label(self._name)}
 
 
 class ConcreteQuestion(_ConcreteQuestionBase):
 
+    __slots__ = ("_value", "_comment", "name", "question", "typ", "is_optional")
+
     def __init__(self, name, question, parent, callbacks=None):
         _ConcreteQuestionBase.__init__(self, name, question, parent, callbacks=callbacks)
         #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
+        self.name = name
         self._comment = question.comment
-        self._label = question.question
+        self.question = question.question
+        self.typ = question.typ
+
         self.is_optional = question.is_optional
         # check if accept_empty is true
         self.accept_empty = (self._value.get() is not NOT_DEFINED or self.is_optional)
@@ -174,6 +180,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         return answer
 
     @property
+    def comment(self):
+        return self._comment
+
+    @property
     def answer(self):
         answer = self.get_answer()
         if answer is NOT_DEFINED:
@@ -184,6 +194,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     def answer(self, value):
         self._value.set(value)
         self.is_set = True
+
+    @property
+    def choices(self):
+        return self._value.choices
 
     def set_answer(self, value):
         self._value.set(value)
@@ -219,33 +233,33 @@ class ConcreteQuestion(_ConcreteQuestionBase):
                 "is_set": self.is_set,
                 }
 
-    def _generate_settings(self, name, question):
-        if question.choices is None:
-            return self._input_form_settings(name, question.question,
-                                             question.typ, question.is_optional)
-        return self._select_form_settings(name, question.question,
-                                          question.choices, question.typ, question.is_optional)
+    def _generate_settings(self):
+        choices = self.choices
+        if isinstance(choices, Choices):
+            return self._select_form_settings()
+        if isinstance(choices, RangeExpression):
+            return self._input_form_settings(placeholder=f"{self.typ}, {choices.as_str()}")
+        return self._input_form_settings(placeholder=self.typ)
 
-    @staticmethod
-    def _select_form_settings(name, label, options, typ, is_optional):
-        options = list(options)
+    def _select_form_settings(self):
         return {"type": "select",
-                "label": label,
-                "id": name,
-                "options": options,
-                "is_optional": is_optional,
-                "typ": typ,
+                "label": self.question,
+                "id": self.name,
+                "options": self.choices.as_list(),
+                "is_optional": self.is_optional,
+                "typ": self.typ,
+                "comment": self.comment,
                 }
 
-    @staticmethod
-    def _input_form_settings(name, label, typ, is_optional):
+    def _input_form_settings(self, placeholder=''):
         """get settings for input form"""
         return {"type": "input",
-                "label": label,
-                "id": name,
-                "placeholder": typ,
-                "is_optional": is_optional,
-                "typ": typ,
+                "label": self.question,
+                "id": self.name,
+                "placeholder": placeholder,
+                "is_optional": self.is_optional,
+                "typ": self.typ,
+                "comment": self.comment,
                 }
 
 
@@ -435,12 +449,12 @@ class QuestionForm(Mapping):
             block.concrete[key].answer = answer
         return out
 
-    def generate_setup(self, presets=None):
+    def generate_setup(self, only_self=False, presets=None):
         if presets is not None:
             self.set_presets(presets)
         return self.form.generate_setup()
 
-    def setup_iterator(self, presets=None):
+    def setup_iterator(self, only_self=False, presets=None):
         if presets is not None:
             self.set_presets(presets)
         return self.form.setup_iterator()
@@ -571,8 +585,8 @@ class QuestionForm(Mapping):
                 continue
             question = block[key]
             if answer == "":
-                if not question.is_optional:
-                    errmsg += f"\n{key} = , Answer not set!"
+                if question.is_optional:
+                    question.is_set = True
                 continue
             #
             try:

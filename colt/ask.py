@@ -42,12 +42,12 @@ class AskQuestions(QuestionForm):
         """
         self.set_answers_and_presets(config, presets)
         if ask_all is True:
-            return self._ask_impl(ask_all=ask_all)
+            return self._ask_impl(config=config, ask_all=ask_all)
         #
         if self.is_all_set:
             return self.get_answers()
         #
-        return self._ask_impl(ask_all=ask_all)
+        return self._ask_impl(config=config, ask_all=ask_all)
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
@@ -71,7 +71,7 @@ class AskQuestions(QuestionForm):
         self.write_config(filename)
         return answer
 
-    def _ask_impl(self, config=None, ask_all=False, presets=None):
+    def _ask_impl(self, config=None, ask_all=False):
         """Actuall routine to get settings from the user
 
             Kwargs:
@@ -84,8 +84,7 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        self.set_answers_and_presets(config, presets)
-        for name, setting in self.setup_iterator(presets=presets):
+        for name, setting in self.setup_iterator():
             if name != "":
                 print(f"[{name}]")
             for _, question in setting['fields'].items():
