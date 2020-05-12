@@ -8,7 +8,7 @@ def plugin_meta_setup(clsdict):
         '_is_plugin_factory': False,
         '_is_plugin_specialisation': False,
         '_plugins_storage': 'inherited'
-        }
+    }
 
     add_defaults_to_dict(clsdict, plugin_defaults)
     delete_inherited_keys(['_plugins_storage'], clsdict)
