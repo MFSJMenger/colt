@@ -17,6 +17,12 @@ class NoChoice:
             return True
         return False
 
+    def __str__(self):
+        return ""
+
+    def __repr__(self):
+        return ""
+
     def validate(self, value):
         return True
 
@@ -31,11 +37,15 @@ class Choices:
     def __init__(self, choices):
         self.choices = choices
 
+    def as_str(self):
+        txt = ", ".join(str(choice) for choice in self.choices)
+        return f"Choices({txt})"
+
     def __str__(self):
-        return ", ".join(str(choice) for choice in self.choices)
+        return self.as_str()
 
     def __repr__(self):
-        return ", ".join(str(choice) for choice in self.choices)
+        return self.as_str()
 
     def as_list(self):
         return list(self.choices)
@@ -69,8 +79,14 @@ class RangeExpression:
                 return False
         return True
 
+    def __str__(self):
+        return self.as_str()
+
+    def __repr__(self):
+        return self.as_str()
+
     def as_str(self):
-        return self.expr
+        return f"Range({self.expr})"
 
     def is_subset(self, rhs):
         """Can only be subset of range expression!"""
@@ -313,7 +329,7 @@ class ValidatorBase:
         """
         value = self._parse(str(value))
         if not self._choices.validate(value):
-            raise ValidatorErrorNotInChoices("Answer is not in choices")
+            raise ValidatorErrorNotInChoices("Answer is not in {self._choices}")
         return value
 
     def get(self):

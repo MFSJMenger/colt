@@ -16,7 +16,7 @@ __all__ = ["Colt", "PluginBase",
 from .colt import Colt
 from .plugins import PluginBase
 #
-from .commandline import FromCommandline
+from .colt import FromCommandline
 # If Questions should be asked without Colt use AskQuestions
 from .ask import AskQuestions
 # If answer is not set!

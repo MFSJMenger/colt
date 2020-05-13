@@ -1,9 +1,8 @@
-import argparse
 from abc import ABCMeta
 #
 from .questions import QuestionGenerator
-from .qform import QuestionForm, LiteralBlock, ConcreteQuestion
 from .ask import AskQuestions
+from .commandline import get_config_from_commandline
 
 
 __all__ = ["Colt"]
@@ -125,39 +124,36 @@ class Colt(metaclass=ColtMeta):
         return questions.generate_input(filename)
 
 
-def get_config_from_commandline(questions, description=None, presets=None):
-    #
-    parser = get_parser(description)
-    #
-    qform = QuestionForm(questions, presets=presets)
-    #
-    for _, block in qform.items():
-        for name, question in block.concrete.items():
-            if isinstance(question, LiteralBlock):
-                continue
-            if not isinstance(question, ConcreteQuestion):
-                raise Exception("question can only be concretequestion")
-            #
-            settings = question.settings
-            #
-            validate = question.set_answer
-            #
-            add_parser_argument(parser, name, settings, validate, None)
-    # parse commandline args
-    parser.parse_args()
-    return qform.get_answers()
+def _init(self, function):
+    self.function = function
+    self.__doc__ = self.function.__doc__
 
 
-def get_parser(description):
-    return argparse.ArgumentParser(description=description,
-                                   formatter_class=argparse.RawTextHelpFormatter)
+def _call(self, *args, **kwargs):
+    # call with arguments
+    if any(len(value) != 0 for value in (args, kwargs)):
+        return self.function(*args, **kwargs)
+    # call from commandline
+    answers = self.from_commandline(self.description)
+    return self.function(**answers)
 
 
-def add_parser_argument(parser, name, settings, validate_func, comment):
-    if settings['value'] not in ('', None):
-        keyname = f"-{settings['id']}"
-        default = validate_func(settings['value'])
-    else:
-        keyname = f"{settings['id']}"
-        default = None
-    parser.add_argument(keyname, metavar=name, type=validate_func, default=default, help=comment)
+def _from_config(cls, answers, *args, **kwargs):
+    return answers
+
+
+class FromCommandline:
+    """Decorator to parse commandline arguments"""
+
+    def __init__(self, questions, description=None):
+
+        self._cls = type("CommandlineInterface", (Colt,), {
+            '_questions': questions,
+            'description': description,
+            '__init__': _init,
+            'from_config': classmethod(_from_config),
+            '__call__': _call,
+            })
+
+    def __call__(self, function):
+        return self._cls(function)
