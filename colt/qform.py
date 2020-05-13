@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from collections import UserDict
+from collections import UserDict, UserString
 from collections.abc import Mapping
 #
 from .answers import SubquestionsAnswer
@@ -8,7 +8,7 @@ from .generator import GeneratorNavigator
 #
 from .questions import QuestionGenerator
 from .questions import Question, ConditionalQuestion, QuestionContainer
-from .questions import LiteralBlockQuestion, LiteralBlockString
+from .questions import LiteralBlockQuestion
 #
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
@@ -111,6 +111,20 @@ class _ConcreteQuestionBase(_QuestionComponent):
 
     def get(self):
         return self.answer
+
+
+class LiteralBlockString(UserString):
+
+    def __init__(self, string):
+        if string is None:
+            self.is_none = True
+            string = ''
+        elif isinstance(string, LiteralBlockString):
+            self.is_none = string.is_none
+        else:
+            self.is_none = False
+        #
+        UserString.__init__(self, string)
 
 
 class LiteralBlock(_ConcreteQuestionBase):

@@ -1,16 +1,17 @@
 import argparse
 from argparse import Action
 #
-from .qform import QuestionForm, QuestionVisitor
+from .qform import QuestionForm, QuestionVisitor, split_keys, join_case
 from .qform import ValidatorErrorNotInChoices
 
 
 class CommandlineParserVisitor(QuestionVisitor):
 
-    __slots__ = ('parser')
+    __slots__ = ('parser', 'block_name')
 
     def __init__(self):
         self.parser = None
+        self.block_name = None
 
     def visit_qform(self, qform, description=None):
         parser = get_parser(description)
@@ -33,23 +34,33 @@ class CommandlineParserVisitor(QuestionVisitor):
         self.add_concrete_to_parser(question)
 
     def visit_subquestion_block(self, block):
+        #
         parser = self.parser
+        block_name = self.block_name
+        #
         comment = self.get_comment(block.main_question)
         subparser = parser.add_subparsers(action=SubQuestionAction, question=block.main_question, 
                                           help=f'{comment}')
-        for case, block in block.cases.items():
+        for case, subblock in block.cases.items():
+            self.block_name = join_case(block.name, case)
             self.parser = subparser.add_parser(case)
-            block.accept(self)
+            subblock.accept(self)
         self.parser = parser
 
     def _get_default_and_name(self, question):
+        id_name = question.id
+        if self.block_name is not None:
+            id_name = id_name.replace(self.block_name, '') 
+            if id_name[:2] == '::':
+                id_name = id_name[2:]
+        #
         default = question.answer
         if default not in ('', None):
             # default exists -> Optional Argument
-            name = f"-{question.id}"
+            name = f"-{id_name}"
         else: 
             # default does not exist -> Positional Argument
-            name = f"{question.id}"
+            name = f"{id_name}"
             default = None
         return default, name
 
@@ -61,6 +72,7 @@ class CommandlineParserVisitor(QuestionVisitor):
             except ValidatorErrorNotInChoices as e:
                 raise ValueError(str(e)) from None
         
+        _type.__name__ = question.typ
         return _type
 
     def get_comment(self, question):
@@ -95,8 +107,6 @@ class SubQuestionAction(Action):
             if aliases:
                 metavar += ' (%s)' % ', '.join(aliases)
             Action.__init__(option_strings=[], dest=dest, help=help, metavar=metavar)
-
-
 
     def __init__(self, option_strings, prog, parser_class, 
                  required=True, help=None, question=None):

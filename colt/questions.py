@@ -1,10 +1,11 @@
 """Definitions of all Question Classes"""
-from collections import UserDict, UserString
+from collections import UserDict
 #
 from .generator import GeneratorBase, BranchingNode
 #
 from .validator import NOT_DEFINED
 from .slottedcls import slottedcls
+
 
 
 # store Questions
@@ -60,20 +61,6 @@ class QuestionContainer(UserDict):
                 yield key, question
             if isinstance(question, ConditionalQuestion):
                 yield key, question.main
-
-
-class LiteralBlockString(UserString):
-
-    def __init__(self, string):
-        if string is None:
-            self.is_none = True
-            string = ''
-        elif isinstance(string, LiteralBlockString):
-            self.is_none = string.is_none
-        else:
-            self.is_none = False
-        #
-        UserString.__init__(self, string)
 
 
 class QuestionGenerator(GeneratorBase):
