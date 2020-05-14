@@ -24,7 +24,7 @@ def get_config_from_commandline(questions, description=None, presets=None):
     #
     qform = QuestionForm(questions, presets=presets)
     # _VISITOR is the global, private CommandlineParserVisitor defined blow
-    parser = _VISITOR.visit(qform)
+    parser = _VISITOR.visit(qform, description=description)
     # parse commandline args
     parser.parse_args()
     #
@@ -57,8 +57,8 @@ class CommandlineParserVisitor(QuestionVisitor):
             if question.is_subquestion_main is False:
                 question.accept(self)
         #
-        for block in block.blocks.values():
-            block.accept(self)
+        for subblock in block.blocks.values():
+            subblock.accept(self)
 
     def visit_concrete_question_select(self, question):
         """create a concrete parser and add it to the current parser"""
@@ -89,6 +89,8 @@ class CommandlineParserVisitor(QuestionVisitor):
             subblock.accept(self)
         # restore old parser
         self.parser = parser
+        # restore old block_name
+        self.block_name = block_name
 
     def _get_default_and_name(self, question):
         """get the name and default value for the current question"""
@@ -113,7 +115,8 @@ class CommandlineParserVisitor(QuestionVisitor):
         #
         return default, name
 
-    def get_comment(self, question):
+    @staticmethod
+    def get_comment(question):
         """get the comment string"""
         choices = question.choices
         if choices is None:
@@ -135,19 +138,18 @@ class CommandlineParserVisitor(QuestionVisitor):
                                  default=default, help=comment)
 
 
+class _HelpAction(Action):
+    """pseudo action for help"""
+
+    def __init__(self, name, aliases, help):
+        metavar = dest = name
+        if aliases:
+            metavar += ' (%s)' % ', '.join(aliases)
+        Action.__init__(option_strings=[], dest=dest, help=help, metavar=metavar)
+
 
 class SubquestionAction(Action):
     """Create Subparser that reacts to subquestions adopted from argparse._SubParsersAction """
-
-    class _HelpAction(Action):
-        """pseudo action for help"""
-
-        def __init__(self, name, aliases, help):
-            metavar = dest = name
-            if aliases:
-                metavar += ' (%s)' % ', '.join(aliases)
-            Action.__init__(option_strings=[], dest=dest, help=help, metavar=metavar)
-
 
     def __init__(self, option_strings, prog, parser_class,
                  required=True, help=None, question=None):
@@ -158,9 +160,9 @@ class SubquestionAction(Action):
         # actual main question
         self.question = question
         # set the name of the metavar
-        metavar=self.question.name
-        dest=argparse.SUPPRESS
-        nargs=argparse.PARSER
+        metavar = self.question.name
+        dest = argparse.SUPPRESS
+        nargs = argparse.PARSER
         #
         self._prog_prefix = prog
         self._parser_class = parser_class
@@ -180,16 +182,16 @@ class SubquestionAction(Action):
         """Add a parser for a subquestion case """
         # set prog from the existing prefix
         if kwargs.get('prog') is None:
-            kwargs['prog'] = f"{self._prog_prefix} {name}"
+            kwargs['prog'] = f"{self._prog_prefix} {case}"
         # create a pseudo-action to hold the choice help
         if 'help' in kwargs:
             help = kwargs.pop('help')
-            choice_action = self._HelpAction(name, aliases, help)
+            choice_action = _HelpAction(case, (), help)
             self._choices_actions.append(choice_action)
         # create the parser and add it to the subquestion cases
         parser = self._parser_class(**kwargs)
         # register case
-        self._subquestion_cases[name] = parser
+        self._subquestion_cases[case] = parser
         #
         return parser
 
@@ -202,17 +204,19 @@ class SubquestionAction(Action):
         arg_strings_case = values[1:]
 
         if self.question.set(case) is True:
-            parser = self._subquestion_cases.get(parser_name, None)
+            parser = self._subquestion_cases.get(case, None)
         else:
-            raise argparse.ArgumentError(self, f"{case} not in {', '.join(self._subquestion_cases)}")
+            raise argparse.ArgumentError(self,
+                                         f"{case} not in {', '.join(self._subquestion_cases)}")
         # parse the remaining arguments
-        subnamespace, arg_strings = parser.parse_known_args(arg_strings, None)
+        subnamespace, arg_strings_case = parser.parse_known_args(arg_strings_case, None)
         # set the values
         for key, value in vars(subnamespace).items():
             setattr(namespace, key, value)
         # raise exception in case there are unparsed arguments left
-        if arg_strings:
-            raise argparse.ArgumentError(self, f"Unrecognized Arguments: {', '.join(arg_strings)}")
+        if arg_strings_case:
+            raise argparse.ArgumentError(self,
+                                         f"Unrecognized Arguments: {', '.join(arg_strings_case)}")
 
 
 # Visitor object
@@ -235,6 +239,6 @@ class _QuestionType:
     def __call__(self, answer):
         try:
             return self.question.set_answer(answer)
-        except ValidatorErrorNotInChoices as e:
+        except ValidatorErrorNotInChoices:
             self.msg = self.question.choices
         raise ValueError(f"Could not set '{answer}'")

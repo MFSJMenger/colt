@@ -9,6 +9,7 @@ from .slottedcls import slottedcls
 
 
 class Component(ABC):
+    """Basic Visitor Component"""
 
     @abstractmethod
     def accept(self, visitor):
@@ -45,11 +46,12 @@ class QuestionASTVisitor(ABC):
 
 
 class Question(Component):
+    """Question Node in the QuestionASTGenerator"""
 
     __slots__ = ('question', 'typ', 'default', 'choices', 'comment', 'is_optional')
 
     def __init__(self, question="", typ="str", default=NOT_DEFINED,
-            choices=None, comment=NOT_DEFINED, is_optional=False):
+                 choices=None, comment=NOT_DEFINED, is_optional=False):
         self.question = question
         self.typ = typ
         self.default = default
@@ -67,6 +69,7 @@ class Question(Component):
 
 
 class LiteralBlockQuestion(Component):
+    """LiteralBlock Node in the QuestionASTGenerator"""
 
     __slots__ = ('name',)
 
@@ -83,9 +86,8 @@ class LiteralBlockQuestion(Component):
 
 
 class ConditionalQuestion(Component, BranchingNode):  # pylint: disable=too-many-ancestors
-    """Conditional Question, is a branching node
-       used to store decissions
-    """
+    """ConditionalQuestion Node in the QuestionASTGenerator
+       is a branching node, used to store decissions """
 
     def __init__(self, name, main, subquestions):
         super().__init__(name, main, subquestions)
@@ -112,6 +114,7 @@ class ConditionalQuestion(Component, BranchingNode):  # pylint: disable=too-many
 
 
 class QuestionContainer(Component, UserDict):
+    """QuestionContainer Node in the QuestionASTGenerator"""
 
     def __init__(self, data=None):
         if data is None:
@@ -119,6 +122,7 @@ class QuestionContainer(Component, UserDict):
         UserDict.__init__(self, data)
 
     def concrete_items(self):
+        """Loop only over the concrete items, and not over containers"""
         types = (ConditionalQuestion, QuestionContainer)
         for key, question in self.items():
             if not isinstance(question, types):
@@ -128,7 +132,6 @@ class QuestionContainer(Component, UserDict):
 
     def accept(self, visitor):
         return visitor.visit_question_container(self)
-        
 
 
 class QuestionASTGenerator(Component, GeneratorBase):

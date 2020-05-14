@@ -2,6 +2,7 @@ from .qform import QuestionVisitor, QuestionForm
 
 
 class CommandlineVisitor(QuestionVisitor):
+    """QuestionVisitor to ask questions via the terminal"""
 
     _helpkeys = (":help", ":h")
 
@@ -43,7 +44,8 @@ class CommandlineVisitor(QuestionVisitor):
         txt = self._basic_question_text(question)
         return txt + ": "
 
-    def _basic_question_text(self, question):
+    @staticmethod
+    def _basic_question_text(question):
         txt = question.label
         # cache it
         answer = question.answer
@@ -73,18 +75,16 @@ class CommandlineVisitor(QuestionVisitor):
             else:
                 print(comment)
             return self._ask_question(text, question, comment)
-        elif self.set_answer(question, answer) is True:
-            return
-        return self._ask_question(text, question, comment)
+        #
+        if self.set_answer(question, answer) is False:
+            return self._ask_question(text, question, comment)
+        return None
 
 
 class AskQuestions(QuestionForm):
     """Questionform to ask questions from the commandline"""
 
     visitor = CommandlineVisitor()
-
-    def __init__(self, questions, config=None, presets=None):
-        self.qform = QuestionForm(questions, config=config, presets=presets)
 
     def ask(self, config=None, ask_all=False, presets=None):
         """Main routine to get settings from the user,
@@ -100,14 +100,14 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        for block in self.qform:
-            print(f"[{block}]", self.qform[block].is_set)
-        self.qform.set_answers_and_presets(config, presets)
+        for block in self:
+            print(f"[{block}]", self[block].is_set)
+        self.set_answers_and_presets(config, presets)
         if ask_all is True:
             return self._ask_impl(config=config, ask_all=ask_all)
         #
-        if self.qform.is_all_set:
-            return self.qform.get_answers()
+        if self.is_all_set:
+            return self.get_answers()
         #
         return self._ask_impl(config=config, ask_all=ask_all)
 
@@ -122,15 +122,15 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        self.qform.set_answers_and_presets(config, presets)
-        return self.qform.get_answers(check=True)
+        self.set_answers_and_presets(config, presets)
+        return self.get_answers(check=True)
 
     def generate_input(self, filename, config=None, presets=None, ask_all=False):
         #
-        self.qform.set_answers_and_presets(config, presets)
+        self.set_answers_and_presets(config, presets)
         #
         answer = self.ask(presets=presets, ask_all=ask_all)
-        self.qform.write_config(filename)
+        self.write_config(filename)
         return answer
 
     def _ask_impl(self, config=None, ask_all=False):
@@ -146,9 +146,9 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        self.visitor.visit(self.qform)
+        self.visitor.visit(self, ask_all=ask_all)
         #
         if config is not None:
-            self.qform.write_config(config)
+            self.write_config(config)
         #
-        return self.qform.get_answers(check=False)
+        return self.get_answers(check=False)

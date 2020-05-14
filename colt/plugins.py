@@ -27,7 +27,8 @@ class PluginMeta(ColtMeta):
         #
         cls.__store_subclass(name)
         cls._plugin_storage = cls.__plugins_storage_name
-        type.__init__(cls, name, bases, clsdict)
+        #
+        ColtMeta.__init__(cls, name, bases, clsdict)
 
     def __store_subclass(cls, name):
         """main routine to store the current class, that has been already created with __new__,

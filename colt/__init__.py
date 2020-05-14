@@ -6,8 +6,8 @@ __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
 __version__ = '0.1.0'
 
-__all__ = ["Colt", "PluginBase", 
-           "FromCommandline", 
+__all__ = ["Colt", "PluginBase",
+           "FromCommandline",
            "AskQuestions",
            "ColtErrorAnswerNotDefined", "QuestionASTGenerator",
            "Validator", "NOT_DEFINED"]

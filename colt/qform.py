@@ -40,6 +40,9 @@ def is_existing_file(config):
 
 
 class _QuestionComponent(ABC):
+    """Basic Component to be visited from the QuestionVisitor"""
+
+    __slots__ = ()
 
     @abstractmethod
     def accept(self, visitor):
@@ -47,15 +50,17 @@ class _QuestionComponent(ABC):
 
 
 class _QuestionsContainerBase(_QuestionComponent):
+    """Base class to contain question containers"""
+
+    __slots__ = ('name', 'parent_name', '_name')
 
     def __init__(self, name, qform):
         #
         self.name = name
         #
         self.parent_name, self._name = split_keys(name)
-        self.qform = qform
         # register block
-        self.qform.blocks[name] = self
+        qform.blocks[name] = self
 
     @property
     def label(self):
@@ -63,17 +68,15 @@ class _QuestionsContainerBase(_QuestionComponent):
 
 
 class _ConcreteQuestionBase(_QuestionComponent):
-    """Logic of each actual question
+    """Logic of each actual question"""
 
-       acts also as a StringVar used in tkinter, as it makes a lot of logic simpler
-       it uses therefore callback functions, to perform actions.
-    """
-    __slots__ = ("name", "parent", "parent_name", "_name", "is_set")
+    __slots__ = ("name", "accept_empty", "parent_name", "_name", "is_set")
 
-    def __init__(self, name, callbacks=None):
+    def __init__(self, name, accept_empty=False):
         self.name = name
         self.parent_name, self._name = split_keys(name)
         self.is_set = False
+        self.accept_empty = accept_empty
 
     @property
     def label(self):
@@ -113,6 +116,7 @@ class _ConcreteQuestionBase(_QuestionComponent):
 
 
 class LiteralBlockString(UserString):
+    """UserString to contain a literalblock, the string can also be empty"""
 
     def __init__(self, string):
         if string is None:
@@ -127,14 +131,15 @@ class LiteralBlockString(UserString):
 
 
 class LiteralBlock(_ConcreteQuestionBase):
+    """LiteralBlock Node"""
 
-    __slots__ = ("_answer")
+    __slots__ = ("_answer",)
 
     def __init__(self, name, qform):
         #
         _ConcreteQuestionBase.__init__(self, name, accept_empty=True)
         # register self
-        self.qform.literals[name] = self
+        qform.literals[name] = self
         #
         self._answer = LiteralBlockString(None)
         #
@@ -168,8 +173,10 @@ class LiteralBlock(_ConcreteQuestionBase):
 
 
 class ConcreteQuestion(_ConcreteQuestionBase):
+    """Concrete question"""
 
-    __slots__ = ("_value", "_comment", "is_subquestion_main", "question", "typ", "is_optional")
+    __slots__ = ("_value", "_comment", "is_subquestion_main",
+                 "question", "typ", "is_optional", "accept_empty")
 
     def __init__(self, name, question, is_subquestion=False):
         _ConcreteQuestionBase.__init__(self, name)
@@ -201,6 +208,13 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @property
     def comment(self):
         return self._comment
+
+    @property
+    def placeholder(self):
+        choices = self.choices
+        if isinstance(choices, RangeExpression):
+            return f"{self.typ}, {choices.as_str()}"
+        return self.typ
 
     @property
     def answer(self):
@@ -235,17 +249,6 @@ class ConcreteQuestion(_ConcreteQuestionBase):
                 self.is_set = False
         if value is not None:
             self._value.set(value)
-
-    @property
-    def choices(self):
-        return self._value.choices
-
-    @property
-    def placeholder(self):
-        choices = self.choices
-        if isinstance(choices, RangeExpression):
-            return f"{self.typ}, {choices.as_str()}"
-        return self.typ
 
 
 class QuestionBlock(_QuestionsContainerBase, UserDict):
@@ -379,8 +382,10 @@ class QuestionVisitor(ABC):
 
     def on_empty_entry(self, answer, question):
         pass
+
     def on_value_error(self, answer, question):
         pass
+
     def on_wrong_choice(self, answer, question):
         pass
 
@@ -507,6 +512,7 @@ class SettingsVistor(QuestionVisitor):
 
 
 class QuestionGeneratorVisitor(QuestionASTVisitor):
+    """QuestionASTVisitor, to fill a qform"""
 
     __slots__ = ('question_id', 'qname', 'qform', 'concrete', 'blocks')
 
@@ -745,8 +751,8 @@ class QuestionForm(Mapping, _QuestionComponent):
 
         if config is not None:
             if isinstance(config, Mapping):
-                return self.set_answers_from_dct(config)
-            if is_existing_file(config):
+                self.set_answers_from_dct(config)
+            elif is_existing_file(config):
                 self.set_answers_from_file(config)
 
     def set_presets(self, presets):

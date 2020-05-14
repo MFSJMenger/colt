@@ -9,6 +9,7 @@ __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
 
 
 class NoChoice:
+    """Empty object that indicates that no choice are used"""
 
     __slots__ = ()
 
@@ -31,8 +32,9 @@ NO_CHOICE = NoChoice()
 
 
 class Choices:
+    """Store possible choices"""
 
-    __slots__ = ('choices')
+    __slots__ = ('choices',)
 
     def __init__(self, choices):
         self.choices = choices
@@ -51,7 +53,7 @@ class Choices:
         return list(self.choices)
 
     def validate(self, value):
-        return (value in self.choices)
+        return value in self.choices
 
     def is_subset(self, rhs):
         if rhs is None:
@@ -140,6 +142,8 @@ class RangeExpression:
 
 
 class StringList(list):
+    """List of string entries, used to differenciate between
+    this and normal lists"""
     pass
 
 
@@ -306,9 +310,10 @@ class ValidatorErrorNotChoicesSubset(Exception):
 
 
 class ValidatorBase:
+    """Base class to validator"""
 
     __slots__ = ('_choices', '_value')
-
+    # overwrite this method
     _parse = None
 
     def __init__(self, default=NOT_DEFINED, choices=None):
@@ -431,6 +436,7 @@ def create_validators(base_validators, range_validators):
 
 
 class Validator:
+    """Factory class"""
 
     _parsers = create_validators(
         {'str': str,
@@ -451,9 +457,10 @@ class Validator:
          'python(dict)': as_python_dict,
          'python(tuple)': as_python_tuple,
          'python(np.array)': as_python_numpy_array,
-    }, {'int': int,
-        'float': float,
-        })
+         }, {'int': int,
+             'float': float,
+             }
+    )
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
         parser = cls._parsers[typ]
