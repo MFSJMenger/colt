@@ -91,7 +91,7 @@ class _ConcreteQuestionBase(_QuestionComponent):
     def preset(self, value, choices):
         """preset new value and choices!"""
 
-    def set(self, answer, on_empty_entry=lambda answer, self: None, 
+    def set(self, answer, on_empty_entry=lambda answer, self: None,
             on_value_error=lambda answer, self: None, on_wrong_choice=lambda answer, self: None):
         """ Handle all set events """
         if answer == "":
@@ -400,8 +400,8 @@ class QuestionVisitor(ABC):
 
 def block_not_set(block_name, keys):
     if block_name == '':
-        txt = '\n' 
-    else:    
+        txt = '\n'
+    else:
         txt = f"\n[{block_name}]\n"
     txt += "\n".join(f"{key} = NotSet" for key in keys)
     return txt + "\n"
@@ -508,65 +508,102 @@ class SettingsVistor(QuestionVisitor):
 
 class QuestionGeneratorVisitor(QuestionASTVisitor):
 
-    __slots__ = ('question_id', 'qname', 'qform', 'concrete', 'blocks', 'block_name')
+    __slots__ = ('question_id', 'qname', 'qform', 'concrete', 'blocks')
 
     def __init__(self):
+        """Set basic defaults to None"""
+        # current question id, id is blockname::qname
         self.question_id = None
+        # current question name within that block
         self.qname = None
+        # qform the questions get saved in
         self.qform = None
+        # current concrete question container
         self.concrete = None
+        # current block container
         self.blocks = None
-        self.block_name = ''
+
+    def reset(self):
+        """set data to initial form"""
+        # current question id, id is blockname::qname
+        self.question_id = None
+        # current question name within that block
+        self.qname = None
+        # qform the questions get saved in
+        self.qform = None
+        # current concrete question container
+        self.concrete = None
+        # current block container
+        self.blocks = None
 
     def visit_question_ast_generator(self, qgen, qform=None):
+        """When visiting an ast generator"""
+        # save qform in self.qform
         self.qform = qform
-        self.block_name = ''
+        # set block_name and block_id
         self.question_id = ''
-        #
+        # set concrete and blocks to None
         self.concrete = None
         self.blocks = None
+        # start visiting the blocks
+        output = qgen.tree.accept(self)
+        # reset
+        self.reset()
         #
-        return qgen.tree.accept(self)
-
-    def set_question_name_and_id(self, key):
-        self.qname = key
-        self.question_id = join_keys(self.block_name, key)
+        return output
 
     def visit_question_container(self, block):
-        #
+        """when visiting a question container"""
+        # save qname
         qname = self.qname
-        qid = self.question_id
-        with self.question_block(qid):
-            for key, question in block.items():
-                self.set_question_name_and_id(key)
-                question.accept(self)
-            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform)
         #
+        with self.question_block() as qid:
+            for key, question in block.items():
+                # set qname to current key
+                self.qname = key
+                # set question_id
+                self.question_id = join_keys(qid, key)
+                # visit next item
+                question.accept(self)
+            # create block
+            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform)
+        # if in main form, or within subquestions block, return the block
         if self.blocks is None:
             return block
-        #
+        # else set the block
         self.blocks[qname] = block
 
-    @contextmanager
-    def question_block(self, block_name):
-        old_block_name = self.block_name
-        self.block_name = block_name
-        #
-        concrete = self.concrete
-        blocks = self.blocks
-        #
-        self.concrete = {}
-        self.blocks = {}
-        #
-        yield old_block_name
-        #
-        self.concrete = concrete
-        self.blocks = blocks
-        #
-        self.block_name = old_block_name
+    def visit_conditional_question(self, question):
+        """visit conditional question form"""
+        # create concrete_question and save it in the concrete_question block
+        concrete_question = ConcreteQuestion(self.question_id, question.main, is_subquestion=True)
+        self.concrete[self.qname] = concrete_question
+        # enter the subquestion_block mode
+        with self.subquestion_block() as (qid, block_name):
+            # create empty cases dictionary
+            cases = {}
+            #
+            for qname, quest in question.items():
+                # set question_id
+                self.question_id = join_case(qid, qname)
+                # there are no ids for these, so question.id does not need
+                # to be set, here only subblocks can be inside!
+                cases[qname] = quest.accept(self)
+        # save subquestion block
+        self.blocks[block_name] = SubquestionBlock(qid, concrete_question, cases, self.qform)
+
+    def visit_literal_block(self, question):
+        """block needs to be in a concrete section"""
+        self.concrete[self.qname] = LiteralBlock(self.question_id, question, self.qform)
+
+    def visit_question(self, question):
+        """question needs to be in concrete section"""
+        self.concrete[self.qname] = ConcreteQuestion(self.question_id, question)
 
     @contextmanager
     def subquestion_block(self):
+        """helper function to set defaults and reset them
+        for SubquestionBlock"""
         blocks = self.blocks
         #
         self.blocks = None
@@ -575,36 +612,30 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
         #
         self.blocks = blocks
 
-    def visit_conditional_question(self, question):
+    @contextmanager
+    def question_block(self):
+        """helper function to set defaults and reset them
+        for QuestionBlock"""
+        # save old concrete, and blocks
+        concrete = self.concrete
+        blocks = self.blocks
+        # create empty new ones
+        self.concrete = {}
+        self.blocks = {}
         #
-        concrete_question = ConcreteQuestion(self.question_id, question.main, is_subquestion=True)
-        self.concrete[self.qname] = concrete_question
-        #
-        with self.subquestion_block() as (qid, block_name):
-            #
-            cases = {}
-            #
-            for qname, quest in question.items():
-                # set question_id
-                self.question_id = join_case(qid, qname)
-                # there are no ids for these, so question.id does not need
-                # to be set
-                cases[qname] = quest.accept(self)
-        #
-        self.blocks[block_name] = SubquestionBlock(qid, concrete_question, cases, self.qform)
-
-    def visit_literal_block(self, question):
-        self.concrete[self.qname] = LiteralBlock(self.question_id, question, self.qform)
-
-    def visit_question(self, question):
-        self.concrete[self.qname] = ConcreteQuestion(self.question_id, question)
+        yield self.question_id
+        # restore the old ones
+        self.concrete = concrete
+        self.blocks = blocks
 
 
 class QuestionForm(Mapping, _QuestionComponent):
-    """Main interface to the Questions"""
-
+    """Main interface to the question forms"""
+    # visitor to generate answers
     answer_visitor = AnswerVistor()
+    # visitor to create settings
     settings_visitor = SettingsVistor()
+    # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 
     def __init__(self, questions, config=None, presets=None):

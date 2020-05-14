@@ -131,8 +131,8 @@ class RangeExpression:
         if value2 is None:
             return True
         return value1 < value2
-    
-    @staticmethod        
+
+    @staticmethod
     def _parse_value(value):
         if value == "":
             return None
@@ -310,20 +310,21 @@ class ValidatorBase:
     __slots__ = ('_choices', '_value')
 
     _parse = None
-    
+
     def __init__(self, default=NOT_DEFINED, choices=None):
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
 
     def validate(self, value):
-        """Parse a string and return its value, 
+        """Parse a string and return its value,
            raises ValueError on failure
 
            Args:
                 value, str
-                    
+
            Returns:
                 parsed value
+
            Raises:
                 ValueError, if value does not fullfill condition
         """
@@ -432,27 +433,25 @@ def create_validators(base_validators, range_validators):
 class Validator:
 
     _parsers = create_validators(
-        {
-        'str': str,
-        'bool': bool_parser,
-        'list': list_parser,
-        'ilist': ilist_parser,
-        'ilist_np': ilist_np_parser,
-        'flist': flist_parser,
-        'flist_np': flist_np_parser,
-        'file': abspath,  # return abspath
-        'folder': abspath,
-        'existing_file': file_exists,
-        'existing_folder': folder_exists,
-        'non_existing_file': non_existing_path,
-        'non_existing_folder': non_existing_path,
-        # python objects
-        'python(list)': as_python_list,
-        'python(dict)': as_python_dict,
-        'python(tuple)': as_python_tuple,
-        'python(np.array)': as_python_numpy_array,
-    }, {
-        'int': int,
+        {'str': str,
+         'bool': bool_parser,
+         'list': list_parser,
+         'ilist': ilist_parser,
+         'ilist_np': ilist_np_parser,
+         'flist': flist_parser,
+         'flist_np': flist_np_parser,
+         'file': abspath,  # return abspath
+         'folder': abspath,
+         'existing_file': file_exists,
+         'existing_folder': folder_exists,
+         'non_existing_file': non_existing_path,
+         'non_existing_folder': non_existing_path,
+         # python objects
+         'python(list)': as_python_list,
+         'python(dict)': as_python_dict,
+         'python(tuple)': as_python_tuple,
+         'python(np.array)': as_python_numpy_array,
+    }, {'int': int,
         'float': float,
         })
 
