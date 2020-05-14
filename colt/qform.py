@@ -1,14 +1,14 @@
 from abc import abstractmethod, ABC
 from collections import UserDict, UserString
 from collections.abc import Mapping
+from contextlib import contextmanager
 #
 from .answers import SubquestionsAnswer
 from .config import ConfigParser
 from .generator import GeneratorNavigator
 #
-from .questions import QuestionGenerator
-from .questions import Question, ConditionalQuestion, QuestionContainer
-from .questions import LiteralBlockQuestion
+from .questions import QuestionASTGenerator
+from .questions import QuestionASTVisitor
 #
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
@@ -48,14 +48,14 @@ class _QuestionComponent(ABC):
 
 class _QuestionsContainerBase(_QuestionComponent):
 
-    def __init__(self, name, parent):
+    def __init__(self, name, qform):
         #
         self.name = name
         #
         self.parent_name, self._name = split_keys(name)
-        self.parent = parent
+        self.qform = qform
         # register block
-        self.parent.blocks[name] = self
+        self.qform.blocks[name] = self
 
     @property
     def label(self):
@@ -70,10 +70,9 @@ class _ConcreteQuestionBase(_QuestionComponent):
     """
     __slots__ = ("name", "parent", "parent_name", "_name", "is_set")
 
-    def __init__(self, name, parent, callbacks=None):
+    def __init__(self, name, callbacks=None):
         self.name = name
         self.parent_name, self._name = split_keys(name)
-        self.parent = parent
         self.is_set = False
 
     @property
@@ -131,12 +130,14 @@ class LiteralBlock(_ConcreteQuestionBase):
 
     __slots__ = ("_answer")
 
-    def __init__(self, name, parent):
+    def __init__(self, name, qform):
         #
-        _ConcreteQuestionBase.__init__(self, name, parent, accept_empty=True)
+        _ConcreteQuestionBase.__init__(self, name, accept_empty=True)
         # register self
-        self.parent.literals[name] = self
+        self.qform.literals[name] = self
+        #
         self._answer = LiteralBlockString(None)
+        #
 
     @property
     def answer(self):
@@ -170,8 +171,8 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     __slots__ = ("_value", "_comment", "is_subquestion_main", "question", "typ", "is_optional")
 
-    def __init__(self, name, question, parent, is_subquestion=False):
-        _ConcreteQuestionBase.__init__(self, name, parent)
+    def __init__(self, name, question, is_subquestion=False):
+        _ConcreteQuestionBase.__init__(self, name)
         #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
         #
@@ -249,12 +250,15 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
 class QuestionBlock(_QuestionsContainerBase, UserDict):
 
-    def __init__(self, name, question, parent):
-        _QuestionsContainerBase.__init__(self, name, parent)
+    def __init__(self, name, concrete, blocks, qform):
+        _QuestionsContainerBase.__init__(self, name, qform)
         #
         UserDict.__init__(self)
-        self.concrete, self.blocks = create_forms(name, question, parent)
-        self.data = self.concrete
+        #
+        self.concrete = concrete
+        self.blocks = blocks
+        #
+        self.data = concrete
 
     @property
     def is_set(self):
@@ -274,14 +278,12 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
 
 class SubquestionBlock(_QuestionsContainerBase):
 
-    def __init__(self, name, main_question, questions, parent):
+    def __init__(self, name, main_question, cases, parent):
         _QuestionsContainerBase.__init__(self, name, parent)
         #
         self.main_question = main_question
         #
-        self.cases = {qname: QuestionBlock(join_case(name, qname),
-                                              quest, parent)
-                         for qname, quest in questions.items()}
+        self.cases = cases
 
     @property
     def is_optional(self):
@@ -312,25 +314,6 @@ class SubquestionBlock(_QuestionsContainerBase):
 
     def get_delete_blocks(self):
         return {block: None for block in self.get_blocks()}
-
-
-def create_forms(name, questions, parent):
-    concrete = {}
-    blocks = {}
-    for key, question in questions.items():
-        qname = join_keys(name, key)
-        if isinstance(question, Question):
-            concrete[key] = ConcreteQuestion(qname, question, parent)
-        elif isinstance(question, QuestionContainer):
-            blocks[key] = QuestionBlock(qname, question, parent)
-        elif isinstance(question, ConditionalQuestion):
-            concrete[key] = ConcreteQuestion(qname, question.main, parent, is_subquestion=True)
-            blocks[key] = SubquestionBlock(qname, concrete[key], question, parent)
-        elif isinstance(question, LiteralBlockQuestion):
-            concrete[key] = LiteralBlock(qname, question, parent)
-        else:
-            raise TypeError("Type of question not known!", type(question))
-    return concrete, blocks
 
 
 def generate_string(name, value):
@@ -523,25 +506,122 @@ class SettingsVistor(QuestionVisitor):
                 }
 
 
+class QuestionGeneratorVisitor(QuestionASTVisitor):
+
+    __slots__ = ('question_id', 'qname', 'qform', 'concrete', 'blocks', 'block_name')
+
+    def __init__(self):
+        self.question_id = None
+        self.qname = None
+        self.qform = None
+        self.concrete = None
+        self.blocks = None
+        self.block_name = ''
+
+    def visit_question_ast_generator(self, qgen, qform=None):
+        self.qform = qform
+        self.block_name = ''
+        self.question_id = ''
+        #
+        self.concrete = None
+        self.blocks = None
+        #
+        return qgen.tree.accept(self)
+
+    def set_question_name_and_id(self, key):
+        self.qname = key
+        self.question_id = join_keys(self.block_name, key)
+
+    def visit_question_container(self, block):
+        #
+        qname = self.qname
+        qid = self.question_id
+        with self.question_block(qid):
+            for key, question in block.items():
+                self.set_question_name_and_id(key)
+                question.accept(self)
+            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform)
+        #
+        if self.blocks is None:
+            return block
+        #
+        self.blocks[qname] = block
+
+    @contextmanager
+    def question_block(self, block_name):
+        old_block_name = self.block_name
+        self.block_name = block_name
+        #
+        concrete = self.concrete
+        blocks = self.blocks
+        #
+        self.concrete = {}
+        self.blocks = {}
+        #
+        yield old_block_name
+        #
+        self.concrete = concrete
+        self.blocks = blocks
+        #
+        self.block_name = old_block_name
+
+    @contextmanager
+    def subquestion_block(self):
+        blocks = self.blocks
+        #
+        self.blocks = None
+        #
+        yield self.question_id, self.qname
+        #
+        self.blocks = blocks
+
+    def visit_conditional_question(self, question):
+        #
+        concrete_question = ConcreteQuestion(self.question_id, question.main, is_subquestion=True)
+        self.concrete[self.qname] = concrete_question
+        #
+        with self.subquestion_block() as (qid, block_name):
+            #
+            cases = {}
+            #
+            for qname, quest in question.items():
+                # set question_id
+                self.question_id = join_case(qid, qname)
+                # there are no ids for these, so question.id does not need
+                # to be set
+                cases[qname] = quest.accept(self)
+        #
+        self.blocks[block_name] = SubquestionBlock(qid, concrete_question, cases, self.qform)
+
+    def visit_literal_block(self, question):
+        self.concrete[self.qname] = LiteralBlock(self.question_id, question, self.qform)
+
+    def visit_question(self, question):
+        self.concrete[self.qname] = ConcreteQuestion(self.question_id, question)
+
+
 class QuestionForm(Mapping, _QuestionComponent):
     """Main interface to the Questions"""
 
     answer_visitor = AnswerVistor()
     settings_visitor = SettingsVistor()
+    question_generator_visitor = QuestionGeneratorVisitor()
 
     def __init__(self, questions, config=None, presets=None):
-        #
-        questions = QuestionGenerator(questions).tree
         #
         self.blocks = {}
         # literal blocks
         self.literals = {}
         # not set variables
         self.unset = {}
-        # generate QuestionBlock
-        self.form = QuestionBlock("", questions, self)
+        # generate Question Forms
+        self.form = self._generate_forms(questions)
         #
         self.set_answers_and_presets(config, presets)
+
+    def _generate_forms(self, questions):
+        questions = QuestionASTGenerator(questions)
+        return self.question_generator_visitor.visit(questions, qform=self)
 
     def accept(self, visitor, **kwargs):
         return visitor.visit_qform(self, **kwargs)

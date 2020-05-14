@@ -1,6 +1,6 @@
 import pytest
 #
-from colt import QuestionGenerator
+from colt import QuestionASTGenerator
 from colt import AskQuestions
 from colt.questions import Question
 from colt.validator import NOT_DEFINED
@@ -45,7 +45,7 @@ def questions():
 
 def test_generate_questions(questions):
     """test parsing of basic questions string"""
-    questions = QuestionGenerator(questions).questions
+    questions = QuestionASTGenerator(questions).questions
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
                                          choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
@@ -60,7 +60,7 @@ def test_add_question_to_block(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     questions_generator.add_questions_to_block("""
         add =
     """)
@@ -80,7 +80,7 @@ def test_add_single_question_to_block(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     questions_generator.add_element('add', "hallo")
     questions = questions_generator.questions
 
@@ -97,7 +97,7 @@ def test_add_single_question_to_block_fail_block_doesnt_exist(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     with pytest.raises(KeyError):
         questions_generator.add_element('add', "hallo", "mm")
 
@@ -107,14 +107,14 @@ def test_add_single_question_to_block_fail_overwrite(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     with pytest.raises(KeyError):
         questions_generator.add_element('name', "hallo")
 
 
 def test_add_question_to_block_no_overwrite(questions):
     """test parsing of basic questions string """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     questions_generator.add_questions_to_block("""
         value =
         add =
@@ -135,7 +135,7 @@ def test_add_question_block(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     questions_generator.generate_block("hallo", """
         du =
@@ -158,7 +158,7 @@ def test_add_question_to_subblock(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     questions_generator.add_questions_to_block("""
         du =
@@ -183,7 +183,7 @@ def test_add_question_to_created_subblock(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     questions_generator.generate_block("hallo", """
         du =
@@ -207,7 +207,7 @@ def test_add_question_to_created_subblock(questions):
 def test_add_cases_keyerror(questions):
     """test parsing of basic questions string
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     with pytest.raises(KeyError):
         questions_generator.generate_cases("software", {
@@ -221,7 +221,7 @@ def test_add_cases(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     questions_generator.generate_cases("software", {
         'qchem': "basis = sto-3g\nfunctional=b3lyp",
@@ -247,7 +247,7 @@ def test_add_block_to_cases(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
     #
     questions_generator.generate_cases("software", {
         'qchem': "basis = sto-3g\nfunctional=b3lyp",
@@ -280,8 +280,8 @@ def test_generator_from_generator(questions):
 
        and add additional questions
     """
-    oldgen = QuestionGenerator(questions)
-    questions_generator = QuestionGenerator(oldgen)
+    oldgen = QuestionASTGenerator(questions)
+    questions_generator = QuestionASTGenerator(oldgen)
     #
     questions = questions_generator.questions
 
@@ -300,7 +300,7 @@ def test_generator_from_int():
        and add additional questions
     """
     with pytest.raises(TypeError):
-        QuestionGenerator(5)
+        QuestionASTGenerator(5)
 
 
 def test_generator_from_float():
@@ -309,7 +309,7 @@ def test_generator_from_float():
        and add additional questions
     """
     with pytest.raises(TypeError):
-        QuestionGenerator(5.8)
+        QuestionASTGenerator(5.8)
 
 
 def test_generator_parsing_error(questions):
@@ -317,7 +317,7 @@ def test_generator_parsing_error(questions):
 
        and add additional questions
     """
-    questions_generator = QuestionGenerator(questions)
+    questions_generator = QuestionASTGenerator(questions)
 
     with pytest.raises(ValueError):
         questions_generator.generate_block("system", """

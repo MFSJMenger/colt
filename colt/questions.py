@@ -1,4 +1,5 @@
 """Definitions of all Question Classes"""
+from abc import abstractmethod, ABC
 from collections import UserDict
 #
 from .generator import GeneratorBase, BranchingNode
@@ -7,21 +8,81 @@ from .validator import NOT_DEFINED
 from .slottedcls import slottedcls
 
 
+class Component(ABC):
 
-# store Questions
-Question = slottedcls("Question", {"question": "",
-                                   "typ": "str",
-                                   "default": NOT_DEFINED,
-                                   "choices": None,
-                                   "comment": NOT_DEFINED,
-                                   "is_optional": False
-                                   })
-
-# identify literal blocks
-LiteralBlockQuestion = slottedcls("LiteralBlockQuestion", ("name", ))
+    @abstractmethod
+    def accept(self, visitor):
+        pass
 
 
-class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
+class QuestionASTVisitor(ABC):
+    """Basic class to visit the nodes of the Question Generator"""
+
+    __slots__ = ()
+
+    def visit(self, qgen, **kwargs):
+        return qgen.accept(self, **kwargs)
+
+    @abstractmethod
+    def visit_question_ast_generator(self, qgen, **kwargs):
+        pass
+
+    @abstractmethod
+    def visit_question_container(self, block):
+        pass
+
+    @abstractmethod
+    def visit_literal_block(self, question):
+        pass
+
+    @abstractmethod
+    def visit_question(self, block):
+        pass
+
+    @abstractmethod
+    def visit_conditional_question(self, block):
+        pass
+
+
+class Question(Component):
+
+    __slots__ = ('question', 'typ', 'default', 'choices', 'comment', 'is_optional')
+
+    def __init__(self, question="", typ="str", default=NOT_DEFINED,
+            choices=None, comment=NOT_DEFINED, is_optional=False):
+        self.question = question
+        self.typ = typ
+        self.default = default
+        self.choices = choices
+        self.comment = comment
+        self.is_optional = is_optional
+
+    def __eq__(self, other):
+        if not isinstance(other, Question):
+            return False
+        return all(getattr(self, attr) == getattr(other, attr) for attr in self.__slots__)
+
+    def accept(self, visitor):
+        return visitor.visit_question(self)
+
+
+class LiteralBlockQuestion(Component):
+
+    __slots__ = ('name',)
+
+    def __init__(self, name):
+        self.name = name
+
+    def __eq__(self, other):
+        if not isinstance(other, Question):
+            return False
+        return all(getattr(self, attr) == getattr(other, attr) for attr in self.__slots__)
+
+    def accept(self, visitor):
+        return visitor.visit_literal_block(self)
+
+
+class ConditionalQuestion(Component, BranchingNode):  # pylint: disable=too-many-ancestors
     """Conditional Question, is a branching node
        used to store decissions
     """
@@ -46,8 +107,11 @@ class ConditionalQuestion(BranchingNode):  # pylint: disable=too-many-ancestors
         return (f"ConditionalQuestion(name = {self.name},"
                 f" main = {self.main}, subquestions = {self.subquestions}")
 
+    def accept(self, visitor):
+        return visitor.visit_conditional_question(self)
 
-class QuestionContainer(UserDict):
+
+class QuestionContainer(Component, UserDict):
 
     def __init__(self, data=None):
         if data is None:
@@ -62,8 +126,12 @@ class QuestionContainer(UserDict):
             if isinstance(question, ConditionalQuestion):
                 yield key, question.main
 
+    def accept(self, visitor):
+        return visitor.visit_question_container(self)
+        
 
-class QuestionGenerator(GeneratorBase):
+
+class QuestionASTGenerator(Component, GeneratorBase):
     """Contains all tools to automatically generate questions from
        a given file
     """
@@ -211,14 +279,14 @@ class QuestionGenerator(GeneratorBase):
                                                       in cls._sampling_methods.items()})
         """
         #
-        subquestions = {name: QuestionGenerator(questions)
+        subquestions = {name: QuestionASTGenerator(questions)
                         for name, questions in subquestions.items()}
         #
         self.add_branching(key, subquestions, parentnode=block)
 
     def add_questions_to_block(self, questions, block=None, overwrite=True):
         """add questions to a particular block """
-        questions = QuestionGenerator(questions)
+        questions = QuestionASTGenerator(questions)
         self.add_elements(questions, parentnode=block, overwrite=overwrite)
 
     def generate_block(self, name, questions, block=None):
@@ -244,7 +312,7 @@ class QuestionGenerator(GeneratorBase):
             >>> questions.generate_block("software", {name: software.questions for name, software
                                                       in cls._softwares.items()})
         """
-        questions = QuestionGenerator(questions)
+        questions = QuestionASTGenerator(questions)
         self.add_node(name, questions, parentnode=block)
 
     @classmethod
@@ -253,6 +321,9 @@ class QuestionGenerator(GeneratorBase):
         with open(filename, "r") as fhandle:
             string = fhandle.read()
         return cls(string)
+
+    def accept(self, visitor, **kwargs):
+        return visitor.visit_question_ast_generator(self, **kwargs)
 
     @staticmethod
     def _parse_default(default):

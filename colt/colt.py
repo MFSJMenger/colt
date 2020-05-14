@@ -1,6 +1,6 @@
 from abc import ABCMeta
 #
-from .questions import QuestionGenerator
+from .questions import QuestionASTGenerator
 from .ask import AskQuestions
 from .commandline import get_config_from_commandline
 
@@ -74,7 +74,7 @@ class ColtMeta(ABCMeta):
 
     def _generate_questions(cls):
         """generate questions"""
-        questions = QuestionGenerator(cls._questions)
+        questions = QuestionASTGenerator(cls._questions)
         cls._generate_subquestions(questions)
         return questions
 

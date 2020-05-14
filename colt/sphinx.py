@@ -3,7 +3,7 @@ from importlib import import_module
 from docutils import nodes
 #
 from sphinx.util.docutils import SphinxDirective
-from . import QuestionGenerator, NOT_DEFINED
+from . import QuestionASTGenerator, NOT_DEFINED
 
 
 class ColtDirective(SphinxDirective):
@@ -116,7 +116,7 @@ class ColtQFileDirective(ColtDirective):
             msg = f'Could not find file {self.arguments}'
             raise Exception(msg)
         #
-        return QuestionGenerator(questions)
+        return QuestionASTGenerator(questions)
 
 
 def setup(app):
