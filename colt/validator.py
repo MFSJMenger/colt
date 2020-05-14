@@ -9,6 +9,7 @@ __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
 
 
 class NoChoice:
+    """Empty object that indicates that no choice are used"""
 
     __slots__ = ()
 
@@ -16,6 +17,12 @@ class NoChoice:
         if isinstance(rhs, NoChoice):
             return True
         return False
+
+    def __str__(self):
+        return ""
+
+    def __repr__(self):
+        return ""
 
     def validate(self, value):
         return True
@@ -25,23 +32,28 @@ NO_CHOICE = NoChoice()
 
 
 class Choices:
+    """Store possible choices"""
 
-    __slots__ = ('choices')
+    __slots__ = ('choices',)
 
     def __init__(self, choices):
         self.choices = choices
 
+    def as_str(self):
+        txt = ", ".join(str(choice) for choice in self.choices)
+        return f"Choices({txt})"
+
     def __str__(self):
-        return ", ".join(str(choice) for choice in self.choices)
+        return self.as_str()
 
     def __repr__(self):
-        return ", ".join(str(choice) for choice in self.choices)
+        return self.as_str()
 
     def as_list(self):
         return list(self.choices)
 
     def validate(self, value):
-        return (value in self.choices)
+        return value in self.choices
 
     def is_subset(self, rhs):
         if rhs is None:
@@ -69,8 +81,14 @@ class RangeExpression:
                 return False
         return True
 
+    def __str__(self):
+        return self.as_str()
+
+    def __repr__(self):
+        return self.as_str()
+
     def as_str(self):
-        return self.expr
+        return f"Range({self.expr})"
 
     def is_subset(self, rhs):
         """Can only be subset of range expression!"""
@@ -115,8 +133,8 @@ class RangeExpression:
         if value2 is None:
             return True
         return value1 < value2
-    
-    @staticmethod        
+
+    @staticmethod
     def _parse_value(value):
         if value == "":
             return None
@@ -124,6 +142,8 @@ class RangeExpression:
 
 
 class StringList(list):
+    """List of string entries, used to differenciate between
+    this and normal lists"""
     pass
 
 
@@ -290,30 +310,32 @@ class ValidatorErrorNotChoicesSubset(Exception):
 
 
 class ValidatorBase:
+    """Base class to validator"""
 
     __slots__ = ('_choices', '_value')
-
+    # overwrite this method
     _parse = None
-    
+
     def __init__(self, default=NOT_DEFINED, choices=None):
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
 
     def validate(self, value):
-        """Parse a string and return its value, 
+        """Parse a string and return its value,
            raises ValueError on failure
 
            Args:
                 value, str
-                    
+
            Returns:
                 parsed value
+
            Raises:
                 ValueError, if value does not fullfill condition
         """
         value = self._parse(str(value))
         if not self._choices.validate(value):
-            raise ValidatorErrorNotInChoices("Answer is not in choices")
+            raise ValidatorErrorNotInChoices("Answer is not in {self._choices}")
         return value
 
     def get(self):
@@ -414,31 +436,31 @@ def create_validators(base_validators, range_validators):
 
 
 class Validator:
+    """Factory class"""
 
     _parsers = create_validators(
-        {
-        'str': str,
-        'bool': bool_parser,
-        'list': list_parser,
-        'ilist': ilist_parser,
-        'ilist_np': ilist_np_parser,
-        'flist': flist_parser,
-        'flist_np': flist_np_parser,
-        'file': abspath,  # return abspath
-        'folder': abspath,
-        'existing_file': file_exists,
-        'existing_folder': folder_exists,
-        'non_existing_file': non_existing_path,
-        'non_existing_folder': non_existing_path,
-        # python objects
-        'python(list)': as_python_list,
-        'python(dict)': as_python_dict,
-        'python(tuple)': as_python_tuple,
-        'python(np.array)': as_python_numpy_array,
-    }, {
-        'int': int,
-        'float': float,
-        })
+        {'str': str,
+         'bool': bool_parser,
+         'list': list_parser,
+         'ilist': ilist_parser,
+         'ilist_np': ilist_np_parser,
+         'flist': flist_parser,
+         'flist_np': flist_np_parser,
+         'file': abspath,  # return abspath
+         'folder': abspath,
+         'existing_file': file_exists,
+         'existing_folder': folder_exists,
+         'non_existing_file': non_existing_path,
+         'non_existing_folder': non_existing_path,
+         # python objects
+         'python(list)': as_python_list,
+         'python(dict)': as_python_dict,
+         'python(tuple)': as_python_tuple,
+         'python(np.array)': as_python_numpy_array,
+         }, {'int': int,
+             'float': float,
+             }
+    )
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
         parser = cls._parsers[typ]

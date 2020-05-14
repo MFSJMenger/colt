@@ -3,6 +3,7 @@ import re
 
 
 class FileIterable:
+    """Basic Iterator over the file, analouge to open()"""
 
     def __init__(self, filename, options="r"):
         self.closed = True

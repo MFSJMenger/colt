@@ -6,6 +6,7 @@ Preset = slottedcls("Preset", {"default": None, "choices": None})
 
 
 class PresetGenerator(GeneratorBase):
+    """Generate Presets automatically"""
 
     comment_char = "###"
     default = '__QUESTIONS__'
