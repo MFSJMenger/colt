@@ -13,7 +13,7 @@ from .questions import QuestionASTVisitor
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
-from .validator import StringList, Choices, RangeExpression
+from .validator import Choices, RangeExpression
 #
 from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
@@ -87,8 +87,12 @@ class _ConcreteQuestionBase(_QuestionComponent):
         return self.name
 
     @abstractmethod
-    def get_answer(self, check=False):
+    def get_answer(self):
         """get answer"""
+
+    @abstractmethod
+    def get_answer_as_string(self):
+        """get string of answer"""
 
     @abstractmethod
     def preset(self, value, choices):
@@ -163,10 +167,14 @@ class LiteralBlock(_ConcreteQuestionBase):
     def preset(self, value, choices):
         raise Exception(f"preset not defined for Literalblock")
 
-    def get_answer(self, check=False):
+    def get_answer(self):
         if self._answer.is_none is True:
             return None
         return self._answer
+
+    def get_answer_as_string(self):
+        """get string of answer"""
+        return self.get_answer()
 
     def accept(self, visitor):
         return visitor.visit_literal_block(self)
@@ -199,6 +207,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         return self._value.get()
+
+    def get_answer_as_string(self):
+        """get answer back, if is optional, return None if NOT_DEFINED"""
+        return self._value.answer_as_string()
 
     def accept(self, visitor):
         if isinstance(self.choices, Choices):
@@ -322,8 +334,6 @@ class SubquestionBlock(_QuestionsContainerBase):
 def generate_string(name, value):
     if value is None:
         return f"{name} ="
-    if isinstance(value, StringList):
-        return f"{name} = {', '.join(ele for ele in value)}"
     return f"{name} = {value}"
 
 
@@ -726,7 +736,7 @@ class QuestionForm(Mapping, _QuestionComponent):
         """ get a linear config and write it to the file"""
         config = {}
         for blockname in self.get_blocks():
-            config[blockname] = {key: question.answer
+            config[blockname] = {key: question.get_answer_as_string()
                                  for key, question in self.blocks[blockname].concrete.items()}
 
         default_name = ''

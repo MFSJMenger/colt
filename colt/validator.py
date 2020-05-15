@@ -141,12 +141,6 @@ class RangeExpression:
         return float(value)
 
 
-class StringList(list):
-    """List of string entries, used to differenciate between
-    this and normal lists"""
-    pass
-
-
 def abspath(answer):
     return os.path.abspath(os.path.expanduser(answer))
 
@@ -190,7 +184,7 @@ def bool_parser(answer):
 def list_parser(answer):
     """convert string to list of strings"""
     split_char, answer = _prepare_list_parsing(answer)
-    return StringList([ele.strip() for ele in answer.split(split_char) if ele.strip() != ""])
+    return [ele.strip() for ele in answer.split(split_char) if ele.strip() != ""]
 
 
 def flist_parser(answer):
@@ -312,11 +306,12 @@ class ValidatorErrorNotChoicesSubset(Exception):
 class ValidatorBase:
     """Base class to validator"""
 
-    __slots__ = ('_choices', '_value')
+    __slots__ = ('_choices', '_value', '_string')
     # overwrite this method
     _parse = None
 
     def __init__(self, default=NOT_DEFINED, choices=None):
+        self._string = NOT_DEFINED
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
 
@@ -337,6 +332,11 @@ class ValidatorBase:
         if not self._choices.validate(value):
             raise ValidatorErrorNotInChoices("Answer is not in {self._choices}")
         return value
+
+    def answer_as_string(self):
+        if self._string is NOT_DEFINED:
+            return ''
+        return self._string
 
     def get(self):
         """Return self._value if its set or not!"""
@@ -390,10 +390,11 @@ class ValidatorBase:
             raise ValueError(f"Choices '{in_choices}' cannot be parsed")
         return Choices(choices)
 
-    def _get_value(self, value):
-        value = self.validate(value)
+    def _get_value(self, string):
+        value = self.validate(string)
         if not self._choices.validate(value):
             raise ValidatorErrorNotInChoices("Answer is not in choices")
+        self._string = string
         return value
 
 
