@@ -18,7 +18,7 @@ class GeneratorNavigator:
     #
     seperator = "::"
     # is there a branching in the tree?
-    is_branching_regex = re.compile(r"(?P<branch>.*)\((?P<node>.*)\)")
+    is_branching_regex = re.compile(r"(?P<branch>[\d\w-]*)\((?P<node>.*)\)")
     # named tuple to store the pair
     Branch = slottedcls("Branch", ["branch", "node"])
 
