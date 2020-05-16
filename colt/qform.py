@@ -76,7 +76,7 @@ class _ConcreteQuestionBase(_QuestionComponent):
         self.name = name
         self.parent_name, self._name = split_keys(name)
         self.is_set = False
-        self.accept_empty = accept_empty
+#        self.accept_empty = accept_empty
 
     @property
     def label(self):
@@ -149,6 +149,10 @@ class LiteralBlock(_ConcreteQuestionBase):
         #
 
     @property
+    def is_optional(self):
+        return True
+
+    @property
     def answer(self):
         answer = self.get_answer()
         if answer is NOT_DEFINED:
@@ -184,7 +188,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     """Concrete question"""
 
     __slots__ = ("_value", "_comment", "is_subquestion_main",
-                 "question", "typ", "is_optional", "accept_empty")
+                 "question", "typ", "is_optional")
 
     def __init__(self, name, question, is_subquestion=False):
         _ConcreteQuestionBase.__init__(self, name)
@@ -610,7 +614,7 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
 
     def visit_literal_block(self, question):
         """block needs to be in a concrete section"""
-        self.concrete[self.qname] = LiteralBlock(self.question_id, question, self.qform)
+        self.concrete[self.qname] = LiteralBlock(self.question_id, self.qform)
 
     def visit_question(self, question):
         """question needs to be in concrete section"""
@@ -795,10 +799,17 @@ class QuestionForm(Mapping, _QuestionComponent):
 
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
+        #
         try:
-            parsed, self.literals = ConfigParser.read(filename, self.literals)
+            parsed, literals = ConfigParser.read(filename, self.literals)
         except FileNotFoundError:
             return f"File '{filename}' not found!"
+        # set literal blocks
+        for key, value in literals.items():
+            if value in (None, ''):
+                continue
+            self.literals[key].answer = value
+        #
         return self._set_answers_from_dct(parsed)
 
     def _set_answers_from_dct(self, dct):

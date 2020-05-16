@@ -45,7 +45,7 @@ class ConfigParser(MutableMapping):
 
     def __init__(self, config, literals):
         self._config = config
-        self.literals = literals
+        self.literals = {name: None for name in literals}
 
     @classmethod
     def from_string(cls, filename, literals):
@@ -81,29 +81,37 @@ class ConfigParser(MutableMapping):
     @classmethod
     def get_literals(cls, header, literals, fileiter):
         literals[header], header = cls._parse_literals(header, fileiter)
+        # if next block is also a literalblock continue
         if header in literals:
             return cls.get_literals(header, literals, fileiter)
+        # return next block
         return header
 
     @classmethod
     def read(cls, filename, literals):
+        #
+        literals = {name: None for name in literals}
+        #
         entries = {}
         configs = {cls.base: entries}
         #
         fileiter = FileIterable(filename)
         for line in fileiter:
             header = cls._header(line)
-            #
+            # check for literalblocks
             if header is not None:
                 if header in configs:
                     raise ValueError(f"{header} defined twice in config")
+                # handle literal block and find next header
                 if header in literals:
                     header = cls.get_literals(header, literals, fileiter)
                     if header is None:
                         break
+                # reset entries to nothing
                 entries = {}
                 configs[header] = entries
                 continue
+            #
             line = line.strip()
             if line == "" or line.startswith(cls.comment):
                 continue

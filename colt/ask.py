@@ -100,8 +100,6 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        for block in self:
-            print(f"[{block}]", self[block].is_set)
         self.set_answers_and_presets(config, presets)
         if ask_all is True:
             return self._ask_impl(config=config, ask_all=ask_all)
