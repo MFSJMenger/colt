@@ -18,8 +18,9 @@ class CommandlineVisitor(QuestionVisitor):
     def on_wrong_choice(self, answer, question):
         print(f"Answer '{answer}' not in {question.choices}!")
 
-    def visit_qform(self, qform, ask_all=False):
+    def visit_qform(self, qform, description=None, ask_all=False):
         self.ask_all = ask_all
+        print(description)
         qform.form.accept(self)
 
     def visit_question_block(self, block):
@@ -86,7 +87,7 @@ class AskQuestions(QuestionForm):
 
     visitor = CommandlineVisitor()
 
-    def ask(self, config=None, ask_all=False, presets=None):
+    def ask(self, description=None, config=None, ask_all=False, presets=None):
         """Main routine to get settings from the user,
            if all answers are set, and ask_all is not True
 
@@ -102,12 +103,12 @@ class AskQuestions(QuestionForm):
         """
         self.set_answers_and_presets(config, presets)
         if ask_all is True:
-            return self._ask_impl(config=config, ask_all=ask_all)
+            return self._ask_impl(config=config, ask_all=ask_all, description=description)
         #
         if self.is_all_set:
             return self.get_answers()
         #
-        return self._ask_impl(config=config, ask_all=ask_all)
+        return self._ask_impl(config=config, ask_all=ask_all, description=description)
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
@@ -131,7 +132,7 @@ class AskQuestions(QuestionForm):
         self.write_config(filename)
         return answer
 
-    def _ask_impl(self, config=None, ask_all=False):
+    def _ask_impl(self, description=None, config=None, ask_all=False):
         """Actuall routine to get settings from the user
 
             Kwargs:
@@ -144,7 +145,7 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        self.visitor.visit(self, ask_all=ask_all)
+        self.visitor.visit(self, description=description, ask_all=ask_all)
         #
         if config is not None:
             self.write_config(config)

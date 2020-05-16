@@ -174,11 +174,13 @@ class LiteralBlock(_ConcreteQuestionBase):
     def get_answer(self):
         if self._answer.is_none is True:
             return None
-        return self._answer
+        return self._answer.data
 
     def get_answer_as_string(self):
         """get string of answer"""
-        return self.get_answer()
+        if self._answer.is_none is True:
+            return None
+        return self._answer
 
     def accept(self, visitor):
         return visitor.visit_literal_block(self)
@@ -344,6 +346,9 @@ def generate_string(name, value):
 def answer_iter(name, dct, default_name):
     if isinstance(dct, LiteralBlockString):
         if dct.is_none is True:
+            return
+    else:
+        if len(dct) == 0:
             return
 
     if name != default_name:
