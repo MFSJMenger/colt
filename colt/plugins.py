@@ -4,10 +4,10 @@ from .colt import add_defaults_to_dict, delete_inherited_keys
 
 def plugin_meta_setup(clsdict):
     plugin_defaults = {
-        '_register_plugin': True,
-        '_is_plugin_factory': False,
-        '_is_plugin_specialisation': False,
-        '_plugins_storage': 'inherited'
+            '_register_plugin': True,
+            '_is_plugin_factory': False,
+            '_is_plugin_specialisation': False,
+            '_plugins_storage': 'inherited'
     }
 
     add_defaults_to_dict(clsdict, plugin_defaults)
@@ -27,8 +27,7 @@ class PluginMeta(ColtMeta):
         #
         cls.__store_subclass(name)
         cls._plugin_storage = cls.__plugins_storage_name
-        #
-        ColtMeta.__init__(cls, name, bases, clsdict)
+        type.__init__(cls, name, bases, clsdict)
 
     def __store_subclass(cls, name):
         """main routine to store the current class, that has been already created with __new__,

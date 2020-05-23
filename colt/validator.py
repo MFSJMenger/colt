@@ -49,6 +49,9 @@ class Choices:
     def __repr__(self):
         return self.as_str()
 
+    def __iter__(self):
+        return iter(self.choices)
+
     def as_list(self):
         return list(self.choices)
 

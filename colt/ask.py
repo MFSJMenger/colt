@@ -1,4 +1,20 @@
+import readline
+#
 from .qform import QuestionVisitor, QuestionForm
+
+
+readline.parse_and_bind('tab:complete')
+
+
+def select_completer(obj):
+
+    def completer(text, state):
+        options = [choice for choice in obj.choices if choice.startswith(text)]
+        if state < len(options):
+            return options[state]
+        return None
+
+    return completer
 
 
 class CommandlineVisitor(QuestionVisitor):
@@ -31,7 +47,9 @@ class CommandlineVisitor(QuestionVisitor):
     def visit_concrete_question_select(self, question):
         if self._should_ask_question(question) is True:
             text = self._generate_select_question_text(question)
+            readline.set_completer(select_completer(question))
             self._ask_question(text, question, question.comment)
+            readline.set_completer(None)
 
     def visit_concrete_question_input(self, question):
         if self._should_ask_question(question) is True:
