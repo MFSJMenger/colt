@@ -4,10 +4,10 @@ from .colt import add_defaults_to_dict, delete_inherited_keys
 
 def plugin_meta_setup(clsdict):
     plugin_defaults = {
-            '_register_plugin': True,
-            '_is_plugin_factory': False,
-            '_is_plugin_specialisation': False,
-            '_plugins_storage': 'inherited'
+        '_register_plugin': True,
+        '_is_plugin_factory': False,
+        '_is_plugin_specialisation': False,
+        '_plugins_storage': 'inherited'
     }
 
     add_defaults_to_dict(clsdict, plugin_defaults)
@@ -25,9 +25,13 @@ class PluginMeta(ColtMeta):
 
     def __init__(cls, name, bases, clsdict):
         #
+        cls._plugin_storage = getattr(cls, '_plugins_storage', '_plugins')
+        if cls._plugins_storage == 'plugins':
+            cls._plugins_storage = '_plugins'
+        #
         cls.__store_subclass(name)
-        cls._plugin_storage = cls.__plugins_storage_name
-        type.__init__(cls, name, bases, clsdict)
+        #
+        ColtMeta.__init__(cls, name, bases, clsdict)
 
     def __store_subclass(cls, name):
         """main routine to store the current class, that has been already created with __new__,
@@ -68,25 +72,23 @@ class PluginMeta(ColtMeta):
                 # stop if it is just a plugin specialisation
                 if getattr(plugin_class, '_is_plugin_specialisation', False) is not True:
                     break
-
+        #
         if idx == []:
             idx = -1
         else:
             idx = idx[0]
         return storage_classes, idx
 
-    @property
-    def __plugins_storage_name(cls):
-        return getattr(cls, '_plugins_storage', '_plugins')
-
-    @property
-    def plugins(cls):
-        """Return dict of the stored plugins, if not defined, return empty dict"""
-        return getattr(cls, cls.__plugins_storage_name, {})
-
     def __new_plugin_storage(cls):
         """create new plugin storage"""
-        setattr(cls, cls.__plugins_storage_name, {})
+        setattr(cls, cls._plugins_storage, {})
+
+
+class PluginStorageDescriptor:
+    """Simple way to reference to the plugin storage without using an property"""
+
+    def __get__(self, obj, typ):
+        return getattr(typ, getattr(typ, '_plugins_storage'))
 
 
 class PluginBase(Colt, metaclass=PluginMeta):
@@ -96,6 +98,8 @@ class PluginBase(Colt, metaclass=PluginMeta):
     _is_plugin_factory = False
     _register_plugin = False
     _is_plugin_specialisation = False
+    # none-value descriptor to store plugins
+    plugins = PluginStorageDescriptor()
 
     @classmethod
     def add_plugin(cls, name, clsobj):

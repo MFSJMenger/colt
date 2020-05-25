@@ -38,10 +38,12 @@ def questions():
       name = :: str :: [hallo, du]
       ilist = :: ilist
       flist = 1.2 3.8 :: flist
+      optional = :: str, optional
 
       [qm]
       nqm = 100 :: int
       nmm = 200 :: int
+      optional = :: str, optional
 
       [examplecase(yes)]
       a = 10
@@ -82,6 +84,7 @@ def test_basic_ask_questions_from_config(questions, configini):
     questions = AskQuestions(questions, config=configini)
     answers = questions.ask()
     assert answers['qm']['nqm'] == 100
+    assert answers['qm']['optional'] is None
     assert answers['qm']['nmm'] == 200
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
@@ -92,8 +95,10 @@ def test_basic_ask_questions_from_config(questions, configini):
 def test_basic_ask_questions_from_config_file(questions, configini, configiniout):
     questions = AskQuestions(questions, config=configini)
     answers = questions.ask(configiniout)
+    assert answers['optional'] is None
     assert answers['qm']['nqm'] == 100
     assert answers['qm']['nmm'] == 200
+    assert answers['qm']['optional'] is None
     assert answers['examplecase']['a'] == '666'
     assert answers['examplecase']['further']['a'] == '131'
     assert answers['examplecase']['further']['andmore']['select'] == 'maybe'
