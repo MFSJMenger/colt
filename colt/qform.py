@@ -212,7 +212,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
-        return self._value.get()
+        answer = self._value.get()
+        if self.is_optional is True and answer is NOT_DEFINED:
+            return None
+        return answer
 
     def get_answer_as_string(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
