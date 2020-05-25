@@ -239,7 +239,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     @property
     def answer(self):
-        answer = self.get_answer()
+        answer = self._value.get()
         if answer is NOT_DEFINED:
             return ""
         return answer
