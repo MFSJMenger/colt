@@ -15,6 +15,7 @@ __all__ = ["Colt", "PluginBase",
 # Helper class to handle easily questions with classes
 from .colt import Colt
 from .plugins import PluginBase
+from .pluginloader import PluginLoader
 #
 from .colt import FromCommandline
 # If Questions should be asked without Colt use AskQuestions
