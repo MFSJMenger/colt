@@ -91,7 +91,7 @@ class PluginStorageDescriptor:
         return getattr(typ, getattr(typ, '_plugins_storage'))
 
 
-class PluginBase(Colt, metaclass=PluginMeta):
+class Plugin(Colt, metaclass=PluginMeta):
     """Base class for the construction of PluginFactories"""
 
     _plugins_storage = '_plugins'
@@ -105,3 +105,8 @@ class PluginBase(Colt, metaclass=PluginMeta):
     def add_plugin(cls, name, clsobj):
         """Register a plugin"""
         cls.plugins[name] = clsobj
+
+    @classmethod
+    def plugin_from_config(cls, config, *args, **kwargs):
+        """has to be the correct setting"""
+        return cls.plugins[config.value].from_config(config, *args, **kwargs)

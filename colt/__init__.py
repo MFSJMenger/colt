@@ -14,7 +14,7 @@ __all__ = ["Colt", "PluginBase",
 
 # Helper class to handle easily questions with classes
 from .colt import Colt
-from .plugins import PluginBase
+from .plugins import Plugin as PluginBase
 from .pluginloader import PluginLoader
 #
 from .colt import FromCommandline
