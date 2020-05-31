@@ -1,63 +1,33 @@
 import sys
 #
-from .generator import GeneratorBase
-from .commandline import get_config_from_commandline
+from language import generate_nodes
+from ..commandline import get_config_from_commandline
 
 
-class Node:
-    """Basic Node in the workflow"""
-
-    __slots__ = ('action', 'input_nodes', 'id')
-
-    def __init__(self, action, id, input_nodes):
-        self.action = action           # what kind of action to perform
-        self.input_nodes = input_nodes # names of the input node
-        self.id = id                   # id of the node
-
-    def visit(self, visitor):
-        inp = self.generate_input(visitor)
-        visit = visitor.get_action(self.action)
-        output = visit(self, inp)
-        if output is not None:
-            self._register_output(visitor, output)
-
-    def generate_input(self, visitor):
-        return tuple(visitor.get(node) for node in self.input_nodes)
-
-    def _register_output(self, visitor, output):
-        visitor.bind_data(self.id, output)
-
-
-class NodeGenerator(GeneratorBase):
+class NodeGenerator:
     """Generator to create nodes from string"""
 
-    comment_char = "###"
-    default = '__QUESTIONS__'
-
-    leafnode_type = Node
-
     def __init__(self, string):
-        super().__init__(string)
         self.levels = None
-        self.input_nodes = self.setup()
+        self.nodes, self.input_nodes = generate_nodes(string)
+        #
+        self.setup()
 
     def setup(self):
-        input_nodes = self.get_input_nodes()
-        self.set_levels(input_nodes)
+        self.set_levels()
         levels = {}
         for name, level in self.levels.items():
             if level not in levels:
                 levels[level] = []
-            if name not in input_nodes:
-                levels[level].append(self.tree[name])
+            if name not in self.input_nodes:
+                levels[level].append(self.nodes[name])
         self.levels = levels
-        return input_nodes
 
-    def set_levels(self, input_nodes):
+    def set_levels(self):
         #
-        self.levels = {name: 0 for name in input_nodes}
+        self.levels = {name: 0 for name in self.input_nodes}
         #
-        for name, node in self.tree.items():
+        for name, node in self.nodes.items():
             self._set_level(name, node)
 
     def _set_level(self, name, node):
@@ -65,44 +35,8 @@ class NodeGenerator(GeneratorBase):
             self.levels[name] = 0
             return
         self.levels[name] = max(self.levels[inp] if inp in self.levels
-                                else self._set_level(inp, self.tree[inp])
+                                else self._set_level(inp, self.nodes[inp])
                                 for inp in node.input_nodes) + 1
-
-    def get_input_nodes(self):
-        return tuple(inp for node in self.tree.values() for inp in node.input_nodes
-                     if inp not in self.tree)
-
-    def leaf_from_string(self, name, value, parent=None):
-        """Create a leaf from an entry in the config file
-
-        Args:
-            name (str):
-                name of the entry
-
-            value (str):
-                value of the entry in the config
-
-        Kwargs:
-            parent (str):
-                identifier of the parent node
-
-        Returns:
-            A leaf node
-
-        Raises:
-            ValueError:
-                If the value cannot be parsed
-        """
-        action, _, input_nodes = value.partition(self.seperator)
-        if input_nodes.strip() == '':
-            input_nodes = tuple()
-        else:
-            input_nodes = tuple(val.strip() for val in input_nodes.split(','))
-        return Node(action.strip(), name, input_nodes)
-
-    def new_node(self):
-        """Create a new node of the tree"""
-        raise Exception("no new nodes available")
 
 
 def with_self(func):
@@ -250,11 +184,11 @@ class Workflow(WorkflowGenerator):
         self.data = get_config_from_commandline(self.string)
         for nodes in self.nodes.values():
             for node in nodes:
-                try:
-                    node.visit(self)
-                except:
-                    stop = True
-                    break
+                #try:
+                node.visit(self)
+                #except:
+                #    stop = True
+                #    break
             if stop is True:
                 break
 
@@ -274,6 +208,7 @@ class Workflow(WorkflowGenerator):
 
         for nodes in gen.levels.values():
             # loop over nodes in level
+            print(nodes)
             for node in nodes:
                 # select action
                 action = actions[node.action]
@@ -288,7 +223,7 @@ class Workflow(WorkflowGenerator):
                     # do sanity_check
                     if inp not in gen.input_nodes:
                         # get inp_action
-                        inp_action = actions[gen.tree[inp].action]
+                        inp_action = actions[gen.nodes[inp].action]
                         # sanity check
                         if inp_action.out_typ != typ:
                             raise Exception("Nodes not compatible")
