@@ -105,12 +105,22 @@ class NodeGenerator(GeneratorBase):
         raise Exception("no new nodes available")
 
 
+def with_self(func):
+    def _wrapper(self, *args, **kwargs):
+        return func(*args, **kwargs)
+    return _wrapper
+
+
 class Action:
     """Basic Action object to wrap functions and add types"""
 
     __slots__ = ('_func', 'inp_types', 'nargs', 'out_typ')
 
-    def __init__(self, func, inp_types, out_typ):
+    def __init__(self, func, inp_types, out_typ, need_visitor=False):
+        #
+        if need_visitor is False:
+            func = with_self(func)
+        #
         self._func = func
         self.inp_types = inp_types
         self.nargs = len(inp_types)
@@ -147,15 +157,22 @@ class ProgressBar:
 class IteratorAction(Action):
     """Loop over an iterator"""
 
-    __slots__ = ('iterator_id')
+    __slots__ = ('iterator_id', 'use_progress_bar')
 
-    def __init__(self, func, inp_types, out_typ, iterator_id=0):
+    def __init__(self, func, inp_types, out_typ, iterator_id=0, use_progress_bar=False):
         super().__init__(func, inp_types, out_typ)
+        self.use_progress_bar = use_progress_bar
         self.iterator_id = iterator_id
 
     def __call__(self, visitor, inp):
         out = {}
-        for ele in ProgressBar(inp[self.iterator_id], len(inp[self.iterator_id])):
+        #
+        if self.use_progress_bar:
+            iterator = ProgressBar(inp[self.iterator_id], len(inp[self.iterator_id]))
+        else:
+            iterator = inp[self.iterator_id]
+        #
+        for ele in iterator:
             out[ele] = self._func(visitor, *inp[:self.iterator_id], ele, *inp[self.iterator_id+1:])
         return out
 
@@ -172,13 +189,18 @@ class WorkflowGenerator:
     def get(self, key):
         return self.data.get(key, None)
 
-    def register_action(self, inp_types, out_typ, iterator_id=None):
+    def register_action(self, input_types=None, output_typ=None, iterator_id=None, need_handle=False, progress_bar=False):
+        if input_types == None:
+            input_types = tuple()
+
         def _wrapper(func):
             name = func.__name__
             if iterator_id is None:
-                self.actions[name] = Action(func, inp_types, out_typ)
+                self.actions[name] = Action(func, input_types, output_typ)
             else:
-                self.actions[name] = IteratorAction(func, inp_types, out_typ, iterator_id=iterator_id)
+                self.actions[name] = IteratorAction(func, input_types, output_typ,
+                                                    iterator_id=iterator_id,
+                                                    use_progress_bar=progress_bar)
             return self.actions[name]
         return _wrapper
 
@@ -191,8 +213,24 @@ class WorkflowGenerator:
     def create_workflow(self, name, nodes):
         return Workflow(name, nodes, self.actions)
 
+    def generate_workflow_file(self, filename, name, workflow, module, engine):
+        with open(filename, 'w') as f:
+            f.write(generate_workflow(name, workflow, module, engine))
 
-class Workflow(EventVisitor):
+
+def generate_workflow(name, workflow, module, engine):
+    workflow = f'"""{workflow}"""'
+    return f"""
+from {module} import {engine}
+
+workflow = {engine}.create_workflow('{name}', {workflow})
+
+if __name__ == '__main__':
+    workflow.run()
+"""
+
+
+class Workflow(WorkflowGenerator):
     """Actual workflow object, implements run"""
 
     __slots__ = ('name', 'nodes', 'string')
