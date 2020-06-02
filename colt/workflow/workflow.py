@@ -1,6 +1,6 @@
 import sys
 #
-from language import generate_nodes
+from .language import generate_nodes
 from ..commandline import get_config_from_commandline
 
 
@@ -25,7 +25,11 @@ class NodeGenerator:
 
     def set_levels(self):
         #
-        self.levels = {name: 0 for name in self.input_nodes}
+        self.levels = {name: 0 
+                       for node in self.nodes.values()
+                       for name in node.input_nodes
+                       if name not in self.nodes}
+        self.input_nodes = [name for name in self.levels]
         #
         for name, node in self.nodes.items():
             self._set_level(name, node)
@@ -208,7 +212,6 @@ class Workflow(WorkflowGenerator):
 
         for nodes in gen.levels.values():
             # loop over nodes in level
-            print(nodes)
             for node in nodes:
                 # select action
                 action = actions[node.action]
@@ -217,7 +220,10 @@ class Workflow(WorkflowGenerator):
                     print(action.inp_types, node.input_nodes)
                     raise Exception("arguments not same!")
                 #
-                for i, inp in enumerate(node.input_nodes):
+                for i, (inp, _) in enumerate(node.input_nodes.items()):
+                    # ignore
+                    if inp is None:
+                        continue
                     # set the typ
                     typ = action.inp_types[i]
                     # do sanity_check
@@ -226,6 +232,6 @@ class Workflow(WorkflowGenerator):
                         inp_action = actions[gen.nodes[inp].action]
                         # sanity check
                         if inp_action.out_typ != typ:
-                            raise Exception("Nodes not compatible")
+                            raise Exception("Nodes {inp_action.out_typ} not compatible with {typ}")
                     types[inp] = typ
         return types

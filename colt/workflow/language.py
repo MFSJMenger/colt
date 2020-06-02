@@ -3,13 +3,13 @@ import random
 import string
 
 
-re_assignment = re.compile(r'(?P<variable>\w+)\s*=\s*(?P<func_call>.*)')
-re_func_call = re.compile(r'(?P<func_name>\w*)\((?P<content>[\w\'\"\d\,\.\s]*)\)')
+re_assignment = re.compile(r'^(?P<variable>\w+)\s*=\s*(?P<func_call>.*)$')
+re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>[\w\'\"\d\,\.\s]*)\)$')
 
-re_integer = re.compile(r'(?P<number>\d+)')
-re_float_number= re.compile(r'(?P<number>\d+\.\d*)')
-re_string= re.compile(r'(?P<string>[\"].*[\"])')
-re_variable = re.compile(r"(?P<string>\w+)")
+re_integer = re.compile(r'^(?P<number>\d+)$')
+re_float_number= re.compile(r'^(?P<number>\d+\.\d+)$')
+re_string= re.compile(r'^(?P<string>[\"].*[\"])$')
+re_variable = re.compile(r"^(?P<string>\w+)$")
 
 
 class ParseError(Exception):
