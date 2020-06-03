@@ -105,13 +105,13 @@ class CommandlineParserVisitor(QuestionVisitor):
         #
         default = question.answer
         #
-        if default not in ('', None):
-            # default exists -> Optional Argument
-            name = f"-{id_name}"
-        else:
+        if default in ('', None) and not question.is_optional:
             # default does not exist -> Positional Argument
             name = f"{id_name}"
             default = None
+        else:
+            # default exists -> Optional Argument
+            name = f"-{id_name}"
         #
         return default, name
 

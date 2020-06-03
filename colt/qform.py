@@ -756,26 +756,26 @@ class QuestionForm(Mapping, _QuestionComponent):
             fhandle.write("\n".join(answer for key, answers in config.items()
                                     for answer in answer_iter(key, answers, default_name)))
 
-    def set_answers_from_file(self, filename):
+    def set_answers_from_file(self, filename, raise_error=True):
         errmsg = self._set_answers_from_file(filename)
-        if errmsg is not None:
+        if raise_error is True and errmsg is not None:
             raise ErrorSettingAnswerFromFile(filename, errmsg)
 
-    def set_answers_from_dct(self, dct):
+    def set_answers_from_dct(self, dct, raise_error=True):
         errmsg = self._set_answers_from_dct(dct)
-        if errmsg is not None:
+        if raise_error is True and errmsg is not None:
             raise ErrorSettingAnswerFromDict(errmsg)
 
-    def set_answers_and_presets(self, config=None, presets=None):
+    def set_answers_and_presets(self, config=None, presets=None, raise_error=True):
         """set both presets and answers"""
         if presets is not None:
             self.set_presets(presets)
 
         if config is not None:
             if isinstance(config, Mapping):
-                self.set_answers_from_dct(config)
+                self.set_answers_from_dct(config, raise_error=raise_error)
             elif is_existing_file(config):
-                self.set_answers_from_file(config)
+                self.set_answers_from_file(config, raise_error=raise_error)
 
     def set_presets(self, presets):
         """reset some of the question possibilites"""
