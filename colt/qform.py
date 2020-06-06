@@ -70,13 +70,12 @@ class _QuestionsContainerBase(_QuestionComponent):
 class _ConcreteQuestionBase(_QuestionComponent):
     """Logic of each actual question"""
 
-    __slots__ = ("name", "accept_empty", "parent_name", "_name", "is_set")
+    __slots__ = ("name", "parent_name", "_name", "is_set")
 
     def __init__(self, name, accept_empty=False):
         self.name = name
         self.parent_name, self._name = split_keys(name)
         self.is_set = False
-#        self.accept_empty = accept_empty
 
     @property
     def label(self):
@@ -206,10 +205,12 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.typ = question.typ
 
         self.is_optional = question.is_optional
-        # check if accept_empty is true
-        self.accept_empty = (self._value.get() is not NOT_DEFINED or self.is_optional)
         self.is_subquestion_main = is_subquestion
 
+    @property
+    def accept_empty(self):
+        return self.is_optional or self._value.get() is not NOT_DEFINED
+    
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
