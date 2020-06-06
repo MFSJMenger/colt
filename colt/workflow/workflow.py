@@ -38,9 +38,12 @@ class NodeGenerator:
         if len(node.input_nodes) == 0:
             self.levels[name] = 0
             return
-        self.levels[name] = max(self.levels[inp] if inp in self.levels
-                                else self._set_level(inp, self.nodes[inp])
-                                for inp in node.input_nodes) + 1
+        try:
+            self.levels[name] = max(self.levels[inp] if inp in self.levels
+                                    else self._set_level(inp, self.nodes[inp])
+                                    for inp in node.input_nodes) + 1
+        except TypeError:
+            self.levels[name] = 0
 
 
 def with_self(func):
