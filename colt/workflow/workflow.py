@@ -42,7 +42,7 @@ class NodeGenerator:
             self.levels[name] = max(self.levels[inp] if inp in self.levels
                                     else self._set_level(inp, self.nodes[inp])
                                     for inp in node.input_nodes) + 1
-        except TypeError:
+        except ValueError:
             self.levels[name] = 0
 
 
