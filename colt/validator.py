@@ -59,7 +59,7 @@ class Choices:
         return value in self.choices
 
     def is_subset(self, rhs):
-        if rhs is None:
+        if rhs in (None, NO_CHOICE):
             return True
         if not isinstance(rhs, Choices):
             return False

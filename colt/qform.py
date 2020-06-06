@@ -70,13 +70,12 @@ class _QuestionsContainerBase(_QuestionComponent):
 class _ConcreteQuestionBase(_QuestionComponent):
     """Logic of each actual question"""
 
-    __slots__ = ("name", "accept_empty", "parent_name", "_name", "is_set")
+    __slots__ = ("name", "parent_name", "_name", "is_set")
 
     def __init__(self, name, accept_empty=False):
         self.name = name
         self.parent_name, self._name = split_keys(name)
         self.is_set = False
-#        self.accept_empty = accept_empty
 
     @property
     def label(self):
@@ -206,10 +205,12 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.typ = question.typ
 
         self.is_optional = question.is_optional
-        # check if accept_empty is true
-        self.accept_empty = (self._value.get() is not NOT_DEFINED or self.is_optional)
         self.is_subquestion_main = is_subquestion
 
+    @property
+    def accept_empty(self):
+        return self.is_optional or self._value.get() is not NOT_DEFINED
+    
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
@@ -756,26 +757,26 @@ class QuestionForm(Mapping, _QuestionComponent):
             fhandle.write("\n".join(answer for key, answers in config.items()
                                     for answer in answer_iter(key, answers, default_name)))
 
-    def set_answers_from_file(self, filename):
+    def set_answers_from_file(self, filename, raise_error=True):
         errmsg = self._set_answers_from_file(filename)
-        if errmsg is not None:
+        if raise_error is True and errmsg is not None:
             raise ErrorSettingAnswerFromFile(filename, errmsg)
 
-    def set_answers_from_dct(self, dct):
+    def set_answers_from_dct(self, dct, raise_error=True):
         errmsg = self._set_answers_from_dct(dct)
-        if errmsg is not None:
+        if raise_error is True and errmsg is not None:
             raise ErrorSettingAnswerFromDict(errmsg)
 
-    def set_answers_and_presets(self, config=None, presets=None):
+    def set_answers_and_presets(self, config=None, presets=None, raise_error=True):
         """set both presets and answers"""
         if presets is not None:
             self.set_presets(presets)
 
         if config is not None:
             if isinstance(config, Mapping):
-                self.set_answers_from_dct(config)
+                self.set_answers_from_dct(config, raise_error=raise_error)
             elif is_existing_file(config):
-                self.set_answers_from_file(config)
+                self.set_answers_from_file(config, raise_error=raise_error)
 
     def set_presets(self, presets):
         """reset some of the question possibilites"""

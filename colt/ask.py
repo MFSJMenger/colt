@@ -105,7 +105,7 @@ class AskQuestions(QuestionForm):
 
     visitor = CommandlineVisitor()
 
-    def ask(self, description=None, config=None, ask_all=False, presets=None):
+    def ask(self, description=None, config=None, ask_all=False, presets=None, raise_read_error=True):
         """Main routine to get settings from the user,
            if all answers are set, and ask_all is not True
 
@@ -119,7 +119,7 @@ class AskQuestions(QuestionForm):
                 presets, str:
                     presets to be used
         """
-        self.set_answers_and_presets(config, presets)
+        self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
         if ask_all is True:
             return self._ask_impl(config=config, ask_all=ask_all, description=description)
         #
