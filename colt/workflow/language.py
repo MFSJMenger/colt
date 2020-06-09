@@ -4,7 +4,7 @@ import string
 
 
 re_assignment = re.compile(r'^(?P<variable>\w+)\s*=\s*(?P<func_call>.*)$')
-re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>[\w\'\"\d\,\.\s]*)\)$')
+re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>[\w\\\/\'\"\d\,\.\s]*)\)$')
 
 re_integer = re.compile(r'^(?P<number>\d+)$')
 re_float_number= re.compile(r'^(?P<number>\d+\.\d+)$')
@@ -160,7 +160,7 @@ class Node:
     def visit(self, visitor):
         inp = self.generate_input(visitor)
         visit = visitor.get_action(self.action)
-        output = visit(self, inp)
+        output = visit(visitor, inp)
         if output is not None:
             self._register_output(visitor, output)
 

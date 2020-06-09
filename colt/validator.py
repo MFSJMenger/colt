@@ -442,7 +442,7 @@ def create_validators(base_validators, range_validators):
 class Validator:
     """Factory class"""
 
-    _parsers = create_validators(
+    parsers = create_validators(
         {'str': str,
          'bool': bool_parser,
          'list': list_parser,
@@ -467,5 +467,5 @@ class Validator:
     )
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
-        parser = cls._parsers[typ]
+        parser = cls.parsers[typ]
         return parser(default=default, choices=choices)
