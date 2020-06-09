@@ -234,7 +234,7 @@ class Workflow(WorkflowGenerator):
         """Should be changed to type check etc."""
         if any(types[inp].typ not in Validator.parsers for inp in gen.input_nodes):
             raise Exception("type not known, cannt create input")
-        return "\n".join(f"{inp} = :: {types[inp]}" for inp in gen.input_nodes)
+        return "\n".join(f"{inp} = :: {types[inp].typ}" for inp in gen.input_nodes)
 
     def _check_types(self, gen, actions):
 
