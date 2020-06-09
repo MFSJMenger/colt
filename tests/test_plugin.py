@@ -1,7 +1,7 @@
 import pytest
 #
 from collections import namedtuple
-from colt.plugins import PluginBase
+from colt import PluginBase
 
 
 @pytest.fixture

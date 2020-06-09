@@ -21,7 +21,7 @@ def delete_inherited_keys(keys, clsdict):
             del clsdict[key]
 
 
-def join_subquestions(func1, func2):
+def join_extend_questions(func1, func2):
     if isinstance(func1, classmethod):
         func1 = func1.__func__
     if isinstance(func2, classmethod):
@@ -34,24 +34,34 @@ def join_subquestions(func1, func2):
     return classmethod(_generate_subquestions)
 
 
+def to_classmethod(clsdict, function_name):
+    if function_name in clsdict:
+        func = clsdict[function_name]
+        if not isinstance(func, classmethod):
+            clsdict[function_name] = classmethod(func)
+
+
 def colt_modify_class_dict(clsdict, bases):
     """setup the clsdict in colt to avoid inheritance problems
 
        it modifies both the clsdict and its annotations!
     """
-    colt_defaults = {'_generate_subquestions': classmethod(lambda cls, questions: 0),
+    colt_defaults = {'_extend_questions': classmethod(lambda cls, questions: None),
                      '_questions': "",
                      }
+
+    to_classmethod(clsdict, '_extend_questions')
+    to_classmethod(clsdict, 'from_config')
     # rewrite that....it is horrible
     if clsdict.get('__annotations__', None) is not None:
         if clsdict['__annotations__'].get('subquestions', None) == 'inherited':
-            if '_generate_subquestions' in clsdict:
+            if '_extend_questions' in clsdict:
                 if len(bases) > 0:
-                    clsdict['_generate_subquestions'] = join_subquestions(
-                        bases[0]._generate_subquestions,
-                        clsdict['_generate_subquestions'])
+                    clsdict['_extend_questions'] = join_extend_questions(
+                        getattr(bases[0],'_extend_questions'),
+                        clsdict['_extend_questions'])
             else:
-                clsdict['_generate_subquestions'] = bases[0]._generate_subquestions
+                clsdict['_extend_questions'] = getattr(bases[0], '_extend_questions')
             # delete task from annotations, and clean unnecessary annotations!
             del clsdict['__annotations__']['subquestions']
             if clsdict['__annotations__'] == {}:
@@ -75,19 +85,15 @@ class ColtMeta(ABCMeta):
     def _generate_questions(cls):
         """generate questions"""
         questions = QuestionASTGenerator(cls._questions)
-        cls._generate_subquestions(questions)
+        cls._extend_questions(questions)
         return questions
 
-    def _generate_subquestions(cls, questions):
+    def _extend_questions(cls, questions):
         """This class will not be inherited"""
 
 
 class Colt(metaclass=ColtMeta):
     """Basic Class to manage colts question routines"""
-
-    @property
-    def questions(self):
-        return self.__class__.questions
 
     @classmethod
     def generate_questions(cls, config=None, presets=None):
@@ -108,15 +114,10 @@ class Colt(metaclass=ColtMeta):
                         "also from_questions depend on that!")
 
     @classmethod
-    def from_commandline(cls, *args, description=None, **kwargs):
+    def from_commandline(cls, *args, description=None, presets=None, **kwargs):
         """Initialize file from commandline options"""
-        answers = cls.get_commandline_args(description=description)
+        answers = get_config_from_commandline(cls.questions, description=description, presets=presets)
         return cls.from_config(answers, *args, **kwargs)
-
-    @classmethod
-    def get_commandline_args(cls, description=None, presets=None):
-        """for the moment we accept only linear trees!"""
-        return get_config_from_commandline(cls.questions, description=description, presets=presets)
 
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
@@ -124,36 +125,33 @@ class Colt(metaclass=ColtMeta):
         return questions.generate_input(filename)
 
 
-def _init(self, function):
-    self.function = function
-    self.__doc__ = self.function.__doc__
-
-
-def _call(self, *args, **kwargs):
-    # call with arguments
-    if any(len(value) != 0 for value in (args, kwargs)):
-        return self.function(*args, **kwargs)
-    # call from commandline
-    answers = self.from_commandline(self.description)
-    return self.function(**answers)
-
-
-def _from_config(cls, answers, *args, **kwargs):
-    return answers
-
-
 class FromCommandline:
     """Decorator to parse commandline arguments"""
+    __slots__ = ('_cls',)
 
     def __init__(self, questions, description=None):
 
-        self._cls = type("CommandlineInterface", (Colt,), {
-            '_questions': questions,
-            'description': description,
-            '__init__': _init,
-            'from_config': classmethod(_from_config),
-            '__call__': _call,
-            })
+        class CommandlineInterface(Colt):
+            _questions = questions
+            description = description
+
+            @classmethod
+            def from_config(cls, config):
+                return config
+
+            def __init__(self, function):
+                self.function = function
+                self.__doc__ = self.function.__doc__
+
+            def __call__(self, *args, **kwargs):
+                # call with arguments
+                if any(len(value) != 0 for value in (args, kwargs)):
+                    return self.function(*args, **kwargs)
+                # call from commandline
+                answers = self.from_commandline(self.description)
+                return self.function(**answers)
+
+        self._cls = CommandlineInterface
 
     def __call__(self, function):
         return self._cls(function)
