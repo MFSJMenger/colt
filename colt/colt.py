@@ -54,7 +54,7 @@ def colt_modify_class_dict(clsdict, bases):
     to_classmethod(clsdict, 'from_config')
     # rewrite that....it is horrible
     if clsdict.get('__annotations__', None) is not None:
-        if clsdict['__annotations__'].get('subquestions', None) == 'inherited':
+        if clsdict['__annotations__'].get('extend_questions', None) == 'inherited':
             if '_extend_questions' in clsdict:
                 if len(bases) > 0:
                     clsdict['_extend_questions'] = join_extend_questions(
@@ -63,7 +63,7 @@ def colt_modify_class_dict(clsdict, bases):
             else:
                 clsdict['_extend_questions'] = getattr(bases[0], '_extend_questions')
             # delete task from annotations, and clean unnecessary annotations!
-            del clsdict['__annotations__']['subquestions']
+            del clsdict['__annotations__']['extend_questions']
             if clsdict['__annotations__'] == {}:
                 del clsdict['__annotations__']
     #
