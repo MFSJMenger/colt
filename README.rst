@@ -15,9 +15,7 @@ Features
 
 1. Build simple commandline interfaces using the FromCommandline-decorator
 
-.. code-block:: python
-   :linenos:
-
+:: 
 
    # examples/commandline_xrange.py
    from colt import FromCommandline
