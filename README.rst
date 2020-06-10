@@ -15,8 +15,26 @@ Features
 
 1. Build simple commandline interfaces using the FromCommandline-decorator
 
-.. literalinclude:: examples/commandline_xrange.py
+.. code-block:: python
    :linenos:
+   # examples/commandline_xrange.py
+   from colt import FromCommandline
+
+
+   @FromCommandline("""
+   # start of the range
+   xstart = :: int :: >0
+   # end of the range
+   xstop = :: int :: >1
+   # step size
+   step = 1 :: int 
+   """)
+   def x_range(xstart, xstop, step):
+      for i in range(xstart, xstop, step):
+         print(i)
+
+   if __name__ == '__main__':
+      x_range()
 
 ::
 

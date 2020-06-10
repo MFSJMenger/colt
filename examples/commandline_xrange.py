@@ -1,6 +1,7 @@
 # examples/commandline_xrange.py
 from colt import FromCommandline
 
+
 @FromCommandline("""
 # start of the range
 xstart = :: int :: >0
