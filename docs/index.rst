@@ -6,9 +6,8 @@ Welcome to Colt's documentation!
    :caption: Contents:
 
    readme
-   installation
    usage
-   modules
+   installation
    contributing
    authors
    history
