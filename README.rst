@@ -13,6 +13,26 @@ For the input file the `ini` file-format is used around Python's configparser_.
 Features
 --------
 
+1. Build simple commandline interfaces using the FromCommandline-decorator
+
+.. literalinclude:: examples/commandline_xrange.py
+   :linenos:
+
+::
+
+   usage: commandline_xrange.py [-h] [-step step] xstart xstop
+
+   positional arguments:
+      xstart      int, Range(>0)
+                  start of the range
+      xstop       int, Range(>1)
+                  end of the range
+
+   optional arguments:
+      -h, --help  show this help message and exit
+      -step step  int,
+                  step size
+
 
 Credits
 -------
