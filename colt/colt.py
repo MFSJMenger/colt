@@ -133,7 +133,7 @@ class FromCommandline:
 
         class CommandlineInterface(Colt):
             _questions = questions
-            description = description
+            _description = description
 
             @classmethod
             def from_config(cls, config):
@@ -148,7 +148,7 @@ class FromCommandline:
                 if any(len(value) != 0 for value in (args, kwargs)):
                     return self.function(*args, **kwargs)
                 # call from commandline
-                answers = self.from_commandline(self.description)
+                answers = self.from_commandline(description=self._description)
                 return self.function(**answers)
 
         self._cls = CommandlineInterface
