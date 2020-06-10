@@ -1,13 +1,13 @@
-======================================================
-COLT: COmmand Line Tool (at least that how it started)
-======================================================
+=======================
+COLT: COmmand Line Tool
+=======================
 
-Was intended to be a a tool to make the parsing, design etc. of user input
-simple. All its development is currently around `ini` files and Pythons
-configparser_. 
+Simple, extensible tool to create out of the box input files and commandline
+interfaces for Python, that are type validated.
+For the input file the `ini` file-format is used around Python's configparser_.
 
 
-* Free software: MIT license
+* Free software: Apache License 2.0
 
 
 Features
