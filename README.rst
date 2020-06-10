@@ -17,6 +17,8 @@ Features
 
 .. code-block:: python
    :linenos:
+
+
    # examples/commandline_xrange.py
    from colt import FromCommandline
 
