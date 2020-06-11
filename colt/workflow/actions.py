@@ -58,12 +58,11 @@ class ProgressBar:
     def __iter__(self):
         try:
             for i, ele in enumerate(self.iterator):
-                sys.stdout.write(f'\r{self.progress_bar_string(i)}')
+                print(f'\r{self.progress_bar_string(i)}', end='')
                 yield ele
-            sys.stdout.write(f'\r{self.progress_bar_string(self.nele)}')
+            print(f'\r{self.progress_bar_string(self.nele)}', end='')
         finally:
-            sys.stdout.write('\n')
-            sys.stdout.flush()
+            print()
 
 
 def with_self(func):
