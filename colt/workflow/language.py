@@ -1,10 +1,11 @@
 import re
+import ast
 import random
 import string
 
 
 re_assignment = re.compile(r'^(?P<variable>\w+)\s*=\s*(?P<func_call>.*)$')
-re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>[\w\\\/\'\"\d\,\.\s]*)\)$')
+re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>.*)\)$')
 
 re_integer = re.compile(r'^(?P<number>[-+]?\d+)$')
 re_float_number= re.compile(r'^(?P<number>[-+]?\d+\.\d+)$')
@@ -74,13 +75,41 @@ def get_variable(element):
         out = parser(element)
         if out is not None:
             return out
+    try:
+        out = ast.literal_eval(element)
+        if out is not None:
+            return Variable('list', out)
+    except:
+        pass
     raise ParseError(f"cannot parse: {element}")
+
+
+def split_content(in_string, split=','):
+    out = []
+    string = ''
+    inside = 0
+    for c in in_string:
+        if c == '[':
+            inside += 1
+        elif c == ']':
+            inside -= 1
+        elif c == split:
+            if inside == 0:
+                out.append(string.strip())
+                string = ''
+                continue
+        string += c
+    #
+    out.append(string.strip())
+    if inside != 0:
+        raise Exception()
+    return out
 
 
 def get_variables(content):
     if content.strip() == '':
         return Variables([])
-    return Variables([get_variable(element) for element in content.split(',')])
+    return Variables([get_variable(element) for element in split_content(content)])
 
 
 class Variables:
