@@ -210,7 +210,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @property
     def accept_empty(self):
         return self.is_optional or self._value.get() is not NOT_DEFINED
-    
+
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()

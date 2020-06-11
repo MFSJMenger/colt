@@ -24,7 +24,8 @@ class IteratorAction(Action):
 
     __slots__ = ('iterator_id', 'use_progress_bar')
 
-    def __init__(self, func, inp_types, out_typ, iterator_id=0, need_visitor=False, use_progress_bar=False):
+    def __init__(self, func, inp_types, out_typ, iterator_id=0,
+                 need_visitor=False, use_progress_bar=False):
         super().__init__(func, inp_types, out_typ, need_visitor=need_visitor)
         self.use_progress_bar = use_progress_bar
         self.iterator_id = iterator_id
@@ -52,8 +53,8 @@ class ProgressBar:
 
     def progress_bar_string(self, i):
         icurrent = int(i/self.nele * self.width)
-        bar = "="*icurrent + ' '*(self.width - icurrent)
-        return f'Progress: [{bar}] {round(icurrent*100/self.width, 2)}%'
+        _bar = "="*icurrent + ' '*(self.width - icurrent)
+        return f'Progress: [{_bar}] {round(icurrent*100/self.width, 2)}%'
 
     def __iter__(self):
         try:

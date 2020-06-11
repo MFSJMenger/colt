@@ -9,7 +9,7 @@ class AddFolderToPath:
     __slots__ = ('folder', 'idx')
 
     def __init__(self, folder):
-        if folder in ('', None): 
+        if folder in ('', None):
             folder = '.'
         self.folder = folder
         self.idx = None
@@ -20,9 +20,8 @@ class AddFolderToPath:
     def __exit__(self, *args, **kwargs):
         try:
             sys.path.remove(self.folder)
-        except:
+        except Exception:
             pass
-
 
 
 class PluginLoader:
@@ -66,7 +65,7 @@ class PluginLoader:
         module = importlib.util.module_from_spec(spec)
         try:
             spec.loader.exec_module(module)
-        except:
+        except Exception:
             pass
         return module
 
@@ -80,7 +79,7 @@ def get_patter(pattern):
 
     pattern = ''
     paths.reverse()
-    
+
     for path in paths:
         if '*' in path:
             path = path.replace('*', r'[\w\d-]*')
@@ -107,7 +106,8 @@ class IgnoreConfig:
             self.nignore = len(folder) + 1
         #
         self.folder = folder
-        self.matchers = [PathMatcher(pattern) for pattern in self._setup(os.path.join(folder, config))]
+        self.matchers = [PathMatcher(pattern)
+                         for pattern in self._setup(os.path.join(folder, config))]
 
     def _setup(self, config):
         return self._load_config(config)
@@ -116,7 +116,8 @@ class IgnoreConfig:
         if not os.path.isfile(config):
             return []
         with open(config, 'r') as f:
-            return sorted([line.strip() for line in f if not (line.strip().startswith('#') or line.strip() == '')])
+            return sorted([line.strip() for line in f
+                           if not (line.strip().startswith('#') or line.strip() == '')])
 
     def __call__(self, filename):
         filename = filename[self.nignore:]

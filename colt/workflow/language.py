@@ -40,7 +40,7 @@ class FunctionCall:
         return {argument.value: i for i, argument in enumerate(arguments)
                 if argument.typ == 'variable'}
 
-    def input(self, data):           
+    def input(self, data):
         return tuple(data[argument.value] if argument.typ == 'variable' else argument.value
                      for argument in self.args)
 
@@ -113,7 +113,8 @@ class Assignment:
                 input_nodes[self.name] = Variable(None, None, self.comment)
             else:
                 types[self.name] = Type(self.value.typ)
-                input_nodes[self.name] = Variable(self.value.value, Type(self.value.typ), self.comment)
+                input_nodes[self.name] = Variable(self.value.value, Type(self.value.typ),
+                                                  self.comment)
 
     def __str__(self):
         return f"{self.name} = {self.value}"
@@ -267,7 +268,7 @@ class Parser:
         return self._function_arguments(cutted_string, arguments)
 
     def _list_values(self, string, liste):
-        r"value [,] ... " 
+        r"value [,] ... "
         string = string.strip()
         if string.startswith(']'):
             return liste, string[1:]

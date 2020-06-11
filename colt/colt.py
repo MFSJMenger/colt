@@ -58,7 +58,7 @@ def colt_modify_class_dict(clsdict, bases):
             if '_extend_questions' in clsdict:
                 if len(bases) > 0:
                     clsdict['_extend_questions'] = join_extend_questions(
-                        getattr(bases[0],'_extend_questions'),
+                        getattr(bases[0], '_extend_questions'),
                         clsdict['_extend_questions'])
             else:
                 clsdict['_extend_questions'] = getattr(bases[0], '_extend_questions')
@@ -116,7 +116,8 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def from_commandline(cls, *args, description=None, presets=None, **kwargs):
         """Initialize file from commandline options"""
-        answers = get_config_from_commandline(cls.questions, description=description, presets=presets)
+        answers = get_config_from_commandline(cls.questions, description=description,
+                                              presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod

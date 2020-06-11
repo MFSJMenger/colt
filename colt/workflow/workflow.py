@@ -9,9 +9,10 @@ class WorkflowGenerator:
 
     def __init__(self):
         self.actions = {}
-   
-    def register_action(self, input_types=None, output_typ=None, iterator_id=None, need_self=False, progress_bar=False):
-        if input_types == None:
+
+    def register_action(self, input_types=None, output_typ=None, iterator_id=None,
+                        need_self=False, progress_bar=False):
+        if input_types is None:
             input_types = tuple()
 
         def _wrapper(func):
@@ -67,8 +68,8 @@ class Workflow:
         for node in self.nodes:
             node.check_types(current_types, input_nodes)
         for var, typ in input_nodes.items():
-            if not typ.typ.typ in Validator.parsers:
-                raise Exception(f"cannot get type '{typ}' from commandline")
+            if typ.typ.typ not in Validator.parsers:
+                raise Exception(f"cannot get type '{typ}' of variable {var} from commandline")
         return input_nodes
 
     def _input_questions(self, data):
@@ -84,7 +85,7 @@ class Workflow:
                 txt += f"#{value.comment}\n"
             txt += f"{name} = {_value} :: {value.typ.typ}\n"
         return txt
-            
+
     def _parse_string(self, string):
         out = []
         for inum, line in self.string_itr(string):
@@ -102,7 +103,7 @@ class Workflow:
 
     def info(self, msg):
         print("Workflow: ", msg)
-            
+
     @staticmethod
     def string_itr(string, comment='#'):
         for i, line in enumerate(string.splitlines()):

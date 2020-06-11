@@ -13,8 +13,8 @@ class Type:
         if alias is None:
             return typ
         #
-        for name in alias:
-            cls.types[name] = typ
+        for _name in alias:
+            cls.types[_name] = typ
         return typ
 
     @classmethod
@@ -40,7 +40,7 @@ class _TypeImpl:
     def __repr__(self):
         return f"Type({self.typ})"
 
-    def __len__(self): 
+    def __len__(self):
         return sum(len(ele) for ele in self._ele)
 
     def add_subtype(self, other):
