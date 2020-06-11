@@ -9,7 +9,8 @@ re_func_call = re.compile(r'^(?P<func_name>\w*)\((?P<content>.*)\)$')
 
 re_integer = re.compile(r'^(?P<number>[-+]?\d+)$')
 re_float_number= re.compile(r'^(?P<number>[-+]?\d+\.\d+)$')
-re_string= re.compile(r'^(?P<string>[\"].*[\"])$')
+re_string_double_quotes = re.compile(r'^(?P<string>[\"].*[\"])$')
+re_string_single_quotes = re.compile(r'^(?P<string>[\'].*[\'])$')
 re_variable = re.compile(r"^(?P<string>\w+)$")
 
 
@@ -40,16 +41,25 @@ def float_parser(value):
 
 
 def string_parser(value):
-    match = re_string.match(value)
-    if match:
-        return Variable(match.group('string')[1:-1], 'string')
+    for matcher in (re_string_double_quotes, re_string_single_quotes):
+        match = matcher.match(value)
+        if match:
+            return Variable(match.group('string')[1:-1], 'string')
     return None
 
 
 def variable_parser(value):
     match = re_variable.match(value)
     if match:
-        return Variable(match.group('string'), 'variable')
+        variable = match.group('string')
+        # special keywords
+        if variable in ('True', 'False'):
+            return Variable(bool(variable), 'bool')
+        # 
+        if variable == 'None':
+            return Variable(None, 'None')
+        #
+        return Variable(variable, 'variable')
     return None
 
 
@@ -78,7 +88,7 @@ def get_variable(element):
     try:
         out = ast.literal_eval(element)
         if out is not None:
-            return Variable('list', out)
+            return Variable(out, 'list')
     except:
         pass
     raise ParseError(f"cannot parse: {element}")
