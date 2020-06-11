@@ -94,28 +94,6 @@ def get_variable(element):
     raise ParseError(f"cannot parse: {element}")
 
 
-def split_content(in_string, split=','):
-    out = []
-    string = ''
-    inside = 0
-    for c in in_string:
-        if c == '[':
-            inside += 1
-        elif c == ']':
-            inside -= 1
-        elif c == split:
-            if inside == 0:
-                out.append(string.strip())
-                string = ''
-                continue
-        string += c
-    #
-    out.append(string.strip())
-    if inside != 0:
-        raise Exception()
-    return out
-
-
 def get_variables(content):
     if content.strip() == '':
         return Variables([])
@@ -227,6 +205,40 @@ def parse_line(line, number):
         if out is not None:
             return out
     raise ParseError(f"Could not parse line {number}\n{line}")
+
+
+def split_content(in_string, split=','):
+    out = []
+    string = ''
+    inside = 0
+    inside_string_double = 0
+    inside_string_single = 0
+    for c in in_string:
+        if c == "'":
+            if inside_string_double != 0:
+                inside_string_double -= 1
+            else:
+                inside_string_double += 1
+        elif c == '"':
+            if inside_string_single != 0:
+                inside_string_single -= 1
+            else:
+                inside_string_single += 1
+        elif c == '[':
+            inside += 1
+        elif c == ']':
+            inside -= 1
+        elif c == split:
+            if all(val == 0 for val in (inside, inside_string_single, inside_string_double)):
+                out.append(string.strip())
+                string = ''
+                continue
+        string += c
+    #
+    out.append(string.strip())
+    if any(val != 0 for val in (inside, inside_string_single, inside_string_double)):
+        raise Exception()
+    return out
 
 
 def generate_nodes(string): 
