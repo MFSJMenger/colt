@@ -17,36 +17,59 @@ class Variable:
         self.typ = typ
         self.comment = comment
 
-    def __eq__(self, other):
-        return self.typ == other
-
     def __str__(self):
-        return f"Variable({self.typ}, '{self.value}, {self.comment}')"
+        return f"Variable({self.typ}, '{self.value}', comment={self.comment})"
 
     def __repr__(self):
-        return f"Variable({self.typ}, '{self.value}, {self.comment}')"
+        return f"Variable({self.typ}, '{self.value}', comment={self.comment})"
+
+
+class Kwargument:
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
 
 
 class FunctionCall:
 
     def __init__(self, func_name, arguments, action, comment=None):
         self.name = func_name
-        self.args = arguments
-        self.variables = self._get_variables(arguments)
+        self.args, self.kwargs = self._check_args(arguments, action)
+#        self.kwargs = kwargs
         self.action = action
         self.comment = comment
 
-    def _get_variables(self, arguments):
-        return {argument.value: i for i, argument in enumerate(arguments)
-                if argument.typ == 'variable'}
+    def _check_args(self, arguments, action):
+        """_check arguments to be in agreement with action"""
+        nargs = len(arguments)
+        kwargs = {}
+        #
+        for i, arg in enumerate(arguments):
+            if isinstance(arg, Kwargument):
+                kwargs[i] = arg
+        #
+        nargs = nargs - len(kwargs)
+        if any(val < nargs for val in kwargs):
+            raise Exception("first all arguements then kwargs")
+        if nargs != action.nargs:
+            raise Exception("Number of arguments not in agreement")
+        #
+        args = tuple(arguments[i] for i in range(nargs))
+        kwargs = {arg.name: arg.value for arg in kwargs.values()}
+        # check now types...
+        #
+        return args, kwargs
 
     def input(self, data):
-        return tuple(data[argument.value] if argument.typ == 'variable' else argument.value
-                     for argument in self.args)
+        return (tuple(data[argument.value] if argument.typ == 'variable' else argument.value
+                      for argument in self.args),
+                {name: data[arg.value] if arg.typ == 'variable' else arg.value
+                 for name, arg in self.kwargs.items()})
 
     @property
     def typ(self):
-        return self.action.out_typ
+        return self.action.return_typ
 
     @staticmethod
     def _to_input_nodes(arg, typ, input_nodes):
@@ -57,18 +80,24 @@ class FunctionCall:
 
     def check_types(self, types, input_nodes):
         for i, arg in enumerate(self.args):
-            if arg.typ == 'variable':
-                try:
-                    self._check(types[arg.value], self.action.inp_types[i])
-                except KeyError:
-                    types[arg.value] = self.action.inp_types[i]
-                    self._to_input_nodes(arg, types[arg.value], input_nodes)
+            self._check_type_helper(arg, self.action.arg_types[i], types, input_nodes)
+        #
+        for name, arg in self.kwargs.items():
+            self._check_type_helper(arg, self.action.kwarg_types[name].typ, types, input_nodes)
+
+    def _check_type_helper(self, arg, action_typ, types, input_nodes):
+        if arg.typ == 'variable':
+            try:
+                self._check(types[arg.value], action_typ)
+            except KeyError:
+                types[arg.value] = action_typ
+                self._to_input_nodes(arg, types[arg.value], input_nodes)
+        else:
+            if arg.typ == 'not_assigned':
+                types[arg.value] = action_typ
+                self._to_input_nodes(arg, types[arg.value], input_nodes)
             else:
-                if arg.typ == 'not_assigned':
-                    types[arg.value] = self.action.inp_types[i]
-                    self._to_input_nodes(arg, types[arg.value], input_nodes)
-                else:
-                    self._check(Type(arg.typ), self.action.inp_types[i])
+                self._check(Type(arg.typ), action_typ)
 
     def _check(self, typ1, typ2):
         if not typ1.is_type(typ2):
@@ -77,8 +106,8 @@ class FunctionCall:
     def call(self, workflow, data):
         if self.comment is not None:
             print(self.comment)
-        inp = self.input(data)
-        return self.action(workflow, inp)
+        args, kwargs = self.input(data)
+        return self.action(workflow, args, kwargs)
 
     def __str__(self):
         return f'{self.name}{self.args}'
@@ -100,8 +129,10 @@ class Assignment:
     def call(self, workflow, data):
         if isinstance(self.value, FunctionCall):
             return self.value.call(workflow, data)
-        if self.value.typ == 'not_assigned':
+        # if variable exists use it
+        if self.value.typ == 'not_assigned' or self.name in data:
             return data[self.name]
+        # return default value
         return self.value.value
 
     def check_types(self, types, input_nodes):
@@ -200,6 +231,28 @@ class Parser:
             return res, string_cutted
         return self.literal(string)
 
+    def kw_argument(self, string):
+        r"name = argument"
+        name, string_cutted = self.variable(string)
+        if name is None or self.is_reserved(name):
+            return None, string
+        else:
+            name = name.value
+        res, string_cutted = self.equal(string_cutted)
+        if res is None:
+            return None, string
+        res, string_cutted = self.argument(string_cutted)
+        if res is None:
+            return None, string
+        return Kwargument(name, res), string_cutted
+
+    def arg_or_kwarg(self, string):
+        r"kw_argument | argument"
+        res, string_cutted = self.kw_argument(string)
+        if res is not None:
+            return res, string_cutted
+        return self.argument(string)
+
     def value(self, string):
         r"list | number | string | bool | None "
         res, string_cutted = self.list(string)
@@ -245,12 +298,12 @@ class Parser:
         return Variable(res, 'list'), string_cutted
 
     def _function_arguments(self, string, arguments):
-        r"arguments [,] ...)"
+        r"arg_or_kwarg [,] ...)"
         string = string.strip()
         if string.startswith(')'):
             return arguments, string[1:]
         #
-        res, cutted_string = self.argument(string)
+        res, cutted_string = self.arg_or_kwarg(string)
         if res is None:
             return None, string
         arguments.append(res)

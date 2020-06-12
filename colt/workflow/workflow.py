@@ -1,31 +1,52 @@
+import inspect
+#
 from ..validator import Validator
 from ..commandline import get_config_from_commandline
 #
-from .language import Assignment, Parser, Type
+from .language import Assignment, Parser, Type, Variable
 from .actions import Action, IteratorAction
 
 
 class WorkflowGenerator:
+    """Workflow engine, stores all actions"""
 
     def __init__(self):
         self.actions = {}
 
-    def register_action(self, input_types=None, output_typ=None, iterator_id=None,
-                        need_self=False, progress_bar=False):
-        if input_types is None:
-            input_types = tuple()
+    def register_action(self, *args, need_self=False, iterator_id=None, progress_bar=False):
+        #
+        func, need_self, iterator_id, progress_bar = self._parse_args(args, need_self,
+                                                                      iterator_id, progress_bar)
 
         def _wrapper(func):
             name = func.__name__
+            arg_types, kwarg_types, return_typ = get_signiture(func)
             if iterator_id is None:
-                self.actions[name] = Action(func, input_types, output_typ, need_visitor=need_self)
+                self.actions[name] = Action(func, arg_types, kwarg_types, return_typ,
+                                            need_self=need_self)
             else:
-                self.actions[name] = IteratorAction(func, input_types, output_typ,
-                                                    iterator_id=iterator_id,
-                                                    need_visitor=need_self,
+                self.actions[name] = IteratorAction(func, arg_types, kwarg_types, return_typ,
+                                                    iterator_id=iterator_id, need_self=need_self,
                                                     use_progress_bar=progress_bar)
             return func
+
+        if func is not None:
+            return _wrapper(func)
         return _wrapper
+
+    def _parse_args(self, args, need_self, iterator_id, progress_bar):
+        if len(args) > 3:
+            raise Exception(f"function takes 3 arguments {len(args)} provided")
+
+        if len(args) == 1:
+            if inspect.isfunction(args[0]):
+                return args[0], need_self, iterator_id, progress_bar
+            need_self = args[0]
+        elif len(args) == 2:
+            need_self, iterator_id = args
+        elif len(args) == 3:
+            need_self, iterator_id, progress_bar = args
+        return None, need_self, iterator_id, progress_bar
 
     def create_workflow(self, name, nodes):
         return Workflow(name, nodes, self.actions)
@@ -55,6 +76,7 @@ class WorkflowExit(Exception):
 
 
 class Workflow:
+    """Workflow object used"""
 
     def __init__(self, name, string, actions):
         self.name = name
@@ -112,6 +134,7 @@ class Workflow:
                 yield i, line
 
     def run(self, data=None, description=None):
+        """execute workflow"""
         if data is None:
             data = {}
         questions = self._input_questions(data)
@@ -126,6 +149,35 @@ class Workflow:
             except WorkflowExit:
                 break
         return data
+
+
+def get_signiture(f):
+    position_arguments = []
+    keyword_arguments = {}
+    #
+    if not hasattr(f, '__annotations__'):
+        raise Exception("Type annotations need to be set")
+    #
+    return_typ = check_typ(f.__annotations__.get('return', None))
+    #
+    for name, value in inspect.signature(f).parameters.items():
+        if name == 'self':
+            continue
+        if value.annotation is value.empty:
+            raise Exception("All types need to be annotated")
+        typ = check_typ(value.annotation)
+        #
+        if value.default is value.empty:
+            position_arguments.append(typ)
+        else:
+            keyword_arguments[name] = Variable(value.default, typ)
+    return position_arguments, keyword_arguments, return_typ
+
+
+def check_typ(typ):
+    if not isinstance(typ, str) and typ is not None:
+        raise Exception("Type annotations need to be strings")
+    return Type(typ)
 
 
 # Primitives

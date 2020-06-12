@@ -1,22 +1,20 @@
-from ._types import Type
-
-
 class Action:
     """Basic Action object to wrap functions and add types"""
 
-    __slots__ = ('_func', 'inp_types', 'nargs', 'out_typ')
+    __slots__ = ('_func', 'arg_types', 'kwarg_types', 'return_typ', 'nargs')
 
-    def __init__(self, func, inp_types, out_typ, need_visitor=False):
+    def __init__(self, func, arg_types, kwarg_types, return_typ, need_self=False):
         #
-        if need_visitor is False:
+        if need_self is False:
             func = with_self(func)
         self._func = func
-        self.inp_types = tuple(Type(typ) for typ in inp_types)
-        self.nargs = len(inp_types)
-        self.out_typ = Type(out_typ)
+        self.arg_types = tuple(arg_types)
+        self.kwarg_types = kwarg_types
+        self.nargs = len(arg_types)
+        self.return_typ = return_typ
 
-    def __call__(self, workflow, inp):
-        return self._func(workflow, *inp)
+    def __call__(self, workflow, args, kwargs):
+        return self._func(workflow, *args, **kwargs)
 
 
 class IteratorAction(Action):
@@ -24,22 +22,23 @@ class IteratorAction(Action):
 
     __slots__ = ('iterator_id', 'use_progress_bar')
 
-    def __init__(self, func, inp_types, out_typ, iterator_id=0,
-                 need_visitor=False, use_progress_bar=False):
-        super().__init__(func, inp_types, out_typ, need_visitor=need_visitor)
+    def __init__(self, func, arg_types, kwarg_types, return_typ, need_self=False,
+                 iterator_id=0, use_progress_bar=False):
+        super().__init__(func, arg_types, kwarg_types, return_typ, need_self=need_self)
         self.use_progress_bar = use_progress_bar
         self.iterator_id = iterator_id
 
-    def __call__(self, workflow, inp):
+    def __call__(self, workflow, args, kwargs):
         out = {}
         #
         if self.use_progress_bar:
-            iterator = ProgressBar(inp[self.iterator_id], len(inp[self.iterator_id]))
+            iterator = ProgressBar(args[self.iterator_id], len(args[self.iterator_id]))
         else:
-            iterator = inp[self.iterator_id]
+            iterator = args[self.iterator_id]
         #
         for ele in iterator:
-            out[ele] = self._func(workflow, *inp[:self.iterator_id], ele, *inp[self.iterator_id+1:])
+            out[ele] = self._func(workflow, *args[:self.iterator_id], ele,
+                                  *args[self.iterator_id+1:], **kwargs)
         return out
 
 
