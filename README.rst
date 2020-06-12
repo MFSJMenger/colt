@@ -15,7 +15,7 @@ Features
 
 1. Build simple commandline interfaces using the FromCommandline-decorator
 
-:: 
+.. code:: python
 
    # examples/commandline_xrange.py
    from colt import FromCommandline
@@ -36,7 +36,7 @@ Features
    if __name__ == '__main__':
       x_range()
 
-::
+.. code:: python
 
    usage: commandline_xrange.py [-h] [-step step] xstart xstop
 
