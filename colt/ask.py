@@ -127,7 +127,7 @@ class AskQuestions(QuestionForm):
         if self.is_all_set:
             return self.get_answers()
         #
-        return self._ask_impl(config=config, ask_all=ask_all, description=description)
+        return self._ask_impl(ask_all=ask_all, description=description)
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
@@ -151,7 +151,7 @@ class AskQuestions(QuestionForm):
         self.write_config(filename)
         return answer
 
-    def _ask_impl(self, description=None, config=None, ask_all=False):
+    def _ask_impl(self, description=None, ask_all=False):
         """Actuall routine to get settings from the user
 
             Kwargs:
@@ -165,8 +165,5 @@ class AskQuestions(QuestionForm):
                     presets to be used
         """
         self.visitor.visit(self, description=description, ask_all=ask_all)
-        #
-        if config is not None:
-            self.write_config(config)
         #
         return self.get_answers(check=False)
