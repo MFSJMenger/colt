@@ -34,7 +34,8 @@ class WorkflowGenerator:
             return _wrapper(func)
         return _wrapper
 
-    def _parse_args(self, args, need_self, iterator_id, progress_bar):
+    @staticmethod
+    def _parse_args(args, need_self, iterator_id, progress_bar):
         if len(args) > 3:
             raise Exception(f"function takes 3 arguments {len(args)} provided")
 
@@ -51,11 +52,13 @@ class WorkflowGenerator:
     def create_workflow(self, name, nodes):
         return Workflow(name, nodes, self.actions)
 
-    def generate_workflow_file(self, filename, name, workflow, module, engine):
-        with open(filename, 'w') as f:
-            f.write(generate_workflow(name, workflow, module, engine))
+    @staticmethod
+    def generate_workflow_file(filename, name, workflow, module, engine):
+        with open(filename, 'w') as fhandle:
+            fhandle.write(generate_workflow(name, workflow, module, engine))
 
-    def add_subtypes(self, parent, subtypes):
+    @staticmethod
+    def add_subtypes(parent, subtypes):
         Type.add_subtypes(parent, subtypes)
 
 
@@ -117,13 +120,16 @@ class Workflow:
             out.append(res)
         return out
 
-    def error(self, msg):
+    @staticmethod
+    def error(msg):
         raise WorkflowExit
 
-    def debug(self, msg):
+    @staticmethod
+    def debug(msg):
         print("Debug: ", msg)
 
-    def info(self, msg):
+    @staticmethod
+    def info(msg):
         print("Workflow: ", msg)
 
     @staticmethod
@@ -151,16 +157,16 @@ class Workflow:
         return data
 
 
-def get_signiture(f):
+def get_signiture(func):
     position_arguments = []
     keyword_arguments = {}
     #
-    if not hasattr(f, '__annotations__'):
+    if not hasattr(func, '__annotations__'):
         raise Exception("Type annotations need to be set")
     #
-    return_typ = check_typ(f.__annotations__.get('return', None))
+    return_typ = check_typ(func.__annotations__.get('return', None))
     #
-    for name, value in inspect.signature(f).parameters.items():
+    for name, value in inspect.signature(func).parameters.items():
         if name == 'self':
             continue
         if value.annotation is value.empty:

@@ -110,14 +110,16 @@ class AskQuestions(QuestionForm):
         """Main routine to get settings from the user,
            if all answers are set, and ask_all is not True
 
-            Kwargs:
-                config, str:
+           Arguments
+           ---------
+
+                config: str, optional
                     name of an existing config file
 
-                ask_all, bool:
+                ask_all: bool, optional
                     whether to ask all questions, or skip those already set
 
-                presets, str:
+                presets: str, optional
                     presets to be used
         """
         self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
@@ -133,11 +135,12 @@ class AskQuestions(QuestionForm):
         """Check that all answers set by config are correct and
            return the settings
 
-            Kwargs:
-                config, str:
+            Arguments
+            ---------
+                config: str
                     name of an existing config file
 
-                presets, str:
+                presets: str
                     presets to be used
         """
         self.set_answers_and_presets(config, presets)
@@ -154,7 +157,8 @@ class AskQuestions(QuestionForm):
     def _ask_impl(self, description=None, ask_all=False):
         """Actuall routine to get settings from the user
 
-            Kwargs:
+           Arguments
+           ---------
                 config, str:
                     name of an existing config file
 

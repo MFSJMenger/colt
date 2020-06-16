@@ -79,16 +79,16 @@ class ColtMeta(ABCMeta):
         return ABCMeta.__new__(cls, name, bases, clsdict)
 
     @property
-    def questions(cls):
-        return cls._generate_questions()
+    def questions(self):
+        return self._generate_questions()
 
-    def _generate_questions(cls):
+    def _generate_questions(self):
         """generate questions"""
-        questions = QuestionASTGenerator(cls._questions)
-        cls._extend_questions(questions)
+        questions = QuestionASTGenerator(self._questions)
+        self._extend_questions(questions)
         return questions
 
-    def _extend_questions(cls, questions):
+    def _extend_questions(self, questions):
         """This class will not be inherited"""
 
 
@@ -97,7 +97,7 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def generate_questions(cls, config=None, presets=None):
-        """Generate an object to generate the question config 
+        """Generate an object to generate the question config
         either from commandline, or from an input file etc.
 
         Arguments
@@ -105,15 +105,15 @@ class Colt(metaclass=ColtMeta):
 
         config: str, optional
             If not `None` name of a config file, the input should be read
-        
+
         presets: str, optional
             presets for the questions
-        
+
         Returns
         -------
 
         AskQuestions
-            object to generate the questions config 
+            object to generate the questions config
         """
         return AskQuestions(cls.questions, config=config, presets=presets)
 
@@ -126,18 +126,18 @@ class Colt(metaclass=ColtMeta):
 
         config: str, optional
             Name of a config file
-        
+
         presets: str, optional
             presets for the questions
 
         check_only: bool, optional
             If True, check that the settings in the configfile are correct
             If False, ask missing values
-    
+
         *args, **kwargs: optional
             Arguments and keyword arguments passed to from_config aside from
             the questions config
-        
+
         Returns
         -------
         PyObj
@@ -166,14 +166,14 @@ class Colt(metaclass=ColtMeta):
 
         answer: obj
             Questions config object
-    
+
         *args, **kwargs: optional
             Arguments and keyword arguments passed to from_config aside from
             the questions config
-        
+
         Returns
         -------
-        Self 
+        Self
             Intended to initalize the class using the information provided by the config.
         """
         raise Exception("Cannot load from_config, as it is not implemented!, "
@@ -191,11 +191,11 @@ class Colt(metaclass=ColtMeta):
 
         presets: str, optional
             presets for the questions
-    
+
         *args, **kwargs: optional
             Arguments and keyword arguments passed to from_config aside from
             the questions config
-        
+
         Returns
         -------
         PyObj
@@ -209,7 +209,7 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
         """Generate an inputfile that can later be used to initialze the class
-        
+
         Arguments
         ---------
 
@@ -221,11 +221,11 @@ class Colt(metaclass=ColtMeta):
 
         config: str, optional
             Name of a config file, data should be read from
-    
+
         *args, **kwargs: optional
             Arguments and keyword arguments passed to from_config aside from
             the questions config
-        
+
         Returns
         -------
         obj
