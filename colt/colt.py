@@ -93,35 +93,144 @@ class ColtMeta(ABCMeta):
 
 
 class Colt(metaclass=ColtMeta):
-    """Basic Class to manage colts question routines"""
+    """Base Class for `Colt` classes"""
 
     @classmethod
     def generate_questions(cls, config=None, presets=None):
+        """Generate an object to generate the question config 
+        either from commandline, or from an input file etc.
+
+        Arguments
+        ---------
+
+        config: str, optional
+            If not `None` name of a config file, the input should be read
+        
+        presets: str, optional
+            presets for the questions
+        
+        Returns
+        -------
+
+        AskQuestions
+            object to generate the questions config 
+        """
         return AskQuestions(cls.questions, config=config, presets=presets)
 
     @classmethod
-    def from_questions(cls, *args, check_only=False, config=None, savefile=None, **kwargs):
-        questions = cls.generate_questions(config=config)
+    def from_questions(cls, *args, check_only=False, config=None, presets=None, **kwargs):
+        """Initizialze the class using `Colt`'s question utilities
+
+        Arguments
+        ---------
+
+        config: str, optional
+            Name of a config file
+        
+        presets: str, optional
+            presets for the questions
+
+        check_only: bool, optional
+            If True, check that the settings in the configfile are correct
+            If False, ask missing values
+    
+        *args, **kwargs: optional
+            Arguments and keyword arguments passed to from_config aside from
+            the questions config
+        
+        Returns
+        -------
+        PyObj
+            anything that from_config returns. Intended to initalize the class
+            so from_config should return an instance of the class.
+
+        """
+        questions = cls.generate_questions(config=config, presets=presets)
+        #
         if check_only is True:
-            answers = questions.check_only(savefile)
+            answers = questions.check_only()
         else:
-            answers = questions.ask(savefile)
+            if config is None:
+                answers = questions.ask()
+            else:
+                answers = questions.generate_input(config)
+        #
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
     def from_config(cls, answer, *args, **kwargs):
+        """Initizialze the class using questions config object
+
+        Arguments
+        ---------
+
+        answer: obj
+            Questions config object
+    
+        *args, **kwargs: optional
+            Arguments and keyword arguments passed to from_config aside from
+            the questions config
+        
+        Returns
+        -------
+        Self 
+            Intended to initalize the class using the information provided by the config.
+        """
         raise Exception("Cannot load from_config, as it is not implemented!, "
                         "also from_questions depend on that!")
 
     @classmethod
     def from_commandline(cls, *args, description=None, presets=None, **kwargs):
-        """Initialize file from commandline options"""
+        """Initialize the class using input provided from the commandline
+        Arguments
+        ---------
+
+        description: str, optional
+            Description of the commandline interface, for better documentation,
+            see `argparse.ArgumentParser(description)`
+
+        presets: str, optional
+            presets for the questions
+    
+        *args, **kwargs: optional
+            Arguments and keyword arguments passed to from_config aside from
+            the questions config
+        
+        Returns
+        -------
+        PyObj
+            anything that from_config returns. Intended to initalize the class
+            so from_config should return an instance of the class.
+        """
         answers = get_config_from_commandline(cls.questions, description=description,
                                               presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
     def generate_input(cls, filename, config=None, presets=None):
+        """Generate an inputfile that can later be used to initialze the class
+        
+        Arguments
+        ---------
+
+        filename: str
+            Name of the inputfile
+
+        presets: str, optional
+            presets for the questions
+
+        config: str, optional
+            Name of a config file, data should be read from
+    
+        *args, **kwargs: optional
+            Arguments and keyword arguments passed to from_config aside from
+            the questions config
+        
+        Returns
+        -------
+        obj
+            colt question obj
+        """
         questions = cls.generate_questions(config=config, presets=presets)
         return questions.generate_input(filename)
 
