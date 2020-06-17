@@ -16,12 +16,14 @@ def add_defaults_to_dict(clsdict, defaults):
 
 
 def delete_inherited_keys(keys, clsdict):
+    """delete any key in clsdict if it's `inherited`"""
     for key in keys:
         if clsdict[key] == 'inherited':
             del clsdict[key]
 
 
 def join_extend_questions(func1, func2):
+    """combine extend question functions"""
     if isinstance(func1, classmethod):
         func1 = func1.__func__
     if isinstance(func2, classmethod):
@@ -75,21 +77,24 @@ class ColtMeta(ABCMeta):
     """Metaclass to handle hierarchical generation of questions"""
 
     def __new__(cls, name, bases, clsdict):
+        """Modify clsdict before the new method of the metaclass is called"""
         colt_modify_class_dict(clsdict, bases)
         return ABCMeta.__new__(cls, name, bases, clsdict)
 
     @property
     def questions(self):
+        """return QuestionAST object"""
         return self._generate_questions()
 
     def _generate_questions(self):
-        """generate questions"""
+        """gentarte QuestionAST object and extend it possibly"""
         questions = QuestionASTGenerator(self._questions)
         self._extend_questions(questions)
         return questions
 
     def _extend_questions(self, questions):
-        """This class will not be inherited"""
+        """In case additional questions should be added to the QuesionAST"""
+        pass
 
 
 class Colt(metaclass=ColtMeta):
@@ -100,8 +105,8 @@ class Colt(metaclass=ColtMeta):
         """Generate an object to generate the question config
         either from commandline, or from an input file etc.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
 
         config: str, optional
             If not `None` name of a config file, the input should be read
@@ -119,10 +124,10 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def from_questions(cls, *args, check_only=False, config=None, presets=None, **kwargs):
-        """Initizialze the class using `Colt`'s question utilities
+        """Initizialze the class using `Colt` question utilities
 
-        Arguments
-        ---------
+        Parameters
+        ----------
 
         config: str, optional
             Name of a config file
@@ -134,8 +139,8 @@ class Colt(metaclass=ColtMeta):
             If True, check that the settings in the configfile are correct
             If False, ask missing values
 
-        *args, **kwargs: optional
-            Arguments and keyword arguments passed to from_config aside from
+        args, kwargs: optional
+            arguments and keyword arguments passed to from_config aside from
             the questions config
 
         Returns
@@ -161,14 +166,14 @@ class Colt(metaclass=ColtMeta):
     def from_config(cls, answer, *args, **kwargs):
         """Initizialze the class using questions config object
 
-        Arguments
-        ---------
+        Parameters
+        ----------
 
         answer: obj
             Questions config object
 
-        *args, **kwargs: optional
-            Arguments and keyword arguments passed to from_config aside from
+        args, kwargs: optional
+            arguments and keyword arguments passed to from_config aside from
             the questions config
 
         Returns
@@ -182,8 +187,8 @@ class Colt(metaclass=ColtMeta):
     @classmethod
     def from_commandline(cls, *args, description=None, presets=None, **kwargs):
         """Initialize the class using input provided from the commandline
-        Arguments
-        ---------
+        Parameters
+        ----------
 
         description: str, optional
             Description of the commandline interface, for better documentation,
@@ -192,8 +197,8 @@ class Colt(metaclass=ColtMeta):
         presets: str, optional
             presets for the questions
 
-        *args, **kwargs: optional
-            Arguments and keyword arguments passed to from_config aside from
+        args, kwargs: optional
+            arguments and keyword arguments passed to from_config aside from
             the questions config
 
         Returns
@@ -210,8 +215,8 @@ class Colt(metaclass=ColtMeta):
     def generate_input(cls, filename, config=None, presets=None):
         """Generate an inputfile that can later be used to initialze the class
 
-        Arguments
-        ---------
+        Parameters
+        ----------
 
         filename: str
             Name of the inputfile
@@ -223,7 +228,7 @@ class Colt(metaclass=ColtMeta):
             Name of a config file, data should be read from
 
         *args, **kwargs: optional
-            Arguments and keyword arguments passed to from_config aside from
+            arguments and keyword arguments passed to from_config aside from
             the questions config
 
         Returns

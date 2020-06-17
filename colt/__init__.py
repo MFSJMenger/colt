@@ -9,7 +9,7 @@ __version__ = '0.1.0'
 __all__ = ["Colt", "PluginBase",
            "FromCommandline",
            "AskQuestions",
-           "ColtErrorAnswerNotDefined", "QuestionASTGenerator",
+           "QuestionASTGenerator",
            "Validator", "NOT_DEFINED"]
 
 # Helper class to handle easily questions with classes
@@ -20,8 +20,6 @@ from .pluginloader import PluginLoader
 from .colt import FromCommandline
 # If Questions should be asked without Colt use AskQuestions
 from .ask import AskQuestions
-# If answer is not set!
-from .answers import ColtErrorAnswerNotDefined
 # Generate questions from a reference config file
 from .questions import QuestionASTGenerator
 # Validator

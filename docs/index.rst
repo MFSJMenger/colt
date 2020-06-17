@@ -7,6 +7,7 @@ Welcome to Colt's documentation!
 
    readme
    usage
+   modules
    installation
    contributing
    authors

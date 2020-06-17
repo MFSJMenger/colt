@@ -3,7 +3,7 @@ from collections import UserDict, UserString
 from collections.abc import Mapping
 from contextlib import contextmanager
 #
-from .answers import SubquestionsAnswer
+from .answers import AnswersBlock, SubquestionsAnswer
 from .config import ConfigParser
 from .generator import GeneratorNavigator
 #
@@ -15,7 +15,7 @@ from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
 from .validator import Choices, RangeExpression
 #
-from .exceptions import ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
+from .exceptions import Error, ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
 
 join_case = GeneratorNavigator.join_case
@@ -435,6 +435,20 @@ def block_not_set(block_name, keys):
     return txt + "\n"
 
 
+class ColtErrorAnswerNotDefined(Error):
+
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = msg
+
+    def __repr__(self):
+        return f"ColtErrorAnswerNotDefined:\n{self.msg}"
+
+    def __str__(self):
+        return f"ColtErrorAnswerNotDefined:\n{self.msg}"
+
+
+
 class AnswerVistor(QuestionVisitor):
 
     __slots__ = ('check', 'not_set')
@@ -449,7 +463,7 @@ class AnswerVistor(QuestionVisitor):
         answer = qform.form.accept(self)
         if check is True:
             if self.not_set != {}:
-                raise Exception(self._create_exception(self.not_set))
+                raise ColtErrorAnswerNotDefined(self._create_exception(self.not_set))
         self.not_set = {}
         return answer
 
@@ -457,8 +471,9 @@ class AnswerVistor(QuestionVisitor):
         return "\n".join(block_not_set(block, values) for block, values in not_set.items())
 
     def visit_question_block(self, block):
-        out = {question.label: question.accept(self)
-               for question in block.concrete.values()}
+        """Visit the question block and store all results in a Mapping"""
+        out = AnswersBlock({question.label: question.accept(self)
+                            for question in block.concrete.values()})
         #
         if self.check is True:
             not_set = tuple(name for name, value in out.items() if value is NOT_DEFINED)
@@ -466,6 +481,7 @@ class AnswerVistor(QuestionVisitor):
                 self.not_set[block.name] = not_set
         #
         out.update({name: block.accept(self) for name, block in block.blocks.items()})
+        #
         return out
 
     def visit_subquestion_block(self, block):

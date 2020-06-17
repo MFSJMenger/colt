@@ -110,8 +110,8 @@ class AskQuestions(QuestionForm):
         """Main routine to get settings from the user,
            if all answers are set, and ask_all is not True
 
-           Arguments
-           ---------
+           Parameters 
+           ----------
 
                 config: str, optional
                     name of an existing config file
@@ -135,8 +135,8 @@ class AskQuestions(QuestionForm):
         """Check that all answers set by config are correct and
            return the settings
 
-            Arguments
-            ---------
+            Parameters
+            ----------
                 config: str
                     name of an existing config file
 
@@ -157,8 +157,8 @@ class AskQuestions(QuestionForm):
     def _ask_impl(self, description=None, ask_all=False):
         """Actuall routine to get settings from the user
 
-           Arguments
-           ---------
+           Parameters
+           ----------
                 config, str:
                     name of an existing config file
 
