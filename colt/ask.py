@@ -1,4 +1,5 @@
 import readline
+from contextlib import contextmanager
 #
 from .qform import QuestionVisitor, QuestionForm
 
@@ -6,15 +7,21 @@ from .qform import QuestionVisitor, QuestionForm
 readline.parse_and_bind('tab:complete')
 
 
-def select_completer(obj):
-
+def select_completer(question):
     def completer(text, state):
-        options = [choice for choice in obj.choices if choice.startswith(text)]
+        options = [choice for choice in question.choices if choice.startswith(text)]
         if state < len(options):
             return options[state]
         return None
-
     return completer
+
+
+@contextmanager
+def completer(question):
+    """Simple context manager for readline completion"""
+    readline.set_completer(select_completer(question))
+    yield
+    readline.set_completer(None)
 
 
 class CommandlineVisitor(QuestionVisitor):
@@ -36,7 +43,8 @@ class CommandlineVisitor(QuestionVisitor):
 
     def visit_qform(self, qform, description=None, ask_all=False):
         self.ask_all = ask_all
-        print(description)
+        if description is not None:
+            print(description)
         qform.form.accept(self)
 
     def visit_question_block(self, block):
@@ -47,9 +55,16 @@ class CommandlineVisitor(QuestionVisitor):
     def visit_concrete_question_select(self, question):
         if self._should_ask_question(question) is True:
             text = self._generate_select_question_text(question)
-            readline.set_completer(select_completer(question))
-            self._ask_question(text, question, question.comment)
-            readline.set_completer(None)
+            if question.has_only_one_choice is True:
+                # if only one choice, just print that one
+                answer = question.choices[0]
+                print(f"{text} {answer}")
+                # set the answer
+                self.set_answer(question, answer)
+            else:
+                # ask the question, using the completer
+                with completer(question):
+                    self._ask_question(text, question, question.comment)
 
     def visit_concrete_question_input(self, question):
         if self._should_ask_question(question) is True:
@@ -97,7 +112,7 @@ class CommandlineVisitor(QuestionVisitor):
         #
         if self.set_answer(question, answer) is False:
             return self._ask_question(text, question, comment)
-        return None
+        return True
 
 
 class AskQuestions(QuestionForm):
@@ -108,19 +123,24 @@ class AskQuestions(QuestionForm):
     def ask(self, description=None, config=None, ask_all=False,
             presets=None, raise_read_error=True):
         """Main routine to get settings from the user,
-           if all answers are set, and ask_all is not True
+        if all answers are set, and ask_all is not True
 
-           Parameters 
-           ----------
+        Parameters 
+        ----------
 
-                config: str, optional
-                    name of an existing config file
+        config: str, optional
+            name of an existing config file
 
-                ask_all: bool, optional
-                    whether to ask all questions, or skip those already set
+        ask_all: bool, optional
+            whether to ask all questions, or skip those already set
 
-                presets: str, optional
-                    presets to be used
+        presets: str, optional
+            presets to be used
+
+        Returns
+        -------
+        AnswerBlock
+            user input
         """
         self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
         if ask_all is True:
@@ -133,20 +153,45 @@ class AskQuestions(QuestionForm):
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
-           return the settings
+        return the settings
 
-            Parameters
-            ----------
-                config: str
-                    name of an existing config file
+        Parameters
+        ---------
+        config: str
+            name of an existing config file
 
-                presets: str
-                    presets to be used
+        presets: str
+            presets to be used
+
+        Returns
+        -------
+        AnswerBlock
+            user input
         """
         self.set_answers_and_presets(config, presets)
         return self.get_answers(check=True)
 
     def generate_input(self, filename, config=None, presets=None, ask_all=False):
+        """Generates an input file from user input
+        Parameters
+        ----------
+        filename, str:
+            name of the output file
+
+        config, str:
+            name of an existing config file
+
+        ask_all, bool:
+            whether to ask all questions, or skip those already set
+
+        presets, str:
+            presets to be used
+
+        Returns
+        -------
+        AnswerBlock
+            user input
+        """
         #
         self.set_answers_and_presets(config, presets)
         #
@@ -157,16 +202,21 @@ class AskQuestions(QuestionForm):
     def _ask_impl(self, description=None, ask_all=False):
         """Actuall routine to get settings from the user
 
-           Parameters
-           ----------
-                config, str:
-                    name of an existing config file
+        Parameters
+        ----------
+        config, str:
+            name of an existing config file
 
-                ask_all, bool:
-                    whether to ask all questions, or skip those already set
+        ask_all, bool:
+            whether to ask all questions, or skip those already set
 
-                presets, str:
-                    presets to be used
+        presets, str:
+            presets to be used
+
+        Returns
+        -------
+        AnswerBlock
+            user input
         """
         self.visitor.visit(self, description=description, ask_all=ask_all)
         #

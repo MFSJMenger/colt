@@ -43,11 +43,17 @@ class Choices:
         txt = ", ".join(str(choice) for choice in self.choices)
         return f"Choices({txt})"
 
+    def __len__(self):
+        return len(self.choices)
+
     def __str__(self):
         return self.as_str()
 
     def __repr__(self):
         return self.as_str()
+
+    def __getitem__(self, idx):
+        return self.choices[idx]
 
     def __iter__(self):
         return iter(self.choices)
@@ -320,16 +326,21 @@ class ValidatorBase:
 
     def validate(self, value):
         """Parse a string and return its value,
-           raises ValueError on failure
+        raises ValueError on failure
 
-           Args:
-                value, str
+        Parameters
+        ----------
+        value: str
+            user input to be validated 
 
-           Returns:
-                parsed value
+        Returns
+        -------
+        Parsed Value
 
-           Raises:
-                ValueError, if value does not fullfill condition
+        Raises
+        ------
+        ValueError
+            if value does not fullfill condition
         """
         value = self._parse(str(value))
         if not self._choices.validate(value):
@@ -402,11 +413,7 @@ class ValidatorBase:
 
 
 class RangeValidator(ValidatorBase):
-    """
-    Allowed expressions:
-    > 2
-    3 > 1
-    """
+    """Validator that allowes both `Choices` and RangeExpression"""
 
     def set_choices(self, in_choices):
         """set choices"""
@@ -429,6 +436,21 @@ class RangeValidator(ValidatorBase):
 
 
 def create_validators(base_validators, range_validators):
+    """simple helper to generate validators from a dictionary
+
+    Parameters
+    ----------
+    base_validators: dict
+        all types that get the `ValidatorBase`
+
+    range_validators: dict
+        all types that get the `RangeValidator`
+
+    Returns
+    -------
+    dict
+        all validators in a single dictionary
+    """
     out = {}
     for name, parser in base_validators.items():
         parser_name = name.capitalize() + "Validator"

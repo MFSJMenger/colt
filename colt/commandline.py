@@ -21,10 +21,12 @@ def get_config_from_commandline(questions, description=None, presets=None):
     Returns:
         answers, dict
     """
+    # Visitor object
+    VISITOR = CommandlineParserVisitor()
     #
     qform = QuestionForm(questions, presets=presets)
-    # _VISITOR is the global, private CommandlineParserVisitor defined blow
-    parser = _VISITOR.visit(qform, description=description)
+    #
+    parser = VISITOR.visit(qform, description=description)
     # parse commandline args
     parser.parse_args()
     #
@@ -62,7 +64,10 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_concrete_question_select(self, question):
         """create a concrete parser and add it to the current parser"""
-        self.add_concrete_to_parser(question)
+        if question.has_only_one_choice is True:
+            self.set_answer(question, question.choices[0])
+        else:
+            self.add_concrete_to_parser(question)
 
     def visit_concrete_question_input(self, question):
         """create a concrete parser and add it to the current parser"""
@@ -219,10 +224,6 @@ class SubquestionAction(Action):
                                          f"Unrecognized Arguments: {', '.join(arg_strings_case)}")
 
 
-# Visitor object
-_VISITOR = CommandlineParserVisitor()
-
-
 class _QuestionType:
     """Help class to simpulate type validation of the argparse"""
 
@@ -231,10 +232,10 @@ class _QuestionType:
         self.msg = question.typ
 
     def __str__(self):
-        return self.msg
+        return str(self.msg)
 
     def __repr__(self):
-        return self.msg
+        return str(self.msg)
 
     def __call__(self, answer):
         try:

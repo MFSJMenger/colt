@@ -228,6 +228,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         return visitor.visit_concrete_question_input(self)
 
     @property
+    def has_only_one_choice(self):
+        return len(self.choices) == 1
+
+    @property
     def comment(self):
         return self._comment
 
@@ -260,7 +264,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def preset(self, value, choices):
         """preset new value, choices:
-           important: first update choices to ensure that default in choices!
+        important: first update choices to ensure that default in choices!
         """
         if choices is not None:
             self._value.choices = choices
