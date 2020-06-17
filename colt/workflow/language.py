@@ -118,7 +118,7 @@ class FunctionCall:
 
 class Assignment:
 
-    def __init__(self, variable_name, value, comment=None):
+    def __init__(self, variable_name, value, typ, comment=None):
         self.name = variable_name
         self.value = value
         self.comment = comment

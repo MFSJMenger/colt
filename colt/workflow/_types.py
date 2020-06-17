@@ -59,6 +59,15 @@ class _TypeImpl:
     def is_type(self, other):
         if not isinstance(other, _TypeImpl):
             raise Exception("can only add subtypes")
+        #
+        if other.typ == 'anything':
+            return True
+        #
         if other is self:
             return True
+        #
         return self in other
+
+
+# general typ that could be anything ;)
+Type('anything')

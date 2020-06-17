@@ -1,4 +1,5 @@
 import inspect
+from collections import UserDict
 #
 from ..validator import Validator
 from ..commandline import get_config_from_commandline
@@ -7,11 +8,27 @@ from .language import Assignment, Parser, Type, Variable
 from .actions import Action, IteratorAction
 
 
+class ActionContainer(UserDict):
+    """Container to store actions to prevent overwriting of them!"""
+
+    def __init__(self, dct=None):
+        super().__init__()
+        if dct is None:
+            dct = {}
+        self.data = dct
+
+    def __setitem__(self, key, value):
+        if key in self:
+            raise Exception("Should not overwrite action!")
+        self.data[key] = value
+        
+
+
 class WorkflowGenerator:
     """Workflow engine, stores all actions"""
 
     def __init__(self):
-        self.actions = {}
+        self.actions = ActionContainer()
 
     def register_action(self, *args, need_self=False, iterator_id=None, progress_bar=False):
         #
@@ -20,6 +37,7 @@ class WorkflowGenerator:
 
         def _wrapper(func):
             name = func.__name__
+            #
             arg_types, kwarg_types, return_typ = get_signiture(func)
             if iterator_id is None:
                 self.actions[name] = Action(func, arg_types, kwarg_types, return_typ,
@@ -49,8 +67,12 @@ class WorkflowGenerator:
             need_self, iterator_id, progress_bar = args
         return None, need_self, iterator_id, progress_bar
 
-    def create_workflow(self, name, nodes):
-        return Workflow(name, nodes, self.actions)
+    def create_workflow(self, name, nodes, add_workflow=False, output=None):
+        wf = Workflow(name, nodes, self.actions)
+        if add_workflow is True:
+            func, arg_types, return_typ = wf.get_function(output=output)
+            self.actions[name] = Action(func, arg_types, {}, return_typ)
+        return wf
 
     @staticmethod
     def generate_workflow_file(filename, name, workflow, module, engine):
@@ -85,17 +107,17 @@ class Workflow:
         self.name = name
         self.parser = Parser(actions)
         self.nodes = self._parse_string(string)
-        self.input_nodes = self._check_types()
+        self.input_nodes, self.types = self._check_types()
 
     def _check_types(self):
-        current_types = {}
+        types = {}
         input_nodes = {}
         for node in self.nodes:
-            node.check_types(current_types, input_nodes)
+            node.check_types(types, input_nodes)
         for var, typ in input_nodes.items():
             if typ.typ.typ not in Validator.parsers:
                 raise Exception(f"cannot get type '{typ}' of variable {var} from commandline")
-        return input_nodes
+        return input_nodes, types
 
     def _input_questions(self, data):
         txt = ""
@@ -139,6 +161,25 @@ class Workflow:
             if line != '':
                 yield i, line
 
+    def get_function(self, output=None): 
+        # name of the keys
+        keys = list(self.input_nodes.keys())
+        if output is not None:
+            return_typ = self.types[output]
+        else:
+            return_typ = None
+        #
+        arg_types = tuple(value.typ for value in self.input_nodes.values())
+        #
+        def _func(*args):
+            if len(args) != len(keys):
+                raise Exception("")
+            data = {key: value for key, value in zip(keys, args)}
+            data = self._run(data)
+            if output is not None:
+                return data[output]
+        return _func, arg_types, return_typ
+
     def run(self, data=None, description=None):
         """execute workflow"""
         if data is None:
@@ -146,6 +187,13 @@ class Workflow:
         questions = self._input_questions(data)
         if questions != '':
             data.update(get_config_from_commandline(questions, description=description))
+        return self._run(data) 
+        
+    def _run(self, data=None):
+        """execute workflow"""
+        if data is None:
+            data = {}
+        #
         for node in self.nodes:
             try:
                 if isinstance(node, Assignment):
