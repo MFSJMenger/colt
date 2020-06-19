@@ -21,7 +21,6 @@ class ActionContainer(UserDict):
         if key in self:
             raise Exception("Should not overwrite action!")
         self.data[key] = value
-        
 
 
 class WorkflowGenerator:
@@ -161,7 +160,7 @@ class Workflow:
             if line != '':
                 yield i, line
 
-    def get_function(self, output=None): 
+    def get_function(self, output=None):
         # name of the keys
         keys = list(self.input_nodes.keys())
         if output is not None:
@@ -170,7 +169,7 @@ class Workflow:
             return_typ = None
         #
         arg_types = tuple(value.typ for value in self.input_nodes.values())
-        #
+
         def _func(*args):
             if len(args) != len(keys):
                 raise Exception("")
@@ -187,8 +186,8 @@ class Workflow:
         questions = self._input_questions(data)
         if questions != '':
             data.update(get_config_from_commandline(questions, description=description))
-        return self._run(data) 
-        
+        return self._run(data)
+
     def _run(self, data=None):
         """execute workflow"""
         if data is None:

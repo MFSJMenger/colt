@@ -1,9 +1,7 @@
 import pytest
 #
-from colt import QuestionASTGenerator
-from colt import AskQuestions
-from colt.questions import Question
-from colt.validator import NOT_DEFINED
+from colt import NOT_DEFINED
+from colt.questions import Question, QuestionASTGenerator
 from colt.questions import LiteralBlockQuestion
 
 
@@ -42,6 +40,7 @@ def questions():
       [examplecase(no)::further::andmore::select(maybe)]
       a = maybe :: str :: :: What was the question?
     """
+
 
 def test_generate_questions(questions):
     """test parsing of basic questions string"""

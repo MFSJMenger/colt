@@ -13,36 +13,37 @@ class Component(ABC):
 
     @abstractmethod
     def accept(self, visitor):
-        pass
+        """accept a visitor"""
 
 
 class QuestionASTVisitor(ABC):
-    """Basic class to visit the nodes of the Question Generator"""
+    """Basic class to visit the nodes of the QuestionASTGenerator"""
 
     __slots__ = ()
 
     def visit(self, qgen, **kwargs):
+        """start to visit the QuestionASTGenerator"""
         return qgen.accept(self, **kwargs)
 
     @abstractmethod
     def visit_question_ast_generator(self, qgen, **kwargs):
-        pass
+        """visit the ast generator"""
 
     @abstractmethod
     def visit_question_container(self, block):
-        pass
+        """visit the question container"""
 
     @abstractmethod
     def visit_literal_block(self, question):
-        pass
+        """visit a literal block"""
 
     @abstractmethod
     def visit_question(self, block):
-        pass
+        """visit a concrete question"""
 
     @abstractmethod
     def visit_conditional_question(self, block):
-        pass
+        """visit a conditional question"""
 
 
 class Question(Component):
@@ -99,6 +100,7 @@ class ConditionalQuestion(Component, BranchingNode):  # pylint: disable=too-many
 
     @property
     def main_choices(self):
+        """get back the choices for the main question"""
         return list(self.subquestions.keys())
 
     def __str__(self):

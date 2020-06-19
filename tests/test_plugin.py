@@ -1,29 +1,29 @@
 import pytest
 #
 from collections import namedtuple
-from colt import PluginBase
+from colt import Plugin
 
 
 @pytest.fixture
 def plugin():
 
-    class Plugin(PluginBase):
+    class ExamplePlugin(Plugin):
 
         _plugins_storage = '_methods'
         _is_plugin_factory = True
 
-    class PluginOne(Plugin):
+    class PluginOne(ExamplePlugin):
         pass
 
-    class PluginTwo(Plugin):
+    class PluginTwo(ExamplePlugin):
         pass
 
-    class PluginThree(Plugin):
+    class PluginThree(ExamplePlugin):
         pass
 
     plugins = namedtuple("plugins", ("one", "two", "three"))
 
-    return Plugin, plugins(PluginOne, PluginTwo, PluginThree)
+    return ExamplePlugin, plugins(PluginOne, PluginTwo, PluginThree)
 
 
 def test_plugin_basics(plugin):

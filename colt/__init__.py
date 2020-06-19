@@ -6,21 +6,13 @@ __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
 __version__ = '0.1.0'
 
-__all__ = ["Colt", "PluginBase",
-           "FromCommandline",
-           "AskQuestions",
-           "QuestionASTGenerator",
-           "Validator", "NOT_DEFINED"]
+__all__ = ["Colt", "Plugin", "PluginLoader", "from_commandline", "Validator", "NOT_DEFINED"]
 
 # Helper class to handle easily questions with classes
 from .colt import Colt
-from .plugins import Plugin as PluginBase
+from .plugins import Plugin
 from .pluginloader import PluginLoader
-#
-from .colt import FromCommandline
-# If Questions should be asked without Colt use AskQuestions
-from .ask import AskQuestions
-# Generate questions from a reference config file
-from .questions import QuestionASTGenerator
+# Decorator to call functions with commandline arguments
+from .colt import from_commandline
 # Validator
 from .validator import Validator, NOT_DEFINED

@@ -18,10 +18,8 @@ import pytest
 import numpy.random as random
 import numpy as np
 #
-from colt import AskQuestions
 import colt.validator as LineParser
 from colt.validator import Validator
-
 
 
 def check_solution(values, solutions, is_array=False):

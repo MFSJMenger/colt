@@ -14,8 +14,6 @@ from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
 from .validator import Choices, RangeExpression
-#
-from .exceptions import Error, ErrorSettingAnswerFromFile, ErrorSettingAnswerFromDict
 
 
 join_case = GeneratorNavigator.join_case
@@ -439,7 +437,7 @@ def block_not_set(block_name, keys):
     return txt + "\n"
 
 
-class ColtErrorAnswerNotDefined(Error):
+class ColtErrorAnswerNotDefined(Exception):
 
     def __init__(self, msg):
         super().__init__()
@@ -450,7 +448,6 @@ class ColtErrorAnswerNotDefined(Error):
 
     def __str__(self):
         return f"ColtErrorAnswerNotDefined:\n{self.msg}"
-
 
 
 class AnswerVistor(QuestionVisitor):
@@ -676,6 +673,35 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
         # restore the old ones
         self.concrete = concrete
         self.blocks = blocks
+
+
+class ErrorSettingAnswerFromFile(Exception):
+    """errors setting answers from file"""
+
+    def __init__(self, filename, msg):
+        super().__init__()
+        self.filename = filename
+        self.msg = msg
+
+    def __repr__(self):
+        return f"ErrorSettingAnswerFromFile: file = '{self.filename}'\n{self.msg}"
+
+    def __str__(self):
+        return f"ErrorSettingAnswerFromFile: file = '{self.filename}'\n{self.msg}"
+
+
+class ErrorSettingAnswerFromDict(Exception):
+    """Error when trying to read answers from a dict"""
+
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = msg
+
+    def __repr__(self):
+        return f"ErrorSettingAnswerFromDict:\n{self.msg}"
+
+    def __str__(self):
+        return f"ErrorSettingAnswerFromDict:\n{self.msg}"
 
 
 class QuestionForm(Mapping, _QuestionComponent):

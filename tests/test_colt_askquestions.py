@@ -2,7 +2,7 @@ import pytest
 #
 import os
 #
-from colt import AskQuestions
+from colt.ask import AskQuestions
 
 
 path = os.path.dirname(os.path.abspath(__file__))
@@ -68,10 +68,9 @@ def questions():
     """
 
 
-
-#def test_basic_ask_questions(questions):
-#    questions = AskQuestions(questions)
-#    assert type(questions.questions) == Questions
+# def test_basic_ask_questions(questions):
+#     questions = AskQuestions(questions)
+#     assert type(questions.questions) == Questions
 
 
 def test_basic_ask_questions_from_configfile(questions, askini):

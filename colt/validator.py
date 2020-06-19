@@ -1,3 +1,5 @@
+"""Basic Validator to convert user input into python objects
+while automatically checking the type and doing error handling"""
 import os
 import ast
 from collections.abc import KeysView
@@ -13,7 +15,9 @@ class NoChoice:
 
     __slots__ = ()
 
-    def is_subset(self, rhs):
+    @staticmethod
+    def is_subset(rhs):
+        """Is subset of itself"""
         if isinstance(rhs, NoChoice):
             return True
         return False
@@ -24,7 +28,9 @@ class NoChoice:
     def __repr__(self):
         return ""
 
-    def validate(self, value):
+    @staticmethod
+    def validate(value):
+        """Always True"""
         return True
 
 
@@ -40,6 +46,7 @@ class Choices:
         self.choices = choices
 
     def as_str(self):
+        """return choices as a string"""
         txt = ", ".join(str(choice) for choice in self.choices)
         return f"Choices({txt})"
 
@@ -59,12 +66,15 @@ class Choices:
         return iter(self.choices)
 
     def as_list(self):
+        """return choices as a python list"""
         return list(self.choices)
 
     def validate(self, value):
+        """check if value in choices"""
         return value in self.choices
 
     def is_subset(self, rhs):
+        """check if `rhs` is a subset of `self`"""
         if rhs in (None, NO_CHOICE):
             return True
         if not isinstance(rhs, Choices):
@@ -82,6 +92,7 @@ class RangeExpression:
         self.lower, self.upper = self._parse(expr)
 
     def validate(self, value):
+        """check that value fullfills the expression"""
         if self.lower is not None:
             if value < self.lower:
                 return False
@@ -97,10 +108,11 @@ class RangeExpression:
         return self.as_str()
 
     def as_str(self):
+        """Return str of range expression"""
         return f"Range({self.expr})"
 
     def is_subset(self, rhs):
-        """Can only be subset of range expression!"""
+        """Check if `rhs` is a subset of `self`"""
         if rhs is None:
             return True
         if not isinstance(rhs, RangeExpression):
@@ -145,16 +157,19 @@ class RangeExpression:
 
     @staticmethod
     def _parse_value(value):
+        """convert value to float"""
         if value == "":
             return None
         return float(value)
 
 
 def abspath(answer):
+    """abspath including expanduser"""
     return os.path.abspath(os.path.expanduser(answer))
 
 
 def file_exists(path):
+    """check if file exists"""
     path = abspath(path)
     if not os.path.isfile(path):
         raise ValueError(f"File does not exisit '{path}'")
@@ -162,6 +177,7 @@ def file_exists(path):
 
 
 def folder_exists(path):
+    """check if folder exists"""
     path = abspath(path)
     if not os.path.isdir(path):
         raise ValueError(f"Folder does not exisit '{path}'")
@@ -169,6 +185,7 @@ def folder_exists(path):
 
 
 def non_existing_path(path):
+    """check that there is nothing at the given path"""
     path = abspath(path)
     if os.path.exists(path):
         raise ValueError(f"File/Folder does already exisit '{path}'")
@@ -263,6 +280,7 @@ def remove_brackets_and_quotes(string):
 
 
 def _as_python_object(string, obj, name):
+    """convert the string to an python object using ast.literal_eval"""
     result = ast.literal_eval(string)
     if not isinstance(result, obj):
         raise ValueError(f"Value is not a python {name}!")
@@ -305,11 +323,11 @@ NOT_DEFINED = NotDefined()
 
 
 class ValidatorErrorNotInChoices(Exception):
-    pass
+    """Exception in case value is not in choices"""
 
 
 class ValidatorErrorNotChoicesSubset(Exception):
-    pass
+    """Exception in case the new choices are not an subset of the old ones"""
 
 
 class ValidatorBase:
@@ -331,7 +349,7 @@ class ValidatorBase:
         Parameters
         ----------
         value: str
-            user input to be validated 
+            user input to be validated
 
         Returns
         -------
@@ -348,6 +366,7 @@ class ValidatorBase:
         return value
 
     def answer_as_string(self):
+        """return the answer as a string"""
         if self._string is NOT_DEFINED:
             return ''
         return self._string
@@ -362,6 +381,7 @@ class ValidatorBase:
 
     @property
     def choices(self):
+        """Return choices"""
         if self._choices is NO_CHOICE:
             return None
         return self._choices

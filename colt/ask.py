@@ -1,3 +1,4 @@
+"""Get User Input from commandline"""
 import readline
 from contextlib import contextmanager
 #
@@ -8,12 +9,22 @@ readline.parse_and_bind('tab:complete')
 
 
 def select_completer(question):
-    def completer(text, state):
+    """generate a completer for a select choices case
+    Parameters
+    ----------
+    question: ConcreteQuestion
+
+    Returns
+    -------
+    function
+        completer function for readline
+    """
+    def _completer(text, state):
         options = [choice for choice in question.choices if choice.startswith(text)]
         if state < len(options):
             return options[state]
         return None
-    return completer
+    return _completer
 
 
 @contextmanager
@@ -125,7 +136,7 @@ class AskQuestions(QuestionForm):
         """Main routine to get settings from the user,
         if all answers are set, and ask_all is not True
 
-        Parameters 
+        Parameters
         ----------
 
         config: str, optional
@@ -144,7 +155,7 @@ class AskQuestions(QuestionForm):
         """
         self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
         if ask_all is True:
-            return self._ask_impl(config=config, ask_all=ask_all, description=description)
+            return self._ask_impl(ask_all=ask_all, description=description)
         #
         if self.is_all_set:
             return self.get_answers()

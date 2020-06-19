@@ -1,9 +1,10 @@
+"""Automated documentation using sphinx"""
 from importlib import import_module
 from docutils import nodes
 #
 from sphinx.util.docutils import SphinxDirective
 #
-from . import QuestionASTGenerator, NOT_DEFINED
+from .questions import QuestionASTGenerator, NOT_DEFINED
 from .validator import Validator
 
 
