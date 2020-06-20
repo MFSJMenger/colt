@@ -1,11 +1,11 @@
-from .generator import GeneratorBase
+from .generator import Generator
 from .slottedcls import slottedcls
 
 
 Preset = slottedcls("Preset", {"default": None, "choices": None})
 
 
-class PresetGenerator(GeneratorBase):
+class PresetGenerator(Generator):
     """Generate Presets automatically"""
 
     comment_char = "###"
@@ -14,7 +14,7 @@ class PresetGenerator(GeneratorBase):
     leafnode_type = Preset
 
     def __init__(self, questions):
-        GeneratorBase.__init__(self, questions)
+        Generator.__init__(self, questions)
         self.tree = self._update_tree()
 
     def leaf_from_string(self, name, value, parent=None):

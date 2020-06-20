@@ -8,25 +8,28 @@ from .qform import ValidatorErrorNotInChoices
 def get_config_from_commandline(questions, description=None, presets=None):
     """Create the argparser from a given questions object and return the answers
 
-    Args:
-        questions, str, QuestionASTGenerator:
-            questions object to generate commandline arguments from
+    Parameters
+    ----------
+    questions: str or QuestionASTGenerator
+        questions object to generate commandline arguments from
 
-        description, str, optional:
-            description used for the argument parser
+    description: str, optional
+        description used for the argument parser
 
-        presets, str, optional:
-            presets used for the questions form
+    presets: str, optional
+        presets used for the questions form
 
-    Returns:
-        answers, dict
+    Returns
+    -------
+    AnswersBlock
+        User input
     """
     # Visitor object
-    VISITOR = CommandlineParserVisitor()
+    visitor = CommandlineParserVisitor()
     #
     qform = QuestionForm(questions, presets=presets)
     #
-    parser = VISITOR.visit(qform, description=description)
+    parser = visitor.visit(qform, description=description)
     # parse commandline args
     parser.parse_args()
     #
@@ -143,18 +146,8 @@ class CommandlineParserVisitor(QuestionVisitor):
                                  default=default, help=comment)
 
 
-class _HelpAction(Action):
-    """pseudo action for help"""
-
-    def __init__(self, name, aliases, help):
-        metavar = dest = name
-        if aliases:
-            metavar += ' (%s)' % ', '.join(aliases)
-        Action.__init__(option_strings=[], dest=dest, help=help, metavar=metavar)
-
-
 class SubquestionAction(Action):
-    """Create Subparser that reacts to subquestions adopted from argparse._SubParsersAction """
+    """Create Subparser that reacts to subquestions adopted from argparse._SubParsersAction"""
 
     def __init__(self, option_strings, prog, parser_class,
                  required=True, help=None, question=None):
@@ -164,10 +157,6 @@ class SubquestionAction(Action):
             raise Exception("Need question set for SubquestionAction")
         # actual main question
         self.question = question
-        # set the name of the metavar
-        metavar = self.question.name
-        dest = argparse.SUPPRESS
-        nargs = argparse.PARSER
         #
         self._prog_prefix = prog
         self._parser_class = parser_class
@@ -176,23 +165,29 @@ class SubquestionAction(Action):
         #
         Action.__init__(self,
                         option_strings=option_strings,
-                        dest=dest,
-                        nargs=nargs,
-                        choices=self._subquestion_cases,
+                        dest=argparse.SUPPRESS,
+                        nargs=argparse.PARSER,
                         required=required,
+                        choices=self._subquestion_cases,
                         help=help,
-                        metavar=metavar)
+                        metavar=question.name)
 
     def add_parser(self, case, **kwargs):
-        """Add a parser for a subquestion case """
+        """Add a parser for a subquestion case
+
+        Parameters
+        ----------
+        case: str
+            name of the subquestion
+
+        Returns
+        -------
+        parser
+            corresponding parser object
+        """
         # set prog from the existing prefix
         if kwargs.get('prog') is None:
             kwargs['prog'] = f"{self._prog_prefix} {case}"
-        # create a pseudo-action to hold the choice help
-        if 'help' in kwargs:
-            help = kwargs.pop('help')
-            choice_action = _HelpAction(case, (), help)
-            self._choices_actions.append(choice_action)
         # create the parser and add it to the subquestion cases
         parser = self._parser_class(**kwargs)
         # register case
@@ -201,7 +196,7 @@ class SubquestionAction(Action):
         return parser
 
     def __call__(self, parser, namespace, values, option_string=None):
-        """Parse the subquestion"""
+        """Parse the commandline and set the corresponding questions"""
         # values contains all commandline arguments starting from the one to be parsed
         # first one is the case
         case = values[0]

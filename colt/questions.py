@@ -2,7 +2,7 @@
 from abc import abstractmethod, ABC
 from collections import UserDict
 #
-from .generator import GeneratorBase, BranchingNode
+from .generator import Generator, BranchingNode
 #
 from .validator import NOT_DEFINED
 from .slottedcls import slottedcls
@@ -136,7 +136,7 @@ class QuestionContainer(Component, UserDict):
         return visitor.visit_question_container(self)
 
 
-class QuestionASTGenerator(Component, GeneratorBase):
+class QuestionASTGenerator(Component, Generator):
     """Contains all tools to automatically generate questions from
        a given file
     """
@@ -168,7 +168,7 @@ class QuestionASTGenerator(Component, GeneratorBase):
                            False, `questions` is a string
 
         """
-        GeneratorBase.__init__(self, questions)
+        Generator.__init__(self, questions)
         #
         self.questions = self.tree
 

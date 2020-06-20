@@ -335,12 +335,15 @@ class ValidatorBase:
 
     __slots__ = ('_choices', '_value', '_string')
     # overwrite this method
-    _parse = None
 
     def __init__(self, default=NOT_DEFINED, choices=None):
         self._string = NOT_DEFINED
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
+
+    @staticmethod
+    def _parse(string):
+        """Abstract method to be overwritten"""
 
     def validate(self, value):
         """Parse a string and return its value,
@@ -508,6 +511,39 @@ class Validator:
              }
     )
 
+    _validators = {'base': ValidatorBase, 'range': RangeValidator}
+
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
-        parser = cls.parsers[typ]
-        return parser(default=default, choices=choices)
+        if typ not in cls.parsers:
+            raise ValueError(f"Validator '{typ}' not defined")
+        return cls.parsers[typ](default=default, choices=choices)
+
+    @classmethod
+    def add_validator(cls, name, func, typ='base'):
+        """Add a new custom validator.
+
+        Parameters
+        ----------
+        name: str
+            name of the validator typ
+        func: function
+            validation function, should raise ValueError on fail
+        typ: str, optional
+            typ of validator, currently: base, range
+
+        Raises
+        ------
+        ValueError
+            In case the typ is unknown
+        """
+        base_cls = cls._validators.get(typ, None)
+        if base_cls is None:
+            raise ValueError(f"Validator type '{typ}' not known")
+        parser_name = name.capitalize() + "Validator"
+        cls.parsers[name] = type(parser_name, (base_cls,), {'_parse': staticmethod(func)})
+
+    @classmethod
+    def remove_validator(cls, name):
+        """Remove validator """
+        if name in cls.parsers:
+            del cls.parsers[name]

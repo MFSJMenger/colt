@@ -9,6 +9,7 @@ from .generator import GeneratorNavigator
 #
 from .questions import QuestionASTGenerator
 from .questions import QuestionASTVisitor
+from .questions import Component
 #
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists
@@ -37,17 +38,7 @@ def is_existing_file(config):
         return False
 
 
-class _QuestionComponent(ABC):
-    """Basic Component to be visited from the QuestionVisitor"""
-
-    __slots__ = ()
-
-    @abstractmethod
-    def accept(self, visitor):
-        pass
-
-
-class _QuestionsContainerBase(_QuestionComponent):
+class _QuestionsContainerBase(Component):
     """Base class to contain question containers"""
 
     __slots__ = ('name', 'parent_name', '_name')
@@ -65,15 +56,24 @@ class _QuestionsContainerBase(_QuestionComponent):
         return self._name
 
 
-class _ConcreteQuestionBase(_QuestionComponent):
+class _ConcreteQuestionBase(Component):
     """Logic of each actual question"""
 
     __slots__ = ("name", "parent_name", "_name", "is_set")
 
-    def __init__(self, name, accept_empty=False):
+    def __init__(self, name):
         self.name = name
         self.parent_name, self._name = split_keys(name)
         self.is_set = False
+
+    @property
+    def answer(self):
+        """Used to set/get user input, needs to be overwritten"""
+        return ""
+
+    @property
+    def accept_empty(self):
+        return False
 
     @property
     def label(self):
@@ -138,7 +138,7 @@ class LiteralBlock(_ConcreteQuestionBase):
 
     def __init__(self, name, qform):
         #
-        _ConcreteQuestionBase.__init__(self, name, accept_empty=True)
+        _ConcreteQuestionBase.__init__(self, name)
         # register self
         qform.literals[name] = self
         #
@@ -163,7 +163,7 @@ class LiteralBlock(_ConcreteQuestionBase):
 
     @property
     def accept_empty(self):
-        return False
+        return True
 
     def preset(self, value, choices):
         raise Exception(f"preset not defined for Literalblock")
@@ -276,6 +276,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
 
 class QuestionBlock(_QuestionsContainerBase, UserDict):
+    """Store a question block"""
 
     def __init__(self, name, concrete, blocks, qform):
         _QuestionsContainerBase.__init__(self, name, qform)
@@ -304,6 +305,7 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
 
 
 class SubquestionBlock(_QuestionsContainerBase):
+    """Container for the cases spliting"""
 
     def __init__(self, name, main_question, cases, parent):
         _QuestionsContainerBase.__init__(self, name, parent)
@@ -371,10 +373,13 @@ def answer_iter(name, dct, default_name):
 
 
 class QuestionVisitor(ABC):
+    """Base class to define visitors for the question form
+    the entry point is always the `QuestionForm`"""
 
     __slots__ = ()
 
     def visit(self, qform, **kwargs):
+        """Visit a question form"""
         return qform.accept(self, **kwargs)
 
     @abstractmethod
@@ -424,8 +429,8 @@ class QuestionVisitor(ABC):
         for question in block.concrete.values():
             question.accept(self)
         #
-        for block in block.blocks.values():
-            block.accept(self)
+        for subblock in block.blocks.values():
+            subblock.accept(self)
 
 
 def block_not_set(block_name, keys):
@@ -438,6 +443,7 @@ def block_not_set(block_name, keys):
 
 
 class ColtErrorAnswerNotDefined(Exception):
+    """Error if answer is not defined"""
 
     def __init__(self, msg):
         super().__init__()
@@ -451,6 +457,7 @@ class ColtErrorAnswerNotDefined(Exception):
 
 
 class AnswerVistor(QuestionVisitor):
+    """Visitor to collect answers from a given qform"""
 
     __slots__ = ('check', 'not_set')
 
@@ -459,6 +466,13 @@ class AnswerVistor(QuestionVisitor):
         self.check = False
 
     def visit_qform(self, qform, check=False):
+        """Visit the qform
+
+        Raises
+        ------
+        ColtErrorAnswerNotDefined
+            in case an answer is not defined
+        """
         self.not_set = {}
         self.check = check
         answer = qform.form.accept(self)
@@ -467,9 +481,6 @@ class AnswerVistor(QuestionVisitor):
                 raise ColtErrorAnswerNotDefined(self._create_exception(self.not_set))
         self.not_set = {}
         return answer
-
-    def _create_exception(self, not_set):
-        return "\n".join(block_not_set(block, values) for block, values in not_set.items())
 
     def visit_question_block(self, block):
         """Visit the question block and store all results in a Mapping"""
@@ -502,8 +513,15 @@ class AnswerVistor(QuestionVisitor):
     def visit_literal_block(self, block):
         return block.get_answer()
 
+    @staticmethod
+    def _create_exception(not_set):
+        return "\n".join(block_not_set(block, values) for block, values in not_set.items())
+
 
 class SettingsVistor(QuestionVisitor):
+    """Get the settings for the javascript interface"""
+
+    __slots__ = ()
 
     def visit_qform(self, qform, **kwargs):
         return qform.form.accept(self)
@@ -513,8 +531,8 @@ class SettingsVistor(QuestionVisitor):
                                        for question in block.concrete.values()},
                             'previous': None}}
         #
-        for block in block.blocks.values():
-            out.update(block.accept(self))
+        for subblock in block.blocks.values():
+            out.update(subblock.accept(self))
         return out
 
     def visit_concrete_question_select(self, question):
@@ -677,6 +695,7 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
 
 class ErrorSettingAnswerFromFile(Exception):
     """errors setting answers from file"""
+    __slots__ = ('filename', 'msg')
 
     def __init__(self, filename, msg):
         super().__init__()
@@ -692,6 +711,7 @@ class ErrorSettingAnswerFromFile(Exception):
 
 class ErrorSettingAnswerFromDict(Exception):
     """Error when trying to read answers from a dict"""
+    __slots__ = ('msg',)
 
     def __init__(self, msg):
         super().__init__()
@@ -704,8 +724,10 @@ class ErrorSettingAnswerFromDict(Exception):
         return f"ErrorSettingAnswerFromDict:\n{self.msg}"
 
 
-class QuestionForm(Mapping, _QuestionComponent):
+class QuestionForm(Mapping, Component):
     """Main interface to the question forms"""
+    #
+    __slots__ = ('blocks', 'literals', 'unset', 'form')
     # visitor to generate answers
     answer_visitor = AnswerVistor()
     # visitor to create settings

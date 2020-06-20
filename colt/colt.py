@@ -267,7 +267,7 @@ class CommandlineInterface(Colt):
         return self.function(**answers)
 
 
-def from_commandline(questions, description=None):
+def from_commandline(questions, *, description=None):
     """Decorate a function to call it using commandline arguments
 
     Parameters

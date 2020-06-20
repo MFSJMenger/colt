@@ -1,12 +1,12 @@
 import pytest
 #
-from colt.generator import GeneratorBase
+from colt.generator import Generator
 
 
 @pytest.fixture
 def dict_generator():
 
-    class DictGenerator(GeneratorBase):
+    class DictGenerator(Generator):
 
         leafnode_type = str
 

@@ -13,7 +13,7 @@ class GeneratorNavigator:
        through a generator output
 
        Sometimes its usefull to have access only to this logic
-       without the whole `GeneratorBase` class
+       without the whole `Generator` class
     """
     #
     seperator = "::"
@@ -94,7 +94,7 @@ class GeneratorNavigator:
         return tree
 
 
-class GeneratorBase(GeneratorNavigator, Mapping):
+class Generator(GeneratorNavigator, Mapping):
     """Contains all core logic to generate
        code from a given config string/file
 
@@ -138,7 +138,7 @@ class GeneratorBase(GeneratorNavigator, Mapping):
             config(string):
                 string that should be converted in the tree
         """
-        if isinstance(treeconfig, GeneratorBase):
+        if isinstance(treeconfig, Generator):
             self.tree = treeconfig.tree
             self._keys = treeconfig._keys
             return
@@ -451,13 +451,13 @@ class GeneratorBase(GeneratorNavigator, Mapping):
 
     def _get_keys_and_subtree(self, configtree, name=None, parentnode=None):
         """update the tree keys and get a particular node"""
-        if isinstance(configtree, GeneratorBase):
+        if isinstance(configtree, Generator):
             keys = self._get_keys(configtree.keys(), name=name, parentnode=parentnode)
             subtree = configtree.tree
         elif isinstance(configtree, str):
             subtree, keys = self._configstring_to_keys_and_tree(configtree)
         else:
-            raise TypeError("Generator only accepts type string or GeneratorBase!")
+            raise TypeError("Generator only accepts type string or Generator!")
         return subtree, keys
 
     def _generate_tree(self, config):
