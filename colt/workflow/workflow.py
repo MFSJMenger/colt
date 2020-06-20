@@ -67,9 +67,9 @@ class WorkflowGenerator:
         return None, need_self, iterator_id, progress_bar
 
     def create_workflow(self, name, nodes, add_workflow=False, output=None):
-        wf = Workflow(name, nodes, self.actions)
+        workflw = Workflow(name, nodes, self.actions)
         if add_workflow is True:
-            func, arg_types, return_typ = wf.get_function(output=output)
+            func, arg_types, return_typ = workflw.get_function(output=output)
             self.actions[name] = Action(func, arg_types, {}, return_typ)
         return wf
 

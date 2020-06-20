@@ -18,10 +18,10 @@ Features
 .. code:: python
 
    # examples/commandline_xrange.py
-   from colt import FromCommandline
+   from colt import from_commandline
 
 
-   @FromCommandline("""
+   @from_commandline("""
    # start of the range
    xstart = :: int :: >0
    # end of the range
