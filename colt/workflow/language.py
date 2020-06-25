@@ -49,8 +49,8 @@ class FunctionCall:
             if isinstance(arg, Kwargument):
                 kwargs[i] = arg
         #
-        nargs = nargs - len(kwargs) + 1
-        if any(val < nargs for val in kwargs):
+        nargs = nargs - len(kwargs)
+        if any(val > nargs for val in kwargs):
             raise Exception("first all arguements then kwargs")
         if nargs != action.nargs:
             raise Exception("Number of arguments not in agreement")
