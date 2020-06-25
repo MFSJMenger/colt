@@ -71,7 +71,7 @@ class WorkflowGenerator:
         if add_workflow is True:
             func, arg_types, return_typ = workflw.get_function(output=output)
             self.actions[name] = Action(func, arg_types, {}, return_typ)
-        return wf
+        return workflw
 
     @staticmethod
     def generate_workflow_file(filename, name, workflow, module, engine):
