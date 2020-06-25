@@ -168,8 +168,8 @@ class Parser:
 
     re_int = re.compile(r'(?P<number>[-+]?\d+)')
     re_float = re.compile(r'(?P<number>[-+]?\d+\.\d*)')
-    re_string_double_quotes = re.compile(r'\"(?P<string>.*)\"')
-    re_string_single_quotes = re.compile(r'\'(?P<string>.*)\'')
+    re_string_double_quotes = re.compile(r'\"(?P<string>.*?)\"')
+    re_string_single_quotes = re.compile(r'\'(?P<string>.*?)\'')
     re_variable = re.compile(r"(?P<string>\w+)")
 
     re_lpar = re.compile(r'\(')
