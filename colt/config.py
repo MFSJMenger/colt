@@ -73,10 +73,10 @@ class ConfigParser(MutableMapping):
             header = cls._header(line)
             if header is not None:
                 if header != currentheader:
-                    return "\n".join(string), header
+                    return "".join(string), header
                 continue
             string.append(line)
-        return "\n".join(string), None
+        return "".join(string), None
 
     @classmethod
     def get_literals(cls, header, literals, fileiter):

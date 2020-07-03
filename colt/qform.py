@@ -518,57 +518,6 @@ class AnswerVistor(QuestionVisitor):
         return "\n".join(block_not_set(block, values) for block, values in not_set.items())
 
 
-class SettingsVistor(QuestionVisitor):
-    """Get the settings for the javascript interface"""
-
-    __slots__ = ()
-
-    def visit_qform(self, qform, **kwargs):
-        return qform.form.accept(self)
-
-    def visit_question_block(self, block):
-        out = {block.name: {'fields': {question.name: question.accept(self)
-                                       for question in block.concrete.values()},
-                            'previous': None}}
-        #
-        for subblock in block.blocks.values():
-            out.update(subblock.accept(self))
-        return out
-
-    def visit_concrete_question_select(self, question):
-        return {"type": "select",
-                "label": question.label,
-                "id": question.id,
-                "value": question.answer,
-                "is_set": question.is_set,
-                "options": question.choices.as_list(),
-                "is_optional": question.is_optional,
-                "typ": question.typ,
-                "comment": question.comment,
-                }
-
-    def visit_concrete_question_input(self, question):
-        return {"type": "input",
-                "label": question.label,
-                "id": question.id,
-                "value": question.answer,
-                "is_set": question.is_set,
-                "placeholder": question.placeholder,
-                "is_optional": question.is_optional,
-                "typ": question.typ,
-                "comment": question.comment,
-                }
-
-    def visit_literal_block(self, block):
-        value = block.get_answers()
-        if value is None:
-            value = ''
-        return {"type": "literal",
-                "label": block.label,
-                "value": value,
-                }
-
-
 class QuestionGeneratorVisitor(QuestionASTVisitor):
     """QuestionASTVisitor, to fill a qform"""
 
@@ -730,8 +679,6 @@ class QuestionForm(Mapping, Component):
     __slots__ = ('blocks', 'literals', 'unset', 'form')
     # visitor to generate answers
     answer_visitor = AnswerVistor()
-    # visitor to create settings
-    settings_visitor = SettingsVistor()
     # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 
@@ -756,9 +703,11 @@ class QuestionForm(Mapping, Component):
 
     @property
     def is_all_set(self):
+        """check if all questions are answered"""
         return all(block.is_set for block in self.values())
 
     def set_answer(self, name, answer):
+        """Set the answer of a question"""
         if answer == "":
             return False
         #
@@ -774,51 +723,44 @@ class QuestionForm(Mapping, Component):
         #
         return is_set
 
-    def update_select(self, name, answer):
-        out = {'delete': {}, 'setup': {}}
-        #
-        if answer == "":
-            return out
-        #
-        block, key = self._split_keys(name)
-        #
-        if key in block.blocks:
-            block = block.blocks[key]
-            if block.answer == answer:
-                return out
-            out['delete'] = block.get_delete_blocks()
-            #
-            block.answer = answer
-            out['setup'] = block.accept(self.settings_visitor)
-        else:
-            block.concrete[key].answer = answer
-        return out
-
-    def generate_setup(self, presets=None):
-        if presets is not None:
-            self.set_presets(presets)
-        return self.settings_visitor.visit(self)
-
     def get_answers(self, check=True):
         """Get the answers from the forms
 
-            Kwargs:
-                check, bool:
-                    if True, raise exception in case answers are not answered!
-                    if False, dont check, missing answers are given as ""
+        Parameter
+        ---------
 
+        check: bool
+            if False, raise no exception in case answers are not set
+                      missing answers are given as empty strings
+
+        Returns
+        -------
+        AnswersBlock
+            dictionary with the parsed and validated userinput
+
+        Raises
+        ------
+        ColtErrorAnswerNotDefined
+            if `check` is True, raises error in case answers are not given
         """
         return self.answer_visitor.visit(self, check=check)
 
     def get_blocks(self):
+        """return blocks"""
         return self.form.get_blocks()
 
     def write_config(self, filename):
         """ get a linear config and write it to the file"""
         config = {}
         for blockname in self.get_blocks():
+            # normal blocks
             config[blockname] = {key: question.get_answer_as_string()
-                                 for key, question in self.blocks[blockname].concrete.items()}
+                                 for key, question in self.blocks[blockname].concrete.items()
+                                 if not isinstance(question, LiteralBlock)}
+            # add literal blocks
+            config.update({question.id: question.get_answer_as_string()
+                           for _, question in self.blocks[blockname].concrete.items()
+                           if isinstance(question, LiteralBlock)})
 
         default_name = ''
         with open(filename, 'w') as fhandle:
