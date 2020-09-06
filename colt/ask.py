@@ -82,8 +82,12 @@ class CommandlineVisitor(QuestionVisitor):
             text = self._generate_input_question_text(question)
             self._ask_question(text, question, question.comment)
 
+    def visit_concrete_question_hidden(self, question):
+        pass
+
     def visit_literal_block(self, block):
         pass
+
 
     def _generate_input_question_text(self, question):
         txt = self._basic_question_text(question)

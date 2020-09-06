@@ -76,6 +76,10 @@ class CommandlineParserVisitor(QuestionVisitor):
         """create a concrete parser and add it to the current parser"""
         self.add_concrete_to_parser(question)
 
+    def visit_concrete_question_hidden(self, question):
+        """create a concrete parser and add it to the current parser"""
+        self.add_concrete_to_parser(question, is_hidden=True)
+
     def visit_literal_block(self, block):
         """do nothing when visiting literal blocks"""
 
@@ -136,11 +140,14 @@ class CommandlineParserVisitor(QuestionVisitor):
         #
         return comment
 
-    def add_concrete_to_parser(self, question):
+    def add_concrete_to_parser(self, question, is_hidden=False):
         """adds a concrete question to the current active parser"""
         default, name = self._get_default_and_name(question)
         #
-        comment = self.get_comment(question)
+        if is_hidden is True:
+            comment = argparse.SUPPRESS
+        else:
+            comment = self.get_comment(question)
         #
         self.parser.add_argument(name, metavar=question.label, type=_QuestionType(question),
                                  default=default, help=comment)

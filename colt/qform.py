@@ -187,9 +187,10 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     """Concrete question"""
 
     __slots__ = ("_value", "_comment", "is_subquestion_main",
-                 "question", "typ", "is_optional")
+                 "question", "typ", "is_optional", "is_hidden")
 
     def __init__(self, name, question, is_subquestion=False):
+        #
         _ConcreteQuestionBase.__init__(self, name)
         #
         self._value = Validator(question.typ, default=question.default, choices=question.choices)
@@ -204,6 +205,11 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
         self.is_optional = question.is_optional
         self.is_subquestion_main = is_subquestion
+        #
+        if name.startswith('_'):
+            self.is_hidden = True
+        else:
+            self.is_hidden = False
 
     @property
     def accept_empty(self):
@@ -216,11 +222,18 @@ class ConcreteQuestion(_ConcreteQuestionBase):
             return None
         return answer
 
+    @property
+    def validator(self):
+        return self._value
+
     def get_answer_as_string(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         return self._value.answer_as_string()
 
     def accept(self, visitor):
+        if self.is_hidden is True:
+            return visitor.visit_concrete_question_hidden(self)
+        #
         if isinstance(self.choices, Choices):
             return visitor.visit_concrete_question_select(self)
         return visitor.visit_concrete_question_input(self)
@@ -395,6 +408,10 @@ class QuestionVisitor(ABC):
         pass
 
     @abstractmethod
+    def visit_concrete_question_hidden(self, question):
+        pass
+
+    @abstractmethod
     def visit_concrete_question_input(self, question):
         pass
 
@@ -456,7 +473,7 @@ class ColtErrorAnswerNotDefined(Exception):
         return f"ColtErrorAnswerNotDefined:\n{self.msg}"
 
 
-class AnswerVistor(QuestionVisitor):
+class AnswerVisitor(QuestionVisitor):
     """Visitor to collect answers from a given qform"""
 
     __slots__ = ('check', 'not_set')
@@ -508,6 +525,9 @@ class AnswerVistor(QuestionVisitor):
         return question.get_answer()
 
     def visit_concrete_question_input(self, question):
+        return question.get_answer()
+
+    def visit_concrete_question_hidden(self, question):
         return question.get_answer()
 
     def visit_literal_block(self, block):
@@ -678,7 +698,7 @@ class QuestionForm(Mapping, Component):
     #
     __slots__ = ('blocks', 'literals', 'unset', 'form')
     # visitor to generate answers
-    answer_visitor = AnswerVistor()
+    answer_visitor = AnswerVisitor()
     # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 
