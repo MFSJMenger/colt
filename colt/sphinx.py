@@ -6,6 +6,74 @@ from sphinx.util.docutils import SphinxDirective
 #
 from .questions import QuestionASTGenerator, NOT_DEFINED
 from .validator import Validator
+from .qform import QuestionVisitor, QuestionForm
+
+
+class SphinxGeneratorVisitor(QuestionVisitor):
+
+    def visit_qform(self, qform, **kwargs):
+        pass
+
+    def visit_question_block(self, block):
+        pass
+
+    def visit_concrete_question_select(self, question):
+        return self._add_concrete_question(question)
+
+    def visit_concrete_question_hidden(self, question):
+        pass
+
+    def visit_concrete_question_input(self, question):
+        return self._add_concrete_question(question)
+
+    def visit_literal_block(self, block):
+        node = nodes.line(f'{block.name}', f"{block.name}, ")
+        node += nodes.strong(f'LiteralBlock',
+                             f'LiteralBlock')
+        return [node]
+
+    def visit_subquestion_block(self, block):
+        pass
+
+    def _add_concrete_question(self, question):
+        body, content = self._generate_body_as_literal(question)
+        nodes = [self._generate_title_line(question.name, question, content)]
+        if content:
+            nodes.append(body)
+        return nodes
+
+    @staticmethod
+    def _generate_title_line(key, question, content):
+        node = nodes.line(f'{key}', f"{key}, ")
+        node += nodes.strong(f'{question.typ}',
+                             f'{question.typ}')
+        if content:
+            node += nodes.raw(':', ':')
+        return node
+
+    @staticmethod
+    def _generate_body_as_literal(question):
+        content = False
+        text = ""
+        validator = question.validator
+        #
+        default = validator.get()
+        if default is not NOT_DEFINED:
+            txt = f' default: {default}'
+            if question.choices is not None:
+                txt += f', from {validator.choices}'
+            text += txt + '\n'
+        #
+        elif question.choices is not None:
+            txt = f' Condition = {validator.choices}'
+            text += txt + '\n'
+        #
+        if question.comment is not None:
+            text += question.comment
+        #
+        if text != "":
+            content = True
+        return nodes.literal_block(text, text), content
 
 
 class ColtDirective(SphinxDirective):
@@ -27,25 +95,21 @@ class ColtDirective(SphinxDirective):
                    'class': str,
                    }
 
+
     def run(self):
-        questions = self._load_questions()
+        visitor = SphinxGeneratorVisitor()
+        qform = QuestionForm(self._load_questions())
         #
         main_node = nodes.topic('')
         #
-        for key, value in questions.block_items():
+        for block_name, block in qform.blocks.items():
             #
-            node = self._make_title(key)
+            node = self._make_title(block_name)
             #
-            _nodes = [node]
+            main_node += node
             #
-            for _key, question in value.concrete_items():
-                body, content = self._generate_body_as_literal(question)
-                _nodes.append(self._generate_title_line(_key, question, content))
-                if content:
-                    _nodes.append(body)
-            #
-            for node in _nodes:
-                main_node += node
+            for question in block.concrete.values():
+                main_node += question.accept(visitor)
         #
         name = self.options.get('name', None)
         #
@@ -61,40 +125,6 @@ class ColtDirective(SphinxDirective):
         node = nodes.line('', '')
         node += nodes.strong(txt, txt)
         return node
-
-    @staticmethod
-    def _generate_title_line(key, question, content):
-        node = nodes.line(f'{key}', f"{key}, ")
-        node += nodes.strong(f'{question.typ}:',
-                             f'{question.typ}:')
-        if content:
-            node += nodes.raw(':', ':')
-        return node
-
-    @staticmethod
-    def _generate_body_as_literal(question):
-        content = False
-        text = ""
-        validator = Validator(question.typ, default=question.default,
-                              choices=question.choices)
-        #
-        default = validator.get()
-        if default is not NOT_DEFINED:
-            txt = f' default: {question.default}'
-            if question.choices is not None:
-                txt += f', from {validator.choices}'
-            text += txt + '\n'
-        #
-        elif question.choices is not None:
-            txt = f' Condition = {validator.choices}'
-            text += txt + '\n'
-        #
-        if question.comment is not NOT_DEFINED:
-            text += question.comment
-        #
-        if text != "":
-            content = True
-        return nodes.literal_block(text, text), content
 
     def _load_questions(self):
         module_name = self.arguments[0]
