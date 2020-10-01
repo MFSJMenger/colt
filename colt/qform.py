@@ -874,7 +874,7 @@ class QuestionForm(Mapping, Component):
             except ValueError:
                 errmsg += f"\n{key} = {answer}, ValueError"
             except ValidatorErrorNotInChoices as err_choices:
-                errmsg += (f"\n{key} = {answer}, Wrong Choice: can only be "
+                errmsg += (f"\n{key} = {answer}, Wrong Choice: "
                            f"{err_choices}")
         if errmsg != "":
             return error + errmsg
