@@ -861,7 +861,7 @@ class QuestionForm(Mapping, Component):
         block = self.blocks[blockname]
         for key, answer in answers.items():
             if key not in block:
-                print("key not known")
+                print(f"key '{key}' in block '{block}'  not known")
                 continue
             question = block[key]
             if answer == "":
