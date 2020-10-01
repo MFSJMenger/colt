@@ -30,6 +30,8 @@ class SphinxGeneratorVisitor(QuestionVisitor):
         node = nodes.line(f'{block.name}', f"{block.name}, ")
         node += nodes.strong(f'LiteralBlock',
                              f'LiteralBlock')
+        if block.comment is not NOT_DEFINED:
+            return [node, nodes.literal_block(block.comment, block.comment)]
         return [node]
 
     def visit_subquestion_block(self, block):

@@ -134,15 +134,16 @@ class LiteralBlockString(UserString):
 class LiteralBlock(_ConcreteQuestionBase):
     """LiteralBlock Node"""
 
-    __slots__ = ("_answer",)
+    __slots__ = ("_answer", 'comment')
 
-    def __init__(self, name, qform):
+    def __init__(self, name, comment, qform):
         #
         _ConcreteQuestionBase.__init__(self, name)
         # register self
         qform.literals[name] = self
         #
         self._answer = LiteralBlockString(None)
+        self.comment = comment
         #
 
     @property
@@ -620,7 +621,7 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
 
     def visit_literal_block(self, question):
         """block needs to be in a concrete section"""
-        self.concrete[self.qname] = LiteralBlock(self.question_id, self.qform)
+        self.concrete[self.qname] = LiteralBlock(self.question_id, question.comment, self.qform)
 
     def visit_question(self, question):
         """question needs to be in concrete section"""

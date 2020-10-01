@@ -72,10 +72,11 @@ class Question(Component):
 class LiteralBlockQuestion(Component):
     """LiteralBlock Node in the QuestionASTGenerator"""
 
-    __slots__ = ('name',)
+    __slots__ = ('name', 'comment')
 
-    def __init__(self, name):
+    def __init__(self, name, comment):
         self.name = name
+        self.comment = comment
 
     def __eq__(self, other):
         if not isinstance(other, Question):
@@ -218,7 +219,7 @@ class QuestionASTGenerator(Component, Generator):
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
-            return LiteralBlockQuestion(name)
+            return LiteralBlockQuestion(name, comment)
         # get default
         default = self._parse_default(value.default)
         # get question
