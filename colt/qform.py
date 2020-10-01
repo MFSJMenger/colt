@@ -459,18 +459,11 @@ def block_not_set(block_name, keys):
     return txt + "\n"
 
 
-class ColtErrorAnswerNotDefined(Exception):
+class ColtErrorAnswerNotDefined(SystemExit):
     """Error if answer is not defined"""
 
     def __init__(self, msg):
-        super().__init__()
-        self.msg = msg
-
-    def __repr__(self):
-        return f"ColtErrorAnswerNotDefined:\n{self.msg}"
-
-    def __str__(self):
-        return f"ColtErrorAnswerNotDefined:\n{self.msg}"
+        super().__init__(f"ColtErrorAnswerNotDefined:\n{msg}")
 
 
 class AnswerVisitor(QuestionVisitor):
@@ -662,35 +655,19 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
         self.blocks = blocks
 
 
-class ErrorSettingAnswerFromFile(Exception):
+class ErrorSettingAnswerFromFile(SystemExit):
     """errors setting answers from file"""
-    __slots__ = ('filename', 'msg')
 
     def __init__(self, filename, msg):
-        super().__init__()
-        self.filename = filename
-        self.msg = msg
-
-    def __repr__(self):
-        return f"ErrorSettingAnswerFromFile: file = '{self.filename}'\n{self.msg}"
-
-    def __str__(self):
-        return f"ErrorSettingAnswerFromFile: file = '{self.filename}'\n{self.msg}"
+        super().__init__(f"ErrorSettingAnswerFromFile: file = '{filename}'\n{msg}")
 
 
-class ErrorSettingAnswerFromDict(Exception):
+
+class ErrorSettingAnswerFromDict(SystemExit):
     """Error when trying to read answers from a dict"""
-    __slots__ = ('msg',)
 
     def __init__(self, msg):
-        super().__init__()
-        self.msg = msg
-
-    def __repr__(self):
-        return f"ErrorSettingAnswerFromDict:\n{self.msg}"
-
-    def __str__(self):
-        return f"ErrorSettingAnswerFromDict:\n{self.msg}"
+        super().__init__(f"ErrorSettingAnswerFromDict:\n{msg}")
 
 
 class QuestionForm(Mapping, Component):

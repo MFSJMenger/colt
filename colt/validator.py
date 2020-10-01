@@ -365,7 +365,7 @@ class ValidatorBase:
         """
         value = self._parse(str(value))
         if not self._choices.validate(value):
-            raise ValidatorErrorNotInChoices("Answer is not in {self._choices}")
+            raise ValidatorErrorNotInChoices(f"Answer is not in {self._choices}")
         return value
 
     def answer_as_string(self):
