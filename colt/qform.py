@@ -43,13 +43,14 @@ class _QuestionsContainerBase(Component):
 
     __slots__ = ('name', 'parent_name', '_name')
 
-    def __init__(self, name, qform):
+    def __init__(self, name, qform, *, register=True):
         #
         self.name = name
         #
         self.parent_name, self._name = split_keys(name)
         # register block
-        qform.blocks[name] = self
+        if register is True:
+            qform.blocks[name] = self
 
     @property
     def label(self):
@@ -120,7 +121,7 @@ class LiteralBlockString(UserString):
     """UserString to contain a literalblock, the string can also be empty"""
 
     def __init__(self, string):
-        if string is None:
+        if string in [None, NOT_DEFINED]:
             self.is_none = True
             string = ''
         elif isinstance(string, LiteralBlockString):
@@ -322,7 +323,7 @@ class SubquestionBlock(_QuestionsContainerBase):
     """Container for the cases spliting"""
 
     def __init__(self, name, main_question, cases, parent):
-        _QuestionsContainerBase.__init__(self, name, parent)
+        _QuestionsContainerBase.__init__(self, name, parent, register=False)
         #
         self.main_question = main_question
         #
@@ -357,6 +358,13 @@ class SubquestionBlock(_QuestionsContainerBase):
 
     def get_delete_blocks(self):
         return {block: None for block in self.get_blocks()}
+
+    @property
+    def concrete(self):
+        answer = self.answer
+        if answer in ("", None):
+            return {}
+        return self.cases[answer].concrete
 
 
 def generate_string(name, value):
