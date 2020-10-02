@@ -212,7 +212,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.is_optional = question.is_optional
         self.is_subquestion_main = is_subquestion
         #
-        if name.startswith('_'):
+        if self.short_name.startswith('_'):
             self.is_hidden = True
         else:
             self.is_hidden = False
