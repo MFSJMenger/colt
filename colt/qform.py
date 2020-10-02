@@ -68,6 +68,10 @@ class _ConcreteQuestionBase(Component):
         self.is_set = False
 
     @property
+    def short_name(self):
+        return self._name
+
+    @property
     def answer(self):
         """Used to set/get user input, needs to be overwritten"""
         return ""

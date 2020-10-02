@@ -39,7 +39,7 @@ class SphinxGeneratorVisitor(QuestionVisitor):
 
     def _add_concrete_question(self, question):
         body, content = self._generate_body_as_literal(question)
-        nodes = [self._generate_title_line(question.name, question, content)]
+        nodes = [self._generate_title_line(question.short_name, question, content)]
         if content:
             nodes.append(body)
         return nodes
