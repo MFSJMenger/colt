@@ -193,7 +193,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     """Concrete question"""
 
     __slots__ = ("_value", "_comment", "is_subquestion_main",
-                 "question", "typ", "is_optional", "is_hidden")
+                 "question", "typ", "is_optional", "is_hidden", "is_set_to_empty")
 
     def __init__(self, name, question, is_subquestion=False):
         #
@@ -211,6 +211,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
         self.is_optional = question.is_optional
         self.is_subquestion_main = is_subquestion
+        self.is_set_to_empty = False
         #
         if self.short_name.startswith('_'):
             self.is_hidden = True
@@ -224,8 +225,9 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
-        if self.is_optional is True and answer is NOT_DEFINED:
-            return None
+        if self.is_optional is True: 
+            if answer is NOT_DEFINED or self.is_set_to_empty is True:
+                return None
         return answer
 
     @property
@@ -879,6 +881,7 @@ class QuestionForm(Mapping, Component):
             if answer == "":
                 if question.is_optional:
                     question.is_set = True
+                    question.is_set_to_empty = True
                 continue
             #
             try:
