@@ -126,8 +126,6 @@ class CommandlineVisitor(QuestionVisitor):
 
     def _should_ask_question(self, question):
         """check weather to ask the question or not"""
-        print("self.ask_all = ", self.ask_all)
-        print("self.ask_defaults = ", self.ask_defaults)
         if self.ask_all is True:
             return True
         if self.ask_defaults is False:

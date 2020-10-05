@@ -380,7 +380,6 @@ class SubquestionBlock(_QuestionsContainerBase):
 
 
 def generate_string(name, value):
-    print(name, "value = ", value)
     if value is None:
         return f"{name} ="
     return f"{name} = {value}"
