@@ -226,7 +226,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
         if self.is_optional is True: 
-            if answer is NOT_DEFINED or self.is_set_to_empty is True:
+            if self.is_set_to_empty is True or answer is NOT_DEFINED:
                 return None
         return answer
 
@@ -236,6 +236,8 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 
     def get_answer_as_string(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
+        if self.is_set_to_empty is True:
+            return None
         return self._value.answer_as_string()
 
     def accept(self, visitor):
@@ -314,6 +316,10 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
         return all(question.is_set for question in self.concrete.values())
 
     @property
+    def is_set_or_default(self):
+        return all(question.accept_empty for question in self.concrete.values())
+
+    @property
     def answer(self):
         raise Exception("Answer not available for QuestionBlock")
 
@@ -374,12 +380,16 @@ class SubquestionBlock(_QuestionsContainerBase):
 
 
 def generate_string(name, value):
+    print(name, "value = ", value)
     if value is None:
         return f"{name} ="
     return f"{name} = {value}"
 
 
 def answer_iter(name, dct, default_name):
+    if dct is None:
+        return
+
     if isinstance(dct, LiteralBlockString):
         if dct.is_none is True:
             return

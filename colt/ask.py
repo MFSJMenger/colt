@@ -41,7 +41,8 @@ class CommandlineVisitor(QuestionVisitor):
     _helpkeys = (":help", ":h")
 
     def __init__(self):
-        self.ask_all = None
+        self.ask_all = False
+        self.ask_defaults = True
 
     def on_empty_entry(self, answer, question):
         print("Empty entry not possiple, please enter answer")
@@ -52,15 +53,30 @@ class CommandlineVisitor(QuestionVisitor):
     def on_wrong_choice(self, answer, question):
         print(f"Answer '{answer}' not in {question.choices}!")
 
-    def visit_qform(self, qform, description=None, ask_all=False):
+    def visit_qform(self, qform, *, description=None, ask_all=False, ask_defaults=True):
+        #
         self.ask_all = ask_all
+        self.ask_defaults = ask_defaults
+        #
         if description is not None:
             print(description)
         qform.form.accept(self)
 
+    def _print_block_name(self, block):
+        if block.name == '':
+            return
+        if self.ask_all is False:
+            if self.ask_defaults is True:
+                if block.is_set_or_default is True:
+                    return
+            else:
+                if block.is_set is True:
+                    return
+        print(f"[{block.name}]")
+
+
     def visit_question_block(self, block):
-        if block.name != '':
-            print(f"[{block.name}]")
+        self._print_block_name(block)
         self._visit_block(block)
 
     def visit_concrete_question_select(self, question):
@@ -88,7 +104,6 @@ class CommandlineVisitor(QuestionVisitor):
     def visit_literal_block(self, block):
         pass
 
-
     def _generate_input_question_text(self, question):
         txt = self._basic_question_text(question)
         return txt + ": "
@@ -111,8 +126,12 @@ class CommandlineVisitor(QuestionVisitor):
 
     def _should_ask_question(self, question):
         """check weather to ask the question or not"""
+        print("self.ask_all = ", self.ask_all)
+        print("self.ask_defaults = ", self.ask_defaults)
         if self.ask_all is True:
             return True
+        if self.ask_defaults is False:
+            return not question.accept_empty
         return not question.is_set
 
     def _ask_question(self, text, question, comment):
@@ -136,7 +155,7 @@ class AskQuestions(QuestionForm):
     visitor = CommandlineVisitor()
 
     def ask(self, description=None, config=None, ask_all=False,
-            presets=None, raise_read_error=True):
+            presets=None, raise_read_error=True, ask_defaults=True):
         """Main routine to get settings from the user,
         if all answers are set, and ask_all is not True
 
@@ -149,6 +168,9 @@ class AskQuestions(QuestionForm):
         ask_all: bool, optional
             whether to ask all questions, or skip those already set
 
+        ask_defaults: bool, optional
+            whether to ask questions with a default value
+
         presets: str, optional
             presets to be used
 
@@ -159,12 +181,12 @@ class AskQuestions(QuestionForm):
         """
         self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
         if ask_all is True:
-            return self._ask_impl(ask_all=ask_all, description=description)
+            return self._ask_impl(ask_all=ask_all, ask_defaults=ask_defaults, description=description)
         #
         if self.is_all_set:
             return self.get_answers()
         #
-        return self._ask_impl(ask_all=ask_all, description=description)
+        return self._ask_impl(ask_all=ask_all, ask_defaults=ask_defaults, description=description)
 
     def check_only(self, config=None, presets=None):
         """Check that all answers set by config are correct and
@@ -186,7 +208,7 @@ class AskQuestions(QuestionForm):
         self.set_answers_and_presets(config, presets)
         return self.get_answers(check=True)
 
-    def generate_input(self, filename, config=None, presets=None, ask_all=False):
+    def generate_input(self, filename, config=None, presets=None, ask_all=False, ask_defaults=True):
         """Generates an input file from user input
         Parameters
         ----------
@@ -210,11 +232,11 @@ class AskQuestions(QuestionForm):
         #
         self.set_answers_and_presets(config, presets)
         #
-        answer = self.ask(presets=presets, ask_all=ask_all)
+        answer = self.ask(presets=presets, ask_all=ask_all, ask_defaults=ask_defaults)
         self.write_config(filename)
         return answer
 
-    def _ask_impl(self, description=None, ask_all=False):
+    def _ask_impl(self, description=None, ask_all=False, ask_defaults=True):
         """Actuall routine to get settings from the user
 
         Parameters
@@ -233,6 +255,6 @@ class AskQuestions(QuestionForm):
         AnswerBlock
             user input
         """
-        self.visitor.visit(self, description=description, ask_all=ask_all)
+        self.visitor.visit(self, description=description, ask_all=ask_all, ask_defaults=ask_defaults)
         #
         return self.get_answers(check=False)

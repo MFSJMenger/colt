@@ -124,7 +124,7 @@ class Colt(metaclass=ColtMeta):
         return AskQuestions(cls.questions, config=config, presets=presets)
 
     @classmethod
-    def from_questions(cls, *args, check_only=False, config=None, presets=None, **kwargs):
+    def from_questions(cls, *args, check_only=False, ask_all=False, ask_defaults=True, config=None, presets=None, **kwargs):
         """Initizialze the class using `Colt` question utilities
 
         Parameters
@@ -139,6 +139,12 @@ class Colt(metaclass=ColtMeta):
         check_only: bool, optional
             If True, check that the settings in the configfile are correct
             If False, ask missing values
+
+        ask_all: bool, optional
+            ask all question
+
+        ask_defaults: bool, optional
+            ask the question with default values
 
         args, kwargs: optional
             arguments and keyword arguments passed to from_config aside from
@@ -157,9 +163,9 @@ class Colt(metaclass=ColtMeta):
             answers = questions.check_only()
         else:
             if config is None:
-                answers = questions.ask()
+                answers = questions.ask(ask_all=ask_all, ask_defaults=ask_defaults)
             else:
-                answers = questions.generate_input(config)
+                answers = questions.generate_input(config, ask_all=ask_all, ask_defaults=ask_defaults)
         #
         return cls.from_config(answers, *args, **kwargs)
 
@@ -214,7 +220,7 @@ class Colt(metaclass=ColtMeta):
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
-    def generate_input(cls, filename, config=None, presets=None):
+    def generate_input(cls, filename, *, config=None, presets=None, ask_all=False, ask_defaults=True):
         """Generate an inputfile that can later be used to initialze the class
 
         Parameters
@@ -223,6 +229,12 @@ class Colt(metaclass=ColtMeta):
         filename: str
             Name of the inputfile
 
+        ask_all: bool, optional
+            ask all question
+
+        ask_defaults: bool, optional
+            ask the question with default values
+    
         presets: str, optional
             presets for the questions
 
@@ -239,7 +251,7 @@ class Colt(metaclass=ColtMeta):
             colt question obj
         """
         questions = cls.generate_questions(config=config, presets=presets)
-        return questions.generate_input(filename)
+        return questions.generate_input(filename, ask_all=ask_all, ask_defaults=ask_defaults)
 
 
 class CommandlineInterface(Colt):
