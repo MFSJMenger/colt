@@ -268,6 +268,9 @@ class CommandlineInterface(Colt):
         self.function = function
         self.__doc__ = self.function.__doc__
 
+    def __repr__(self):
+        return repr(self.function)
+
     def __call__(self, *args, **kwargs):
         """If the function is called with arguments: use it as is
         Else: get the arguments from the commandline"""

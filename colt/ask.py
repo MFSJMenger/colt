@@ -40,9 +40,10 @@ class CommandlineVisitor(QuestionVisitor):
 
     _helpkeys = (":help", ":h")
 
-    def __init__(self):
+    def __init__(self, display_help=False):
         self.ask_all = False
         self.ask_defaults = True
+        self.display_help = display_help
 
     def on_empty_entry(self, answer, question):
         print("Empty entry not possiple, please enter answer")
@@ -74,13 +75,14 @@ class CommandlineVisitor(QuestionVisitor):
                     return
         print(f"[{block.name}]")
 
-
     def visit_question_block(self, block):
+        """Visit a questions block"""
         self._print_block_name(block)
         self._visit_block(block)
 
     def visit_concrete_question_select(self, question):
-        if self._should_ask_question(question) is True:
+        """Visit a concrete question"""
+        if self._should_ask(question) is True:
             text = self._generate_select_question_text(question)
             if question.has_only_one_choice is True:
                 # if only one choice, just print that one
@@ -94,7 +96,7 @@ class CommandlineVisitor(QuestionVisitor):
                     self._ask_question(text, question, question.comment)
 
     def visit_concrete_question_input(self, question):
-        if self._should_ask_question(question) is True:
+        if self._should_ask(question) is True:
             text = self._generate_input_question_text(question)
             self._ask_question(text, question, question.comment)
 
@@ -108,9 +110,13 @@ class CommandlineVisitor(QuestionVisitor):
         txt = self._basic_question_text(question)
         return txt + ": "
 
-    @staticmethod
-    def _basic_question_text(question):
-        txt = question.label
+    def _basic_question_text(self, question):
+        """generate display text"""
+        txt = ''
+        if self.display_help is True:
+            if question.comment is not None:
+                txt = question.comment + '\n'
+        txt += question.label
         # cache it
         answer = question.answer
         if answer is None:
@@ -124,7 +130,7 @@ class CommandlineVisitor(QuestionVisitor):
         txt += ", choices = (%s)" % (", ".join(str(opt) for opt in question.choices.as_list()))
         return txt + ": "
 
-    def _should_ask_question(self, question):
+    def _should_ask(self, question):
         """check weather to ask the question or not"""
         if self.ask_all is True:
             return True
@@ -134,12 +140,17 @@ class CommandlineVisitor(QuestionVisitor):
 
     def _ask_question(self, text, question, comment):
         """Ask the question, and handle events like :h, :help"""
-        answer = input(text).strip()  # strip is important!
+        try:
+            answer = input(text).strip()  # strip is important!
+        except KeyboardInterrupt:
+            raise SystemExit("KeyboardInterrupt: exit program") from None
+        
         if any(answer == helper for helper in self._helpkeys):
-            if comment is None:
-                print("No help available")
-            else:
-                print(comment)
+            if self.display_help is False:
+                if comment is None:
+                    print("No help available")
+                else:
+                    print(comment)
             return self._ask_question(text, question, comment)
         #
         if self.set_answer(question, answer) is False:
@@ -150,7 +161,7 @@ class CommandlineVisitor(QuestionVisitor):
 class AskQuestions(QuestionForm):
     """Questionform to ask questions from the commandline"""
 
-    visitor = CommandlineVisitor()
+    visitor = CommandlineVisitor(display_help=True)
 
     def ask(self, description=None, config=None, ask_all=False,
             presets=None, raise_read_error=True, ask_defaults=True):
