@@ -157,10 +157,7 @@ class LiteralBlock(_ConcreteQuestionBase):
 
     @property
     def answer(self):
-        answer = self.get_answer()
-        if answer is NOT_DEFINED:
-            return ""
-        return LiteralBlockString(answer)
+        return LiteralBlockString(self.get_answer())
 
     @answer.setter
     def answer(self, value):
@@ -182,7 +179,7 @@ class LiteralBlock(_ConcreteQuestionBase):
     def get_answer_as_string(self):
         """get string of answer"""
         if self._answer.is_none is True:
-            return None
+            return ''
         return self._answer
 
     def accept(self, visitor):
@@ -237,7 +234,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     def get_answer_as_string(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         if self.is_set_to_empty is True:
-            return None
+            return ''
         return self._value.answer_as_string()
 
     def accept(self, visitor):
@@ -486,6 +483,8 @@ def block_not_set(block_name, keys):
 class ColtErrorAnswerNotDefined(SystemExit):
     """Error if answer is not defined"""
 
+    __slots__ = ()
+
     def __init__(self, msg):
         super().__init__(f"ColtErrorAnswerNotDefined:\n{msg}")
 
@@ -682,6 +681,8 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
 class ErrorSettingAnswerFromFile(SystemExit):
     """errors setting answers from file"""
 
+    __slots__ = ()
+
     def __init__(self, filename, msg):
         super().__init__(f"ErrorSettingAnswerFromFile: file = '{filename}'\n{msg}")
 
@@ -690,8 +691,54 @@ class ErrorSettingAnswerFromFile(SystemExit):
 class ErrorSettingAnswerFromDict(SystemExit):
     """Error when trying to read answers from a dict"""
 
+    __slots__ = ()
+
     def __init__(self, msg):
         super().__init__(f"ErrorSettingAnswerFromDict:\n{msg}")
+
+
+class WriteAnswerVisitor(QuestionVisitor):
+    """Visitor to write the answers to a file"""
+
+    __slots__ = ('txt')
+
+    def visit_qform(self, qform, **kwargs):
+        self.txt = ''
+        for blockname in qform.get_blocks():
+            # normal blocks
+            qform[blockname].accept(self)
+        return self.txt
+
+    def visit_question_block(self, block):
+        if block.name != '':
+            self.txt += f'\n[{block.name}]\n'
+        # first all normal questions
+        for question in block.concrete.values():
+            if not isinstance(question, LiteralBlock):
+                question.accept(self)
+        # than literal blocks
+        for question in block.concrete.values():
+            if isinstance(question, LiteralBlock):
+                question.accept(self)
+
+    def visit_concrete_question_select(self, question):
+        self.txt += f'{question.short_name} = {question.get_answer_as_string()}\n'
+
+    def visit_concrete_question_hidden(self, question):
+        pass
+
+    def visit_concrete_question_input(self, question):
+        self.txt += f'{question.short_name} = {question.get_answer_as_string()}\n'
+
+    def visit_literal_block(self, block):
+        answer = block.answer
+        if answer.is_none is True:
+            return
+        self.txt += f'[{block.id}]\n{answer}\n'
+
+    def visit_subquestion_block(self, block):
+        """visit subquestion blocks"""
+        raise Exception("should never arrive in subquestion block!")
 
 
 class QuestionForm(Mapping, Component):
@@ -700,6 +747,8 @@ class QuestionForm(Mapping, Component):
     __slots__ = ('blocks', 'literals', 'unset', 'form')
     # visitor to generate answers
     answer_visitor = AnswerVisitor()
+    # visitor to write answers to file
+    write_visitor = WriteAnswerVisitor()
     # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 
@@ -773,6 +822,7 @@ class QuestionForm(Mapping, Component):
     def write_config(self, filename):
         """ get a linear config and write it to the file"""
         config = {}
+
         for blockname in self.get_blocks():
             # normal blocks
             config[blockname] = {key: question.get_answer_as_string()
@@ -785,8 +835,9 @@ class QuestionForm(Mapping, Component):
 
         default_name = ''
         with open(filename, 'w') as fhandle:
-            fhandle.write("\n".join(answer for key, answers in config.items()
-                                    for answer in answer_iter(key, answers, default_name)))
+            fhandle.write(self.write_visitor.visit(self))
+            #fhandle.write("\n".join(answer for key, answers in config.items()
+            #                        for answer in answer_iter(key, answers, default_name)))
 
     def set_answers_from_file(self, filename, raise_error=True):
         errmsg = self._set_answers_from_file(filename)
