@@ -52,6 +52,14 @@ class _QuestionsContainerBase(Component):
         if register is True:
             qform.blocks[name] = self
 
+    def __str__(self):
+        """Return full name"""
+        return self.name
+
+    def __repr__(self):
+        """Return full name"""
+        return self.name
+
     @property
     def label(self):
         return self._name
@@ -935,7 +943,7 @@ class QuestionForm(Mapping, Component):
         block = self.blocks[blockname]
         for key, answer in answers.items():
             if key not in block:
-                print(f"key '{key}' in block '{block}'  not known")
+                print(f"unknown key '{key}' in '[{block}]'")
                 continue
             question = block[key]
             if answer == "":
