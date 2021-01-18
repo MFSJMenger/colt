@@ -1,4 +1,5 @@
 from collections.abc import MutableMapping
+from io import StringIO
 import re
 
 
@@ -12,7 +13,10 @@ class FileIterable:
         self._fileiter = self._open(filename, options)
 
     def _open(self, filename, options):
-        fhandle = open(filename, options)
+        if isinstance(filename, StringIO):
+            fhandle = filename
+        else:
+            fhandle = open(filename, options)
         self.closed = False
         return fhandle
 

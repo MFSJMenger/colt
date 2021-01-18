@@ -2,6 +2,7 @@ from abc import abstractmethod, ABC
 from collections import UserDict, UserString
 from collections.abc import Mapping
 from contextlib import contextmanager
+from io import StringIO
 #
 from .answers import AnswersBlock, SubquestionsAnswer
 from .config import ConfigParser
@@ -382,36 +383,6 @@ class SubquestionBlock(_QuestionsContainerBase):
         if answer in ("", None):
             return {}
         return self.cases[answer].concrete
-
-
-def generate_string(name, value):
-    if value is None:
-        return f"{name} ="
-    return f"{name} = {value}"
-
-
-def answer_iter(name, dct, default_name):
-    if dct is None:
-        return
-
-    if isinstance(dct, LiteralBlockString):
-        if dct.is_none is True:
-            return
-    else:
-        if len(dct) == 0:
-            return
-
-    if name != default_name:
-        yield f'[{name}]'
-    else:
-        yield ''
-
-    if isinstance(dct, LiteralBlockString):
-        yield dct.data
-    else:
-        for _name, _value in dct.items():
-            yield generate_string(_name, _value)
-        yield ''
 
 
 class QuestionVisitor(ABC):
@@ -829,23 +800,10 @@ class QuestionForm(Mapping, Component):
 
     def write_config(self, filename):
         """ get a linear config and write it to the file"""
-        config = {}
-
-        for blockname in self.get_blocks():
-            # normal blocks
-            config[blockname] = {key: question.get_answer_as_string()
-                                 for key, question in self.blocks[blockname].concrete.items()
-                                 if not isinstance(question, LiteralBlock)}
-            # add literal blocks
-            config.update({question.id: question.get_answer_as_string()
-                           for _, question in self.blocks[blockname].concrete.items()
-                           if isinstance(question, LiteralBlock)})
-
-        default_name = ''
+        if isinstance(filename, StringIO):
+            return
         with open(filename, 'w') as fhandle:
             fhandle.write(self.write_visitor.visit(self))
-            #fhandle.write("\n".join(answer for key, answers in config.items()
-            #                        for answer in answer_iter(key, answers, default_name)))
 
     def set_answers_from_file(self, filename, raise_error=True):
         errmsg = self._set_answers_from_file(filename)
@@ -865,7 +823,7 @@ class QuestionForm(Mapping, Component):
         if config is not None:
             if isinstance(config, Mapping):
                 self.set_answers_from_dct(config, raise_error=raise_error)
-            elif is_existing_file(config):
+            elif isinstance(config, StringIO) or is_existing_file(config):
                 self.set_answers_from_file(config, raise_error=raise_error)
 
     def set_presets(self, presets):
