@@ -484,7 +484,7 @@ def create_validators(base_validators, range_validators):
     return out
 
 
-class Validator:
+class Validator(ValidatorBase):
     """Factory class"""
 
     parsers = create_validators(

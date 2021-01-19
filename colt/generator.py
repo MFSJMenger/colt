@@ -146,7 +146,7 @@ class Generator(GeneratorNavigator, Mapping):
         if not isinstance(treeconfig, str):
             raise TypeError("Generator only accepts type string!")
         self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig)
-    #
+
     @abstractmethod
     def leaf_from_string(self, name, value, parent=None):
         """Create a leaf from an entry in the config file

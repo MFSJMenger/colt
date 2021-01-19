@@ -5,7 +5,6 @@ from docutils import nodes
 from sphinx.util.docutils import SphinxDirective
 #
 from .questions import QuestionASTGenerator, NOT_DEFINED
-from .validator import Validator
 from .qform import QuestionVisitor, QuestionForm
 
 
@@ -28,8 +27,8 @@ class SphinxGeneratorVisitor(QuestionVisitor):
 
     def visit_literal_block(self, block):
         node = nodes.line(f'{block.name}', f"{block.name}, ")
-        node += nodes.strong(f'LiteralBlock',
-                             f'LiteralBlock')
+        node += nodes.strong('LiteralBlock',
+                             'LiteralBlock')
         if block.comment is not NOT_DEFINED:
             return [node, nodes.literal_block(block.comment, block.comment)]
         return [node]
@@ -97,7 +96,6 @@ class ColtDirective(SphinxDirective):
                    'class': str,
                    }
 
-
     def run(self):
         visitor = SphinxGeneratorVisitor()
         qform = QuestionForm(self._load_questions())
@@ -135,7 +133,7 @@ class ColtDirective(SphinxDirective):
             module = import_module(module_name)
         except ImportError:
             msg = f'Could not find module {module_name}'
-            raise Exception(msg)
+            raise Exception(msg) from None
 
         cls = self.options.get('class', None)
         if hasattr(module, cls):

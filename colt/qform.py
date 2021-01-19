@@ -178,7 +178,7 @@ class LiteralBlock(_ConcreteQuestionBase):
         return True
 
     def preset(self, value, choices):
-        raise Exception(f"preset not defined for Literalblock")
+        raise Exception("preset not defined for Literalblock")
 
     def get_answer(self):
         if self._answer.is_none is True:
@@ -231,7 +231,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     def get_answer(self):
         """get answer back, if is optional, return None if NOT_DEFINED"""
         answer = self._value.get()
-        if self.is_optional is True: 
+        if self.is_optional is True:
             if self.is_set_to_empty is True or answer is NOT_DEFINED:
                 return None
         return answer
@@ -666,7 +666,6 @@ class ErrorSettingAnswerFromFile(SystemExit):
         super().__init__(f"ErrorSettingAnswerFromFile: file = '{filename}'\n{msg}")
 
 
-
 class ErrorSettingAnswerFromDict(SystemExit):
     """Error when trying to read answers from a dict"""
 
@@ -677,16 +676,21 @@ class ErrorSettingAnswerFromDict(SystemExit):
 
 
 class WriteAnswerVisitor(QuestionVisitor):
-    """Visitor to write the answers to a file"""
+    """Visitor to write the answers to a string"""
 
-    __slots__ = ('txt')
+    __slots__ = ('txt',)
+
+    def __init__(self):
+        self.txt = ''
 
     def visit_qform(self, qform, **kwargs):
         self.txt = ''
         for blockname in qform.get_blocks():
             # normal blocks
             qform[blockname].accept(self)
-        return self.txt
+        txt = self.txt
+        self.txt = ''
+        return txt
 
     def visit_question_block(self, block):
         if block.name != '':
@@ -806,14 +810,14 @@ class QuestionForm(Mapping, Component):
             fhandle.write(self.write_visitor.visit(self))
 
     def set_answers_from_file(self, filename, raise_error=True):
-        errmsg = self._set_answers_from_file(filename)
-        if raise_error is True and errmsg is not None:
-            raise ErrorSettingAnswerFromFile(filename, errmsg)
+        error = self._set_answers_from_file(filename)
+        if raise_error is True and error.is_none() is False:
+            raise ErrorSettingAnswerFromDict(str(error))
 
     def set_answers_from_dct(self, dct, raise_error=True):
-        errmsg = self._set_answers_from_dct(dct)
-        if raise_error is True and errmsg is not None:
-            raise ErrorSettingAnswerFromDict(errmsg)
+        error = self._set_answers_from_dct(dct)
+        if raise_error is True and error.is_none() is False:
+            raise ErrorSettingAnswerFromDict(str(error))
 
     def set_answers_and_presets(self, config=None, presets=None, raise_error=True):
         """set both presets and answers"""
@@ -854,25 +858,29 @@ class QuestionForm(Mapping, Component):
     def __getitem__(self, key):
         return self.blocks[key]
 
+    def _set_literals(self, literals):
+        """set literals from literalblock """
+        for key, value in literals.items():
+            if value in (None, ''):
+                continue
+            self.literals[key].answer = value
+
     def _set_answers_from_file(self, filename):
         """Set answers from a given file"""
         #
         try:
             parsed, literals = ConfigParser.read(filename, self.literals)
         except FileNotFoundError:
-            return f"File '{filename}' not found!"
-        # set literal blocks
-        for key, value in literals.items():
-            if value in (None, ''):
-                continue
-            self.literals[key].answer = value
+            return ColtErrorMessage(f"File '{filename}' not found!")
+        #
+        self._set_literals(literals)
         #
         return self._set_answers_from_dct(parsed)
 
     def _set_answers_from_dct(self, dct):
         """Set the answers from a dictionary"""
         #
-        errstr = ""
+        error = ColtInputError()
         #
         for blockname, answers in dct.items():
             if blockname == ConfigParser.base:
@@ -885,19 +893,13 @@ class QuestionForm(Mapping, Component):
                 print(f"""Section = {blockname} unknown, maybe typo?""")
                 continue
 
-            errstr += self._set_block_answers(blockname, answers)
+            error.append(self._set_block_answers(blockname, answers))
         #
-        if errstr == "":
-            return None
-        return errstr
+        return error
 
     def _set_block_answers(self, blockname, answers):
-        if blockname != "":
-            error = f"[{blockname}]"
-        else:
-            error = ""
+        error = ColtBlockError(blockname)
 
-        errmsg = ""
         block = self.blocks[blockname]
         for key, answer in answers.items():
             if key not in block:
@@ -912,14 +914,11 @@ class QuestionForm(Mapping, Component):
             #
             try:
                 question.answer = answer
-            except ValueError:
-                errmsg += f"\n{key} = {answer}, ValueError"
+            except ValueError as e:
+                error[key] = f"{answer}, ValueError: {e}"
             except ValidatorErrorNotInChoices as err_choices:
-                errmsg += (f"\n{key} = {answer}, Wrong Choice: "
-                           f"{err_choices}")
-        if errmsg != "":
-            return error + errmsg
-        return ""
+                error[key] = f"{answer}, Wrong Choice: {err_choices}"
+        return error
 
     def _split_keys(self, name):
         block, key = split_keys(name)
@@ -928,3 +927,62 @@ class QuestionForm(Mapping, Component):
             raise Exception("block unknown")
 
         return self.blocks[block], key
+
+
+class ColtBlockError:
+    """Class to handle error messages for setting a block"""
+
+    __slots__ = ('_errors', 'name')
+
+    def __init__(self, name):
+        self._errors = {}
+        self.name = name
+
+    def is_none(self):
+        return self._errors == {}
+
+    def __setitem__(self, key, value):
+        self._errors[key] = value
+
+    def __str__(self):
+        if self.is_none():
+            return ""
+        #
+        if self.name != "":
+            msg = f"[{self.name}]"
+        else:
+            msg = ""
+        #
+        msg += "\n".join(f"{key} = {err}" for key, err in self._errors.items())
+        #
+        return msg
+
+
+class ColtErrorMessage(str):
+    """String that behaves like a Colt Error"""
+
+    def is_none(self):
+        return self == ""
+
+
+class ColtInputError:
+    """Class to handle error messages for input setting"""
+
+    __slots__ = ('_errors', '_current')
+
+    def __init__(self):
+        self._errors = []
+        self._current = None
+
+    def __str__(self):
+        if self.is_none():
+            return ""
+
+        return "\n\n".join(f"{block}" for block in self._errors)
+
+    def is_none(self):
+        return len(self._errors) == 0
+
+    def append(self, block_error):
+        if block_error.is_none() is False:
+            self._errors.append(block_error)

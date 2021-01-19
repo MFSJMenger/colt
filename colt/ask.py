@@ -144,7 +144,7 @@ class CommandlineVisitor(QuestionVisitor):
             answer = input(text).strip()  # strip is important!
         except KeyboardInterrupt:
             raise SystemExit("KeyboardInterrupt: exit program") from None
-        
+
         if any(answer == helper for helper in self._helpkeys):
             if self.display_help is False:
                 if comment is None:
@@ -190,7 +190,8 @@ class AskQuestions(QuestionForm):
         """
         self.set_answers_and_presets(config, presets, raise_error=raise_read_error)
         if ask_all is True:
-            return self._ask_impl(ask_all=ask_all, ask_defaults=ask_defaults, description=description)
+            return self._ask_impl(ask_all=ask_all, ask_defaults=ask_defaults,
+                                  description=description)
         #
         if self.is_all_set:
             return self.get_answers()
@@ -264,6 +265,7 @@ class AskQuestions(QuestionForm):
         AnswerBlock
             user input
         """
-        self.visitor.visit(self, description=description, ask_all=ask_all, ask_defaults=ask_defaults)
+        self.visitor.visit(self, description=description,
+                           ask_all=ask_all, ask_defaults=ask_defaults)
         #
         return self.get_answers(check=False)
