@@ -148,8 +148,12 @@ class CommandlineParserVisitor(QuestionVisitor):
             comment = argparse.SUPPRESS
         else:
             comment = self.get_comment(question)
+        if question.is_optional is True:
+            typ = _QuestionTypeOptional(question)
+        else:
+            typ = _QuestionType(question)
         #
-        self.parser.add_argument(name, metavar=question.label, type=_QuestionType(question),
+        self.parser.add_argument(name, metavar=question.label, type=typ,
                                  default=default, help=comment)
 
 
@@ -227,7 +231,7 @@ class SubquestionAction(Action):
 
 
 class _QuestionType:
-    """Help class to simpulate type validation of the argparse"""
+    """Help class to simulate type validation of the argparse"""
 
     def __init__(self, question):
         self.question = question
@@ -245,3 +249,12 @@ class _QuestionType:
         except ValidatorErrorNotInChoices:
             self.msg = self.question.choices
         raise ValueError(f"Could not set '{answer}'")
+
+
+class _QuestionTypeOptional(_QuestionType):
+    """Help class to simulate type validation of the argparse"""
+
+    def __call__(self, answer):
+        if (answer == ""):
+            return None
+        return super().__call__(answer)
