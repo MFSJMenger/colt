@@ -491,6 +491,7 @@ class Validator(ValidatorBase):
         {'str': str,
          'bool': bool_parser,
          'list': list_parser,
+         'list(nargs)': list_parser,
          'ilist': ilist_parser,
          'ilist_np': ilist_np_parser,
          'flist': flist_parser,
@@ -547,3 +548,4 @@ class Validator(ValidatorBase):
         """Remove validator """
         if name in cls.parsers:
             del cls.parsers[name]
+

@@ -36,24 +36,40 @@ def get_config_from_commandline(questions, description=None, presets=None):
     return qform.get_answers()
 
 
+class ArgumentParser(argparse.ArgumentParser):
+
+    def __init__(self, *args, **kwargs):
+        self.multi = None
+        super().__init__(*args, **kwargs)
+
+    def parse_args(self):
+        res = super().parse_args()
+        if self.multi is not None:
+            for mult in self.multi:
+                mult.set()
+        return res
+
+
 class CommandlineParserVisitor(QuestionVisitor):
     """QuestionVisitor to create Commandline arguments"""
 
-    __slots__ = ('parser', 'block_name')
+    __slots__ = ('parser', 'block_name', '_multiargs')
 
     def __init__(self):
         """ """
         self.parser = None
         self.block_name = None
+        self._multiargs = []
 
     def visit_qform(self, qform, description=None):
         """Create basic argument parser with `description` and RawTextHelpFormatter"""
-        parser = argparse.ArgumentParser(description=description,
+        parser = ArgumentParser(description=description,
                                          formatter_class=argparse.RawTextHelpFormatter)
         self.parser = parser
         # visit all forms
         qform.form.accept(self)
         # return the parser
+        parser.multi = self._multiargs
         return parser
 
     def visit_question_block(self, block):
@@ -144,18 +160,30 @@ class CommandlineParserVisitor(QuestionVisitor):
         """adds a concrete question to the current active parser"""
         default, name = self._get_default_and_name(question)
         #
-        if is_hidden is True:
-            comment = argparse.SUPPRESS
-        else:
-            comment = self.get_comment(question)
-        if question.is_optional is True:
-            typ = _QuestionTypeOptional(question)
-        else:
-            typ = _QuestionType(question)
+        comment = self._get_comment(question, is_hidden)
         #
-        self.parser.add_argument(name, metavar=question.label, type=typ,
-                                 default=default, help=comment)
+        typ = self._get_type_parser(question)
+        #
+        if isinstance(typ, _QuestionTypeMultiargs):
+            self.parser.add_argument(name, metavar=question.label, type=typ, nargs='+',
+                                     default=default, help=comment)
+        else:
+            self.parser.add_argument(name, metavar=question.label, type=typ,
+                                     default=default, help=comment)
 
+    def _get_comment(self, question, is_hidden):
+        if is_hidden is True:
+            return argparse.SUPPRESS
+        return self.get_comment(question)
+
+    def _get_type_parser(self, question):
+        if question.typ == 'list(nargs)':
+            arg = _QuestionTypeMultiargs(question)
+            self._multiargs.append(arg)
+            return arg
+        if question.is_optional is True:
+            return _QuestionTypeOptional(question)
+        return _QuestionType(question)
 
 class SubquestionAction(Action):
     """Create Subparser that reacts to subquestions adopted from argparse._SubParsersAction"""
@@ -249,6 +277,28 @@ class _QuestionType:
         except ValidatorErrorNotInChoices:
             self.msg = self.question.choices
         raise ValueError(f"Could not set '{answer}'")
+
+
+class _QuestionTypeMultiargs(_QuestionType):
+    """Help class to simulate type validation of the argparse"""
+
+    def __init__(self, question):
+        self.question = question
+        self.msg = question.typ
+        self.info = None
+
+    def set(self):
+        if self.info is None:
+            return False
+
+        super().__call__(self.info)
+        return True
+
+    def __call__(self, answer):
+        if self.info is None:
+            self.info = f"{answer}"
+        else:
+            self.info += f" {answer}"
 
 
 class _QuestionTypeOptional(_QuestionType):
