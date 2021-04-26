@@ -20,7 +20,7 @@ test_requirements = ['pytest>=3', ]
 setup(
     author="Maximilian F.S.J. Menger",
     author_email='m.f.s.j.menger@rug.nl',
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    python_requires='>=3.6',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -42,6 +42,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/mfsjmenger/colt',
-    version='0.2.1',
+    version='0.2.4',
     zip_safe=False,
 )
