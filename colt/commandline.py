@@ -39,7 +39,7 @@ def get_config_from_commandline(questions, description=None, presets=None):
 class ArgumentParser(argparse.ArgumentParser):
 
     def __init__(self, *args, **kwargs):
-        self.multi = None
+        self.multi = []
         super().__init__(*args, **kwargs)
 
     def parse_args(self):
