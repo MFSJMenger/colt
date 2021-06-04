@@ -330,20 +330,18 @@ class ValidatorErrorNotChoicesSubset(Exception):
     """Exception in case the new choices are not an subset of the old ones"""
 
 
-class ValidatorBase:
+class _Validator:
     """Base class to validator"""
 
-    __slots__ = ('_choices', '_value', '_string')
+    __slots__ = ('_choices', '_value', '_string', '_parse')
     # overwrite this method
 
-    def __init__(self, default=NOT_DEFINED, choices=None):
+    def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
+        # has to be at the top
+        self._parse = parse_function
         self._string = NOT_DEFINED
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
-
-    @staticmethod
-    def _parse(string):
-        """Abstract method to be overwritten"""
 
     def validate(self, value):
         """Parse a string and return its value,
@@ -435,7 +433,7 @@ class ValidatorBase:
         return value
 
 
-class RangeValidator(ValidatorBase):
+class RangeValidator(_Validator):
     """Validator that allowes both `Choices` and RangeExpression"""
 
     def set_choices(self, in_choices):
@@ -484,11 +482,12 @@ def create_validators(base_validators, range_validators):
     return out
 
 
-class Validator(ValidatorBase):
-    """Factory class"""
+class Validator:
 
-    parsers = create_validators(
-        {'str': str,
+    """ Validator Factory class """
+
+    _base_validators = {
+         'str': str,
          'bool': bool_parser,
          'list': list_parser,
          'ilist': ilist_parser,
@@ -506,17 +505,30 @@ class Validator(ValidatorBase):
          'python(dict)': as_python_dict,
          'python(tuple)': as_python_tuple,
          'python(np.array)': as_python_numpy_array,
-         }, {'int': int,
-             'float': float,
-             }
-    )
+         }
 
-    _validators = {'base': ValidatorBase, 'range': RangeValidator}
+    _range_validators = {
+            'int': int,
+            'float': float,
+             }
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
-        if typ not in cls.parsers:
-            raise ValueError(f"Validator '{typ}' not defined")
-        return cls.parsers[typ](default=default, choices=choices)
+        func, typ = cls._get_func(typ)
+        if typ == 'range':
+            return RangeValidator(func, default=default, choices=choices)
+        if typ == 'base':
+            return _Validator(func, default=default, choices=choices)
+        raise ValueError("Type unknown")
+
+    @classmethod
+    def _get_func(cls, typ):
+        func = cls._base_validators.get(typ, None)
+        if func is not None:
+            return func, 'base'
+        func = cls._range_validators.get(typ, None)
+        if func is not None:
+            return func, 'range'
+        raise ValueError(f"Validator '{typ}' not defined")
 
     @classmethod
     def add_validator(cls, name, func, typ='base'):
@@ -536,11 +548,11 @@ class Validator(ValidatorBase):
         ValueError
             In case the typ is unknown
         """
-        base_cls = cls._validators.get(typ, None)
-        if base_cls is None:
-            raise ValueError(f"Validator type '{typ}' not known")
-        parser_name = name.capitalize() + "Validator"
-        cls.parsers[name] = type(parser_name, (base_cls,), {'_parse': staticmethod(func)})
+        if typ == 'range':
+            cls._range_validators[name] = func
+        if typ == 'base':
+            cls._base_validators[name] = func
+        raise ValueError(f"Validator type '{typ}' not known")
 
     @classmethod
     def remove_validator(cls, name):
