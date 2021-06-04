@@ -16,7 +16,6 @@ class FullName:
         else:
             raise ValueError("Value can only be set/list/tuple or string")
 
-
     def __eq__(self, value):
         return value in self._value
 
@@ -57,7 +56,6 @@ class NumberOfArguments:
         return True, nargs
 
 
-
 class Argument:
 
     def __init__(self, name, question, nargs=None, metavar=None, typ=None, help=None):
@@ -74,6 +72,7 @@ class Argument:
 
     def __repr__(self):
         return f"Argument({self.fullname}, {self.metavar})"
+
 
     def consume(self, args):
         result = []
@@ -216,6 +215,44 @@ def get_short_help(name, args, opt_args):
     return f"usage: {name} {opts} {out}"
     
 
+DELIM = "---------------------------------------------------"
+
+
+def format(name, question):
+    if question.comment is None:
+        comment = [""]
+    else:
+        comment = question.comment.splitlines()
+    out = f"  {name:12s}  {question.typ:12s} {comment[0]}\n"
+    space = " " * 28
+    for line in comment[1:]:
+        out += f"{space} {line}\n"
+    return out
+
+
+def format_help():
+    name = "-h/--help"
+    typ = "show this help message and exit"
+    return f"  {name:12s}  {typ:12s}\n" 
+
+
+def position_args_help(args, format=format):
+    out = f"  positional arguments:\n {DELIM}\n"
+    for arg in args:
+        out += format(arg.metavar, arg.question)
+    return out
+
+
+def optional_args_help(args, format=format):
+    out = f"  optional arguments:\n {DELIM}\n"
+    for arg in args:
+        if arg == '-h':
+            out += format_help()
+        else:
+            out += format(str(arg.fullname), arg.question)
+    return out
+
+
 class SubParser:
 
     def __init__(self, name, question, parent, children=None):
@@ -240,6 +277,7 @@ class SubParser:
         parser = ArgumentParser(parent=self._parent)
         self._options[name] = parser
         return parser
+
 
 class EventArgument(Argument):
 
@@ -346,7 +384,10 @@ class ArgumentParser:
 
     def print_help(self):
         print(get_short_help("parser", self.args, self.optional_args))
-
+        print()
+        print(position_args_help(self.args))
+        print()
+        print(optional_args_help(self.optional_args))
 
 
 class CommandlineParserVisitor(QuestionVisitor):

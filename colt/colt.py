@@ -4,6 +4,7 @@ from abc import ABCMeta
 from .questions import QuestionASTGenerator
 from .ask import AskQuestions
 from .commandline import get_config_from_commandline
+from .parser import get_config_from_commandline as get_config_from_commandline_parser
 
 
 __all__ = ["Colt"]
@@ -194,7 +195,7 @@ class Colt(metaclass=ColtMeta):
                         "also from_questions depend on that!")
 
     @classmethod
-    def from_commandline(cls, *args, description=None, presets=None, **kwargs):
+    def from_commandline(cls, *args, description=None, presets=None, new_parser=True, **kwargs):
         """Initialize the class using input provided from the commandline
 
         Parameters
@@ -217,8 +218,12 @@ class Colt(metaclass=ColtMeta):
             anything that from_config returns. Intended to initalize the class
             so from_config should return an instance of the class.
         """
-        answers = get_config_from_commandline(cls.questions, description=description,
-                                              presets=presets)
+        if new_parser is True:
+            answers = get_config_from_commandline_parser(cls.questions, description=description,
+                                                         presets=presets)
+        else:
+            answers = get_config_from_commandline(cls.questions, description=description,
+                                                  presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
@@ -281,11 +286,11 @@ class CommandlineInterface(Colt):
         if any(len(value) != 0 for value in (args, kwargs)):
             return self.function(*args, **kwargs)
         # call from commandline
-        answers = self.from_commandline(description=self._description)
+        answers = self.from_commandline(description=self._description, new_parser=self.new_parser)
         return self.function(**answers)
 
 
-def from_commandline(questions, *, description=None):
+def from_commandline(questions, *, description=None, new_parser=True):
     """Decorate a function to call it using commandline arguments
 
     Parameters
@@ -313,7 +318,7 @@ def from_commandline(questions, *, description=None):
     def _wrapper(func):
         """Wrapper function to decorate the function with the CommandlineInterface class"""
         cls = type('CommandlineInterface', (CommandlineInterface,),
-                   {'_questions': questions, '_description': description})
+                {'_questions': questions, '_description': description, 'new_parser': new_parser})
         return cls(func)
     # return the new colt class
     return _wrapper
