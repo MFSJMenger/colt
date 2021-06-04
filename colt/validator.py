@@ -407,22 +407,22 @@ class _Validator:
             value = self._get_value(value)
         return value
 
-    def _set_choices(self, in_choices):
+    def _set_choices(self, choices):
         """set choices"""
-        if in_choices is None:
+        if choices is None:
             return NO_CHOICE
-        return self.set_choices(in_choices)
+        return self.set_choices(choices)
 
-    def set_choices(self, in_choices):
+    def set_choices(self, choices):
         """set choices"""
-        if isinstance(in_choices, KeysView):
-            return Choices([self._parse(choice) for choice in in_choices])
+        if isinstance(choices, KeysView):
+            return Choices([self._parse(choice) for choice in choices])
         try:
-            choices = [self._parse(choice) for choice in list_parser(in_choices)]
+            choices = [self._parse(choice) for choice in list_parser(choices)]
         except ValueError:
             choices = None
         if choices is None:
-            raise ValueError(f"Choices '{in_choices}' cannot be parsed")
+            raise ValueError(f"Choices '{choices}' cannot be parsed")
         return Choices(choices)
 
     def _get_value(self, string):
@@ -456,30 +456,22 @@ class RangeValidator(_Validator):
         return Choices(choices)
 
 
-def create_validators(base_validators, range_validators):
-    """simple helper to generate validators from a dictionary
+class ListValidator(_Validator):
 
-    Parameters
-    ----------
-    base_validators: dict
-        all types that get the `ValidatorBase`
+    parser = list_parser
 
-    range_validators: dict
-        all types that get the `RangeValidator`
+    def __init__(self, validator, default=NOT_DEFINED):
+        self._validator = validator
+        self._choices = self._set_choices(None)
+        self._value = self._set_value(default)
+        self._string = NOT_DEFINED
 
-    Returns
-    -------
-    dict
-        all validators in a single dictionary
-    """
-    out = {}
-    for name, parser in base_validators.items():
-        parser_name = name.capitalize() + "Validator"
-        out[name] = type(parser_name, (ValidatorBase,), {'_parse': staticmethod(parser)})
-    for name, parser in range_validators.items():
-        parser_name = name.capitalize() + "Validator"
-        out[name] = type(parser_name, (RangeValidator,), {'_parse': staticmethod(parser)})
-    return out
+    def _parse(self, inp):
+        if isinstance(inp, str):
+            lst = list_parser(inp)
+        else:
+            lst = inp
+        return [self._validator.validate(ele) for ele in lst]
 
 
 class Validator:
@@ -513,7 +505,27 @@ class Validator:
              }
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
-        func, typ = cls._get_func(typ)
+        return cls._get_all_validators(typ, default, choices)
+
+    @classmethod
+    def _get_all_validators(cls, typ, default, choices):
+        # list(typ) are special validators
+        is_list = False
+        if typ.startswith('list('):
+            is_list = True
+            if typ[-1] != ')':
+                raise ValueError(f"Do not understand type '{typ}'")
+            typ = typ[5:-1]
+        #
+        func, typ = cls._get_func_typ(typ)
+        if is_list is True:
+            validator = cls._get_validator(func, typ, default=NOT_DEFINED, choices=choices)
+            return ListValidator(validator, default)
+        else: 
+            return cls._get_validator(func, typ, default, choices)
+
+    @classmethod
+    def _get_validator(cls, func, typ, default=NOT_DEFINED, choices=None):
         if typ == 'range':
             return RangeValidator(func, default=default, choices=choices)
         if typ == 'base':
@@ -521,7 +533,7 @@ class Validator:
         raise ValueError("Type unknown")
 
     @classmethod
-    def _get_func(cls, typ):
+    def _get_func_typ(cls, typ):
         func = cls._base_validators.get(typ, None)
         if func is not None:
             return func, 'base'
