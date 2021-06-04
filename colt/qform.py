@@ -13,7 +13,7 @@ from .questions import QuestionASTVisitor
 from .questions import Component
 #
 from .presets import PresetGenerator
-from .validator import Validator, NOT_DEFINED, file_exists
+from .validator import Validator, NOT_DEFINED, file_exists, ListValidator
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
 from .validator import Choices, RangeExpression
 
@@ -218,6 +218,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.is_optional = question.is_optional
         self.is_subquestion_main = is_subquestion
         self.is_set_to_empty = False
+        self.is_list = isinstance(self._value, ListValidator)
         #
         if self.short_name.startswith('_'):
             self.is_hidden = True

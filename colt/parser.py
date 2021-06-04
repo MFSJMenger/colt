@@ -1,17 +1,21 @@
 import sys
 
+from .qform import QuestionForm, QuestionVisitor, join_case
+from .qform import ValidatorErrorNotInChoices
+
 
 class FullName:
 
     def __init__(self, value):
         if isinstance(value, str):
-            self._value = (value, )
-        elif isinstance(value, (list, tuple, set)):
+            self._value = (value.strip(), )
+        elif isinstance(value, (list, tuple)):
             if len(value) > 2:
                 raise ValueError("Can maximum have two entries")
-            self._value = value
+            self._value = tuple(val.strip() for val in value)
         else:
             raise ValueError("Value can only be set/list/tuple or string")
+
 
     def __eq__(self, value):
         return value in self._value
@@ -56,11 +60,20 @@ class NumberOfArguments:
 
 class Argument:
 
-    def __init__(self, name, metavar=None, nargs=None, typ=None, help=None):
+    def __init__(self, name, question, nargs=None, metavar=None, typ=None, help=None):
+        self.question = question
         self.is_optional, self.fullname, self.metavar = self._check(name, metavar)
+        if nargs is None:
+            if question.is_list is True:
+                nargs = '+'
+            else:
+                nargs = 1
         self.nargs = NumberOfArguments(nargs, self.is_optional)
         self.typ = typ
         self.help = help
+
+    def __repr__(self):
+        return f"Argument({self.fullname}, {self.metavar})"
 
     def consume(self, args):
         result = []
@@ -72,15 +85,17 @@ class Argument:
                 result.append(value)
         else:
             while True:
-                print(f"{self.fullname}: value = ", args.peek())
                 value = args.get_arg() # ignores --, -value
                 if value is None:
-                    print(result)
                     if len(result) == 0 and self.nargs == '?':
                         raise ValueError(f"Too few arguments for {self.fullname} expected at least one value")
                     break
                 result.append(value)
-        print(self.fullname, ": ", result)
+        # set value
+        if self.question.is_list is True:
+            self.question.answer = result
+        else:
+            self.question.answer = result[0]
 
     @property
     def is_finite(self):
@@ -185,6 +200,7 @@ class SysIterator:
             return self.args[self.idx]
         return None
 
+
 def surround(string):
     return f"[{string}]"
 
@@ -200,51 +216,278 @@ def get_short_help(name, args, opt_args):
     return f"usage: {name} {opts} {out}"
     
 
+class SubParser:
+
+    def __init__(self, name, question, parent, children=None):
+        if children is None:
+            children = {}
+        self._question = question
+        self._options =  {}
+        self.name = name
+        self._parent = parent
+
+    def consume(self, args):
+        value = args.get_arg() # ignores --, -value
+        if value is None:
+            raise ValueError("Two few arguments")
+        self._question.answer = value
+        parser = self._options.get(value, None)
+        if parser is None:
+            raise ValueError(f"parser needs to be in {', '.join(child for child in self._options)}")
+        return parser
+
+    def add_parser(self, name):
+        parser = ArgumentParser(parent=self._parent)
+        self._options[name] = parser
+        return parser
+
+class EventArgument(Argument):
+
+    def __init__(self, name, question, event_call, metavar=None, help=None):
+        # set nargs 
+        super().__init__(name, question, nargs=0, metavar=metavar, help=help)
+        self._call = event_call
+
+    def consume(self, args):
+        self._call()
+
+
+def get_help(parser):
+
+    def _help():
+        parser.print_help()
+        sys.exit()
+
+    return EventArgument(["-h", "--help"], None, _help, metavar="help") 
+
+
 class ArgumentParser:
 
-    def __init__(self):
-        self.optional_args = []
+    def __init__(self, parent=None):
+        self.optional_args = [get_help(self)]
         self.args = []
-        self.child = None
+        self.parent = parent
+        self.children = []
 
-    def parse(self):
+    def add_subparser(self, name, question):
+        child = SubParser(name, question, parent=self)
+        self.children.append(child)
+        return child
+
+    def parse(self, args=None, is_last=True):
+        if args is None:
+            args = SysIterator()
+        try: 
+            self._parse(args, is_last)
+        except ValueError as e:
+            if self._recover_help(args):
+                self.exit_help()
+            else:
+                self.print_help()
+                print(e)
+                raise SystemExit from None
+
+    def _recover_help(self, args):
+        for arg in args:
+            if arg in ('-h', '--help'):
+                return True
+        return False
+
+    def _parse(self, args, is_last):
         index = 0
-        iterator = SysIterator()
         while True:
-            ele = iterator.peek()
+            ele = args.peek()
             if ele is None:
                 break
             if ele == '--': # just ignore '--' steps 
-                iterator.inc
+                args.inc
                 continue 
             if ele.startswith('-'): # get optional
                 for arg in self.optional_args:
                     if arg == ele:
-                        iterator.inc
-                        arg.consume(iterator)
+                        args.inc
+                        arg.consume(args)
+                        break
+                else:
+                    raise ValueError(f"Cannot understand option {ele}")
             else:
                 if index < len(self.args):
                     arg = self.args[index]
-                    arg.consume(iterator)
+                    arg.consume(args)
                     index += 1
                 else:
                     break
+        # clean up
+        nchildren = len(self.children)
         #
-        if self.child is None:
-            self._check_final(index, iterator)
+        if nchildren == 0 and is_last:
+            self._check_final(index, args)
+        else:
+            for i, child in enumerate(self.children, start=1):
+                parser = child.consume(args)
+                parser.parse(args=args, is_last=(i == nchildren))
 
-    def _check_final(self, index, iterator):
+    def _check_final(self, index, args):
         if index != len(self.args):
             raise Exception("Too few arguments")
-        if iterator.get_next() is not None:
+        if args.get_next() is not None:
             raise Exception("Too many arguments")
 
-    def add_argument(self, name, nargs=None, metavar=None, typ=None, help=None):
-        arg = Argument(name, metavar=metavar, nargs=nargs, typ=typ, help=help)
+    def add_argument(self, name, question, nargs=None, metavar=None, typ=None, help=None):
+        arg = Argument(name, question, metavar=metavar, nargs=None, typ=typ, help=help)
         if arg.is_optional:
             self.optional_args.append(arg)
         else:
             self.args.append(arg)
 
+    def exit_help(self):
+        self.print_help()
+        raise SystemExit
+
     def print_help(self):
         print(get_short_help("parser", self.args, self.optional_args))
+
+
+
+class CommandlineParserVisitor(QuestionVisitor):
+    """QuestionVisitor to create Commandline arguments"""
+
+    __slots__ = ('parser', 'block_name')
+
+    def __init__(self):
+        """ """
+        self.parser = None
+        self.block_name = None
+
+    def visit_qform(self, qform, description=None):
+        """Create basic argument parser with `description` and RawTextHelpFormatter"""
+        parser = ArgumentParser()
+        self.parser = parser
+        # visit all forms
+        qform.form.accept(self)
+        # return the parser
+        self.parser = None
+        #
+        return parser
+
+    def visit_question_block(self, block):
+        """visit all subquestion blocks"""
+        for question in block.concrete.values():
+            if question.is_subquestion_main is False:
+                question.accept(self)
+        #
+        for subblock in block.blocks.values():
+            subblock.accept(self)
+
+    def visit_concrete_question_select(self, question):
+        """create a concrete parser and add it to the current parser"""
+        if question.has_only_one_choice is True:
+            self.set_answer(question, question.choices[0])
+        else:
+            self.add_concrete_to_parser(question)
+
+    def visit_concrete_question_input(self, question):
+        """create a concrete parser and add it to the current parser"""
+        self.add_concrete_to_parser(question)
+
+    def visit_concrete_question_hidden(self, question):
+        """create a concrete parser and add it to the current parser"""
+        self.add_concrete_to_parser(question, is_hidden=True)
+
+    def visit_literal_block(self, block):
+        """do nothing when visiting literal blocks"""
+
+    def visit_subquestion_block(self, block):
+        """When visiting subquestion block create subparsers"""
+        # save ref to current parsser
+        parser = self.parser
+        block_name = self.block_name
+        # create subparser
+        subparser = parser.add_subparser(block.main_question.name, block.main_question)
+        # add subblocks
+        for case, subblock in block.cases.items():
+            self.block_name = join_case(block.main_question.name, case)
+            self.parser = subparser.add_parser(case)
+            subblock.accept(self)
+        # restore old parser 
+        self.parser = parser
+        # restore blockname
+        self.block_name = block_name
+
+    def add_concrete_to_parser(self, question, is_hidden=False):
+        """adds a concrete question to the current active parser"""
+        default, name = self._get_default_and_name(question)
+        #
+        if is_hidden is True:
+            comment = ''
+        else:
+            comment = self.get_comment(question)
+        #
+        self.parser.add_argument(name, question, metavar=question.label, help=comment)
+
+    def _get_default_and_name(self, question):
+        """get the name and default value for the current question"""
+        # get id_name
+        id_name = question.id
+        #
+        if self.block_name is not None:
+            # remove block_name from the id
+            id_name = id_name.replace(self.block_name, '')
+            if id_name[:2] == '::':
+                id_name = id_name[2:]
+        #
+        default = question.answer
+        #
+        if default in ('', None) and not question.is_optional:
+            # default does not exist -> Positional Argument
+            name = f"{id_name}"
+            default = None
+        else:
+            # default exists -> Optional Argument
+            name = f"-{id_name}"
+        #
+        return default, name
+
+    @staticmethod
+    def get_comment(question):
+        """get the comment string"""
+        choices = question.choices
+        if choices is None:
+            choices = ''
+        #
+        comment = f"{question.typ}, {choices}"
+        if question.comment is not None:
+            comment += f"\n{question.comment}"
+        #
+        return comment
+
+
+def get_config_from_commandline(questions, description=None, presets=None):
+    """Create the argparser from a given questions object and return the answers
+
+    Parameters
+    ----------
+    questions: str or QuestionASTGenerator
+        questions object to generate commandline arguments from
+
+    description: str, optional
+        description used for the argument parser
+
+    presets: str, optional
+        presets used for the questions form
+
+    Returns
+    -------
+    AnswersBlock
+        User input
+    """
+    # Visitor object
+    visitor = CommandlineParserVisitor()
+    #
+    qform = QuestionForm(questions, presets=presets)
+    #
+    parser = visitor.visit(qform, description=description)
+    # parse commandline args
+    parser.parse()
+    #
+    return qform.get_answers()
