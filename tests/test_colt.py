@@ -37,7 +37,7 @@ def test_colt_from_commandline(base):
     """Test ask question"""
     # modify sys.argv
     # test_colt.py 10 231 -factor 2.8
-    sys.argv = ['name', '10', '231', '-factor', '2.8']
+    sys.argv = ['name', '10', '231', '--factor', '2.8']
     cls = base.from_commandline('some example')
     assert cls.nstates == 10
     assert cls.natoms == 231

@@ -195,7 +195,7 @@ class Colt(metaclass=ColtMeta):
                         "also from_questions depend on that!")
 
     @classmethod
-    def from_commandline(cls, *args, description=None, presets=None, new_parser=True, **kwargs):
+    def from_commandline(cls, *args, description=None, presets=None, logo=None, new_parser=True, **kwargs):
         """Initialize the class using input provided from the commandline
 
         Parameters
@@ -220,10 +220,9 @@ class Colt(metaclass=ColtMeta):
         """
         if new_parser is True:
             answers = get_config_from_commandline_parser(cls.questions, description=description,
-                                                         presets=presets)
+                                                         presets=presets, logo=logo)
         else:
-            answers = get_config_from_commandline(cls.questions, description=description,
-                                                  presets=presets)
+            answers = get_config_from_commandline(cls.questions, description=description, presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
@@ -286,11 +285,11 @@ class CommandlineInterface(Colt):
         if any(len(value) != 0 for value in (args, kwargs)):
             return self.function(*args, **kwargs)
         # call from commandline
-        answers = self.from_commandline(description=self._description, new_parser=self.new_parser)
+        answers = self.from_commandline(description=self._description, logo=self.logo, new_parser=self.new_parser)
         return self.function(**answers)
 
 
-def from_commandline(questions, *, description=None, new_parser=True):
+def from_commandline(questions, *, new_parser=True, logo=None, description=None):
     """Decorate a function to call it using commandline arguments
 
     Parameters
@@ -318,7 +317,8 @@ def from_commandline(questions, *, description=None, new_parser=True):
     def _wrapper(func):
         """Wrapper function to decorate the function with the CommandlineInterface class"""
         cls = type('CommandlineInterface', (CommandlineInterface,),
-                {'_questions': questions, '_description': description, 'new_parser': new_parser})
+                {'_questions': questions, '_description': description, 'new_parser': new_parser,
+                 'logo': logo, 'description': description})
         return cls(func)
     # return the new colt class
     return _wrapper
