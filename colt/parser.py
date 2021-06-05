@@ -1,10 +1,11 @@
 import sys
-
 from collections import namedtuple
 
 from .qform import QuestionForm, QuestionVisitor, join_case
 
+
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "comment", "is_hidden"))
+Element = namedtuple('Element', ('lines', 'format', 'nlines'))
 
 
 class FullName:
@@ -258,45 +259,6 @@ def surround(string):
 DELIM = "---------------------------------------------------"
 
 
-def format(name, question):
-    if question.comment is None:
-        comment = [""]
-    else:
-        comment = question.comment.splitlines()
-    out = f"  {name:12s}  {question.typ:12s} {comment[0]}\n"
-    space = " " * 28
-    for line in comment[1:]:
-        out += f"{space} {line}\n"
-    return out
-
-
-def format_help():
-    name = "-h/--help"
-    typ = ""
-    comment = "show this help message and exit"
-    return f"  {name:12s}  {typ:12s} {comment}\n"
-
-
-def position_args_help(args, format=format):
-    out = f"  positional arguments:\n {DELIM}\n"
-    for arg in args:
-        out += format(arg.metavar, arg.question)
-    return out
-
-
-def optional_args_help(args, format=format):
-    out = f"  optional arguments:\n {DELIM}\n"
-    for arg in args:
-        if arg == '-h':
-            out += format_help()
-        else:
-            out += format(str(arg.fullname), arg.question)
-    return out
-
-
-Element = namedtuple('Element', ('lines', 'format', 'nlines'))
-
-
 class ArgFormatter:
 
     def __init__(self, format):
@@ -459,7 +421,9 @@ class HelpFormatter:
                         for arg in parser.optional_args
                         if not arg.is_hidden)
 
-        return f"usage: {name} {opts} {out} {subparser}"
+        if parser.parent is None:
+            return f"usage: {name} {opts} {out} {subparser}"
+        return f"usage: {name} ... {opts} {out} {subparser}"
 
     def _do_task(self, task, parser):
         if task == 'pos_args':
