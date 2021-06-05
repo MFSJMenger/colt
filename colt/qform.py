@@ -218,7 +218,6 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self.is_optional = question.is_optional
         self.is_subquestion_main = is_subquestion
         self.is_set_to_empty = False
-        self.is_list = isinstance(self._value, ListValidator)
         #
         if self.short_name.startswith('_'):
             self.is_hidden = True
@@ -226,34 +225,16 @@ class ConcreteQuestion(_ConcreteQuestionBase):
             self.is_hidden = False
 
     @property
+    def is_list(self):
+        return isinstance(self._value, ListValidator)
+
+    @property
     def accept_empty(self):
         return self.is_optional or self._value.get() is not NOT_DEFINED
-
-    def get_answer(self):
-        """get answer back, if is optional, return None if NOT_DEFINED"""
-        answer = self._value.get()
-        if self.is_optional is True:
-            if self.is_set_to_empty is True or answer is NOT_DEFINED:
-                return None
-        return answer
 
     @property
     def validator(self):
         return self._value
-
-    def get_answer_as_string(self):
-        """get answer back, if is optional, return None if NOT_DEFINED"""
-        if self.is_set_to_empty is True:
-            return ''
-        return self._value.answer_as_string()
-
-    def accept(self, visitor):
-        if self.is_hidden is True:
-            return visitor.visit_concrete_question_hidden(self)
-        #
-        if isinstance(self.choices, Choices):
-            return visitor.visit_concrete_question_select(self)
-        return visitor.visit_concrete_question_input(self)
 
     @property
     def has_only_one_choice(self):
@@ -285,6 +266,28 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     @property
     def choices(self):
         return self._value.choices
+
+    def get_answer(self):
+        """get answer back, if is optional, return None if NOT_DEFINED"""
+        answer = self._value.get()
+        if self.is_optional is True:
+            if self.is_set_to_empty is True or answer is NOT_DEFINED:
+                return None
+        return answer
+
+    def get_answer_as_string(self):
+        """get answer back, if is optional, return None if NOT_DEFINED"""
+        if self.is_set_to_empty is True:
+            return ''
+        return self._value.answer_as_string()
+
+    def accept(self, visitor):
+        if self.is_hidden is True:
+            return visitor.visit_concrete_question_hidden(self)
+        #
+        if isinstance(self.choices, Choices):
+            return visitor.visit_concrete_question_select(self)
+        return visitor.visit_concrete_question_input(self)
 
     def set_answer(self, value):
         self._value.set(value)

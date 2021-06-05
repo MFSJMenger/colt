@@ -359,7 +359,10 @@ class QuestionASTGenerator(Component, Generator):
             if line == "":
                 continue
             if line.startswith('#'):
-                comment_lines.append(line[1:])
+                if line[1] == ' ':
+                    comment_lines.append(line[2:])
+                else:
+                    comment_lines.append(line[1:])
                 continue
             if comment_lines != []:
                 line += "###" + "#n".join(comment_lines)

@@ -47,7 +47,7 @@ def test_generate_questions(questions):
     questions = QuestionASTGenerator(questions).questions
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert (questions['examplecase']['no']['further']['andmore']['select']['maybe']['a']
@@ -68,7 +68,7 @@ def test_add_question_to_block(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
@@ -85,7 +85,7 @@ def test_add_single_question_to_block(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str", "hallo")
@@ -123,7 +123,7 @@ def test_add_question_to_block_no_overwrite(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['add'] == Question("add", "str")
@@ -145,7 +145,7 @@ def test_add_question_block(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['hallo']['add'] == Question("add", "str")
@@ -168,7 +168,7 @@ def test_add_question_to_subblock(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['qm']['nqm'] == Question("nqm", "int", '100')
@@ -196,7 +196,7 @@ def test_add_question_to_created_subblock(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['hallo']['add'] == Question("add", "str")
@@ -231,7 +231,7 @@ def test_add_cases(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['software']['qchem']['basis'] == Question("basis", "str", "sto-3g")
@@ -262,7 +262,7 @@ def test_add_block_to_cases(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert questions['software']['qchem']['basis'] == Question("basis", "str", "sto-3g")
@@ -286,7 +286,7 @@ def test_generator_from_generator(questions):
 
     assert questions['value'] == Question("value", "int", '2', choices="[1, 2, 3]")
     assert questions['name'] == Question("name", "str", NOT_DEFINED,
-                                         choices="[hallo, du]", comment=" hallo ihr\n ihr auch")
+                                         choices="[hallo, du]", comment="hallo ihr\nihr auch")
     assert questions['ilist'] == Question("ilist", "ilist", NOT_DEFINED)
     assert questions['flist'] == Question("flist", "flist", '1.2 3.8')
     assert (questions['examplecase']['no']['further']['andmore']['select']['maybe']['a']

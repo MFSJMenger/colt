@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from .qform import QuestionForm, QuestionVisitor, join_case
 
-EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "comment"))
+EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "comment", "is_hidden"))
 
 
 class FullName:
@@ -50,6 +50,9 @@ class NumberOfArguments:
     def _get_nargs(self, nargs):
         if nargs is None:
             return True, 1
+        #
+        if nargs == -1:
+            nargs = '+'
         #
         if not isinstance(nargs, (str, int)):
             raise ValueError("nargs can only be str or int")
@@ -119,6 +122,10 @@ class Action:
             return ""
         return self.question.comment
 
+    @property
+    def is_hidden(self):
+        return self.question.is_hidden
+
     def consume(self, args):
         raise NotImplementedError("consume needs to be implemented!")
 
@@ -129,7 +136,7 @@ class SetArgumentAction(Action):
         super().__init__(question)
         _, self.fullname, self.metavar = check_names(name, metavar)
         if question.is_list is True:
-            nargs = '+'
+            nargs = question.validator.nele
         else:
             nargs = 1
         self.nargs = NumberOfArguments(nargs)
@@ -312,6 +319,8 @@ class ArgFormatter:
                 while len(line) > length:
                     out.append(line[:length])
                     line = line[length:]
+                # do not forget the last part
+                out.append(line)
         return out, len(out)
 
     def _format_arg(self, arg):
@@ -420,10 +429,14 @@ class HelpFormatter:
     def _opt_args(self, parser):
         out = f"  optional arguments:\n {DELIM}\n"
         out += "".join(self._format_arg(arg)
-                       for arg in parser.optional_args)
+                       for arg in parser.optional_args
+                       if not arg.is_hidden)
+                       
         return out
 
     def _pos_args(self, parser):
+        if len(parser.args) == 0 and len(parser.children) == 0:
+            return None
         out = f"  positional arguments:\n {DELIM}\n"
         out += "".join(self._format_arg(arg)
                        for arg in parser.args)
@@ -441,7 +454,8 @@ class HelpFormatter:
         subparser = " ".join(arg.to_commandline_str()
                              for arg in parser.children)
         opts = " ".join(surround(arg.to_commandline_str(False))
-                        for arg in parser.optional_args)
+                        for arg in parser.optional_args
+                        if not arg.is_hidden)
 
         return f"usage: {name} {opts} {out} {subparser}"
 
@@ -489,8 +503,8 @@ class HelpFormatter:
 
 class EventAction(Action):
 
-    def __init__(self, name, function, comment=None):
-        super().__init__(EmptyQuestion('action', comment))
+    def __init__(self, name, function, is_hidden=False, comment=None):
+        super().__init__(EmptyQuestion('action', comment, is_hidden))
         self._fun = function
         self.fullname = FullName(name)
 
@@ -583,6 +597,7 @@ def get_help(parser):
     return EventAction(["-h", "--help"], _help, comment="show this help message and exit")
 
 
+
 class ArgumentParser:
 
     def __init__(self, formatter=None, parent=None):
@@ -617,6 +632,7 @@ class ArgumentParser:
             self.args.append(arg)
 
     def add_action(self, action):
+
         self.optional_args.append(action)
 
     def exit_help(self):
@@ -710,10 +726,37 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_concrete_question_select(self, question):
         """create a concrete parser and add it to the current parser"""
+        self.select_and_add_concrete_to_parser(question)
+
+    def select_and_add_concrete_to_parser(self, question, is_hidden=False):
         if question.has_only_one_choice is True:
             self.set_answer(question, question.choices[0])
+        elif question.typ == 'bool':
+            self.add_boolset_to_parser(question, is_hidden=is_hidden)
         else:
-            self.add_concrete_to_parser(question)
+            self.add_concrete_to_parser(question, is_hidden=is_hidden)
+
+    def add_boolset_to_parser(self, question, is_hidden=False):
+        default, name = self._get_default_and_name(question)
+        # do something with hidden variables!
+        original = question.get_answer()
+        if original is True:
+            original = 'True'
+            answer = 'False'
+        else:
+            answer = 'True'
+            original = 'False'
+
+        def change_value():
+            question.answer = answer
+
+        comment = f"Default={original}, if set value={answer}"
+
+        if question.comment is not None:
+            comment = f"{question.comment}; {comment}"
+
+        action = EventAction(name, change_value, is_hidden=is_hidden, comment=comment)
+        self.parser.add_action(action)
 
     def visit_concrete_question_input(self, question):
         """create a concrete parser and add it to the current parser"""
@@ -721,7 +764,7 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_concrete_question_hidden(self, question):
         """create a concrete parser and add it to the current parser"""
-        self.add_concrete_to_parser(question, is_hidden=True)
+        self.select_and_add_concrete_to_parser(question, is_hidden=True)
 
     def visit_literal_block(self, block):
         """do nothing when visiting literal blocks"""
@@ -747,9 +790,6 @@ class CommandlineParserVisitor(QuestionVisitor):
         """adds a concrete question to the current active parser"""
         default, name = self._get_default_and_name(question)
         # do something with hidden variables!
-        if is_hidden is True:
-            raise Exception("hidden not implemented, yet")
-        #
         self.parser.add_argument(name, question, metavar=question.label)
 
     def _get_default_and_name(self, question):

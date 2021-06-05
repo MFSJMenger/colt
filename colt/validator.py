@@ -3,6 +3,7 @@ while automatically checking the type and doing error handling"""
 import os
 import ast
 from collections.abc import KeysView
+from collections import namedtuple
 #
 import numpy as np
 
@@ -100,6 +101,9 @@ class RangeExpression:
             if value > self.upper:
                 return False
         return True
+
+    def __len__(self):
+        return -1
 
     def __str__(self):
         return self.as_str()
@@ -460,19 +464,33 @@ class ListValidator(_Validator):
 
     parser = list_parser
 
-    def __init__(self, validator, default=NOT_DEFINED):
+    def __init__(self, validator, nele, default=NOT_DEFINED):
         self._validator = validator
         self._choices = self._set_choices(None)
         self._value = self._set_value(default)
         self._string = NOT_DEFINED
+        self.nele = nele
 
     def _parse(self, inp):
         if isinstance(inp, str):
             lst = list_parser(inp)
         else:
             lst = inp
-        return [self._validator.validate(ele) for ele in lst]
+        out = [self._validator.validate(ele) for ele in lst]
+        if self.nele > 0:
+            if len(out) != self.nele:
+                raise ValueError(f"Number of elements can only be '{self.nele}'")
+        return out
 
+
+ListInfo = namedtuple('ListInfo', ('is_list', 'nele'))
+
+
+def uint(value, larger=-1):
+    val = int(value)
+    if val > larger:
+        return val
+    raise ValueError(f"Value '{val}' smaller than expected '{larger}'")
 
 class Validator:
 
@@ -508,19 +526,33 @@ class Validator:
         return cls._get_all_validators(typ, default, choices)
 
     @classmethod
+    def _get_list_info(cls, typ):
+        """TODO: improve error messages"""
+        if typ[-1] != ')':
+            raise ValueError(f"Do not understand type '{typ}'")
+        typ = typ[5:-1]
+        typ = typ.split(':')
+        if len(typ) == 0:
+            return typ[0].strip(), ListInfo(True, -1)
+        if len(typ) > 2:
+            raise ValueError(f"Do not understand type '{typ}'")
+        try:
+            return typ[0].strip(), ListInfo(True, uint(typ[1], larger=0)) 
+        except ValueError:
+            raise ValueError(f"Do not understand type '{typ}'") from None
+
+    @classmethod
     def _get_all_validators(cls, typ, default, choices):
-        # list(typ) are special validators
-        is_list = False
+        # list(typ) or list(typ, 10) are special validators
         if typ.startswith('list('):
-            is_list = True
-            if typ[-1] != ')':
-                raise ValueError(f"Do not understand type '{typ}'")
-            typ = typ[5:-1]
+            typ, list_info = cls._get_list_info(typ)
+        else:
+            list_info = ListInfo(False, 0)
         #
-        func, typ = cls._get_func_typ(typ)
-        if is_list is True:
+        func, typ, choices = cls._get_func_typ(typ, choices)
+        if list_info.is_list is True:
             validator = cls._get_validator(func, typ, default=NOT_DEFINED, choices=choices)
-            return ListValidator(validator, default)
+            return ListValidator(validator, list_info.nele, default=default)
         else: 
             return cls._get_validator(func, typ, default, choices)
 
@@ -533,13 +565,16 @@ class Validator:
         raise ValueError("Type unknown")
 
     @classmethod
-    def _get_func_typ(cls, typ):
+    def _get_func_typ(cls, typ, choices):
         func = cls._base_validators.get(typ, None)
         if func is not None:
-            return func, 'base'
+            if typ == 'bool' and choices is None:
+                choices = 'y, n'
+            return func, 'base', choices
+
         func = cls._range_validators.get(typ, None)
         if func is not None:
-            return func, 'range'
+            return func, 'range', choices
         raise ValueError(f"Validator '{typ}' not defined")
 
     @classmethod
