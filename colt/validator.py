@@ -103,7 +103,7 @@ class RangeExpression:
         return True
 
     def __len__(self):
-        return -1
+        return 0
 
     def __str__(self):
         return self.as_str()
@@ -440,23 +440,23 @@ class _Validator:
 class RangeValidator(_Validator):
     """Validator that allowes both `Choices` and RangeExpression"""
 
-    def set_choices(self, in_choices):
+    def set_choices(self, choices):
         """set choices"""
-        if isinstance(in_choices, KeysView):
-            return Choices([self._parse(choice) for choice in in_choices])
+        if isinstance(choices, KeysView):
+            return Choices([self._parse(choice) for choice in choices])
         #
         try:
-            return RangeExpression(in_choices)
+            return RangeExpression(choices)
         except ValueError:
             pass
         #
         try:
-            choices = [self._parse(choice) for choice in list_parser(in_choices)]
+            choices = [self._parse(choice) for choice in list_parser(choices)]
         except ValueError:
             choices = None
         #
         if choices is None:
-            raise ValueError(f"Choices '{in_choices}' cannot be parsed")
+            raise ValueError(f"Choices '{choices}' cannot be parsed")
         return Choices(choices)
 
 
@@ -491,6 +491,7 @@ def uint(value, larger=-1):
     if val > larger:
         return val
     raise ValueError(f"Value '{val}' smaller than expected '{larger}'")
+
 
 class Validator:
 
@@ -537,7 +538,7 @@ class Validator:
         if len(typ) > 2:
             raise ValueError(f"Do not understand type '{typ}'")
         try:
-            return typ[0].strip(), ListInfo(True, uint(typ[1], larger=0)) 
+            return typ[0].strip(), ListInfo(True, uint(typ[1], larger=0))
         except ValueError:
             raise ValueError(f"Do not understand type '{typ}'") from None
 
@@ -553,8 +554,7 @@ class Validator:
         if list_info.is_list is True:
             validator = cls._get_validator(func, typ, default=NOT_DEFINED, choices=choices)
             return ListValidator(validator, list_info.nele, default=default)
-        else: 
-            return cls._get_validator(func, typ, default, choices)
+        return cls._get_validator(func, typ, default, choices)
 
     @classmethod
     def _get_validator(cls, func, typ, default=NOT_DEFINED, choices=None):
@@ -604,5 +604,7 @@ class Validator:
     @classmethod
     def remove_validator(cls, name):
         """Remove validator """
-        if name in cls.parsers:
-            del cls.parsers[name]
+        if name in cls._range_validators:
+            del cls._range_validators[name]
+        if name in cls._base_validators:
+            del cls._base_validators[name]

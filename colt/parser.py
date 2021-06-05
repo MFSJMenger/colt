@@ -154,14 +154,16 @@ class SetArgumentAction(Action):
             for _ in range(self.nargs.num):
                 value = args.get_arg()  # ignores --, -value
                 if value is None:
-                    raise ValueError(f"Too few arguments for {self.fullname} expected {self.nargs} got {len(result)}")
+                    raise ValueError(f"Too few arguments for {self.fullname} "
+                                     f"expected {self.nargs} got {len(result)}")
                 result.append(value)
         else:
             while True:
                 value = args.get_arg()  # ignores --, -value
                 if value is None:
                     if len(result) == 0:
-                        raise ValueError(f"Too few arguments for {self.fullname} expected at least one value")
+                        raise ValueError(f"Too few arguments for {self.fullname} "
+                                         f"expected at least one value")
                     break
                 result.append(value)
         # set value
@@ -394,7 +396,7 @@ class HelpFormatter:
             arg_formater = ArgFormatter({
                     'name': 12,
                     'comment': 40,
-                    'typ': 12, # maximale breite
+                    'typ': 12,     # maximale breite
                     'space': 2,
                     'shift': 4,
                     })
@@ -431,7 +433,7 @@ class HelpFormatter:
         out += "".join(self._format_arg(arg)
                        for arg in parser.optional_args
                        if not arg.is_hidden)
-                       
+
         return out
 
     def _pos_args(self, parser):
@@ -527,49 +529,12 @@ class SubParser(Action):
 
     def __init__(self, name, question, parent):
         super().__init__(question)
-        self._options =  {}
-        self.name = name
-        self._parent = parent
-
-    def to_commandline_str(self):
-        return f"{self.name} ..."
-
-    def consume(self, args):
-        value = args.get_arg() # ignores --, -value
-        if value is None:
-            raise ValueError("Two few arguments")
-        self.question.answer = value
-        parser = self._options.get(value, None)
-        if parser is None:
-            raise ValueError(f"parser needs to be in {', '.join(child for child in self._options)}")
-        return parser
-
-    def add_parser(self, name, formatter):
-        parser = ArgumentParser(formatter, parent=self._parent)
-        self._options[name] = parser
-        return parser
-
-
-class SubParser:
-
-    def __init__(self, name, question, parent):
-        self.question = question
         self._options = {}
         self.name = name
         self._parent = parent
 
     def to_commandline_str(self):
         return f"{self.name} ..."
-
-    @property
-    def typ(self):
-        return self.question.typ
-
-    @property
-    def comment(self):
-        if self.question.comment is None:
-            return ""
-        return self.question.comment
 
     def consume(self, args):
         value = args.get_arg()  # ignores --, -value
@@ -595,7 +560,6 @@ def get_help(parser):
         sys.exit()
 
     return EventAction(["-h", "--help"], _help, comment="show this help message and exit")
-
 
 
 class ArgumentParser:
@@ -658,10 +622,10 @@ class ArgumentParser:
             ele = args.peek()
             if ele is None:
                 break
-            if ele == '--': # just ignore '--' steps
+            if ele == '--':  # just ignore '--' steps
                 args.inc
                 continue
-            if ele.startswith('-'): # get optional
+            if ele.startswith('-'):  # get optional
                 for arg in self.optional_args:
                     if arg == ele:
                         args.inc
@@ -704,7 +668,7 @@ class CommandlineParserVisitor(QuestionVisitor):
         self.parser = None
         self.block_name = None
 
-    def visit_qform(self, qform, description=None):
+    def visit_qform(self, qform):
         """Create basic argument parser with `description` and RawTextHelpFormatter"""
         parser = ArgumentParser(formatter=self.formatter)
         self.parser = parser
@@ -816,7 +780,8 @@ class CommandlineParserVisitor(QuestionVisitor):
         return default, name
 
 
-def get_config_from_commandline(questions, formatter=None, logo=None, description=None, presets=None):
+def get_config_from_commandline(questions, formatter=None,
+                                logo=None, description=None, presets=None):
     """Create the argparser from a given questions object and return the answers
 
     Parameters
@@ -842,7 +807,7 @@ def get_config_from_commandline(questions, formatter=None, logo=None, descriptio
     #
     qform = QuestionForm(questions, presets=presets)
     #
-    parser = visitor.visit(qform, description=description)
+    parser = visitor.visit(qform)
     # parse commandline args
     parser.parse()
     #
