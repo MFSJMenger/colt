@@ -345,7 +345,7 @@ class HelpFormatter:
     def __init__(self, logo=None, description=None, block_space="\n\n\n", space="\n",
                  main_order=None, error_order=None, short_order=None, arg_formater=None):
         if error_order is None:
-            error_order = ['usage', 'error']
+            error_order = ['usage', 'error', 'space']
         if main_order is None:
             main_order = ['logo', 'description', 'pos_args', 'opt_args', 'usage', 'space']
         if short_order is None:
@@ -388,7 +388,7 @@ class HelpFormatter:
         return self.description
 
     def _error(self):
-        return f"error: {self.error}"
+        return f"Error: {self.error}"
 
     def _opt_args(self, parser):
         out = f"  optional arguments:\n {DELIM}\n"
@@ -616,9 +616,9 @@ class ArgumentParser:
 
     def _check_final(self, index, args):
         if index != len(self.args):
-            raise Exception("Too few arguments")
+            self.error_help(Exception("Too few arguments"))
         if args.get_next() is not None:
-            raise Exception("Too many arguments")
+            self.error_help(Exception("Too many arguments"))
 
 
 class CommandlineParserVisitor(QuestionVisitor):

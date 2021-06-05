@@ -476,7 +476,20 @@ class ListValidator(_Validator):
             lst = list_parser(inp)
         else:
             lst = inp
-        out = [self._validator.validate(ele) for ele in lst]
+
+        error = {'error': None, 'ele': []}
+
+        out = []
+        for ele in lst:
+            try:
+                out.append(self._validator.validate(ele))
+            except ValueError as err:
+                error['error'] = err
+                error['ele'].append(ele)
+
+        if error['error'] is not None:
+            raise ValueError(str(error['error']) + f" for elements [{', '.join(error['ele'])}] in [{', '.join(lst)}]")
+
         if self.nele > 0:
             if len(out) != self.nele:
                 raise ValueError(f"Number of elements can only be '{self.nele}'")
@@ -533,7 +546,7 @@ class Validator:
             raise ValueError(f"Do not understand type '{typ}'")
         typ = typ[5:-1]
         typ = typ.split(':')
-        if len(typ) == 0:
+        if len(typ) == 1:
             return typ[0].strip(), ListInfo(True, -1)
         if len(typ) > 2:
             raise ValueError(f"Do not understand type '{typ}'")
