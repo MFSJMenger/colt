@@ -49,16 +49,17 @@ class QuestionASTVisitor(ABC):
 class Question(Component):
     """Question Node in the QuestionASTGenerator"""
 
-    __slots__ = ('question', 'typ', 'default', 'choices', 'comment', 'is_optional')
+    __slots__ = ('question', 'typ', 'default', 'choices', 'comment', 'alias', 'is_optional')
 
     def __init__(self, question="", typ="str", default=NOT_DEFINED,
-                 choices=None, comment=NOT_DEFINED, is_optional=False):
+                 choices=None, comment=NOT_DEFINED, is_optional=False, alias=None):
         self.question = question
         self.typ = typ
         self.default = default
         self.choices = choices
         self.comment = comment
         self.is_optional = is_optional
+        self.alias = alias
 
     def __eq__(self, other):
         if not isinstance(other, Question):
@@ -154,6 +155,7 @@ class QuestionASTGenerator(Component, Generator):
                                            "typ": "str",
                                            "choices": NOT_DEFINED,
                                            "question": NOT_DEFINED,
+                                           "alias": None,
                                            "is_optional": False})
 
     def __init__(self, questions):
@@ -215,7 +217,7 @@ class QuestionASTGenerator(Component, Generator):
         # try to parse line
         try:
             value = self._parse_string(value)
-        except ValueError:
+        except ValueError as e:
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
@@ -230,7 +232,9 @@ class QuestionASTGenerator(Component, Generator):
         # get choices
         choices = self._parse_choices(value.choices)
         # return leaf node
-        return Question(question, value.typ, default, choices, comment, value.is_optional)
+        return Question(question=question, typ=value.typ, default=default, 
+                        choices=choices, comment=comment, is_optional=value.is_optional,
+                        alias=value.alias)
 
     def _parse_string(self, string):
         # set default parameters
@@ -251,21 +255,30 @@ class QuestionASTGenerator(Component, Generator):
         else:
             raise ValueError(f"Cannot parse string {string}")
         #
-        typ, optional = self._parse_typ(typ)
+        typ, optional, alias = self._parse_typ(typ)
         #
         return self.LeafString(default=default, typ=typ, choices=choices,
-                               question=question, is_optional=optional)
+                               question=question, alias=alias, is_optional=optional)
 
     @staticmethod
     def _parse_typ(typ):
+        is_optional = False
+        alias = None
         if "," not in typ:
-            return typ, False
+            return typ, is_optional, alias
         #
-        typ, setting = tuple(ele.strip() for ele in typ.split(","))
-
-        if setting == 'optional':
-            return typ, True
-        raise ValueError(f"Dont understand setting {setting}")
+        #
+        options = tuple(ele.strip() for ele in typ.split(","))
+        typ = options[0]
+        #
+        for opt in options[1:]:
+            if opt == 'optional':
+                is_optional = True
+            elif opt.startswith('alias='):
+                alias = opt[6:]
+            else:
+                raise ValueError(f"Dont understand option {opt}")
+        return typ, is_optional, alias
 
     def generate_cases(self, key, subquestions, block=None):
         """Register `subquestions` at a given `key` in given `block`

@@ -1,11 +1,34 @@
 import sys
-from collections import namedtuple
+from collections import namedtuple, UserList
 
 from .qform import QuestionForm, QuestionVisitor, join_case
 
 
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "comment", "is_hidden"))
 Element = namedtuple('Element', ('lines', 'format', 'nlines'))
+
+
+class OptionalArgumentsStorage(UserList):
+
+    def __init__(self, lst=None):
+        self._keys = set()
+        super().__init__()
+        if lst is not None:
+            for ele in lst:
+                self.append(ele)
+
+    def _check_options(self, action):
+        for opt in action.fullname:
+            if opt not in self._keys:
+                self._keys.add(opt)
+            else:
+                raise ValueError(f"option {opt} already used defined, no name clashes allowed")
+
+    def append(self, value):
+        if not isinstance(value, Action):
+            raise ValueError("Con only add action objects")
+        self._check_options(value)
+        self.data.append(value)
 
 
 class FullName:
@@ -19,6 +42,9 @@ class FullName:
             self._value = tuple(val.strip() for val in value)
         else:
             raise ValueError("Value can only be set/list/tuple or string")
+
+    def __iter__(self):
+        return iter(self._value)
 
     def __eq__(self, value):
         return value in self._value
@@ -110,8 +136,15 @@ def check_string(name, metavar):
 
 class Action:
 
-    def __init__(self, question):
+    def __init__(self, name, question):
         self.question = question
+        if not isinstance(name, FullName):
+            name = FullName(name)
+        self.fullname = name
+
+    @property
+    def name(self):
+        return str(self.fullname)
 
     @property
     def typ(self):
@@ -134,8 +167,8 @@ class Action:
 class SetArgumentAction(Action):
 
     def __init__(self, name, question, metavar=None):
-        super().__init__(question)
-        _, self.fullname, self.metavar = check_names(name, metavar)
+        _, fullname, self.metavar = check_names(name, metavar)
+        super().__init__(fullname, question)
         if question.is_list is True:
             nargs = question.validator.nele
         else:
@@ -189,10 +222,6 @@ class SetArgumentAction(Action):
 
 class OptionalArgument(SetArgumentAction):
 
-    @property
-    def name(self):
-        return self.fullname
-
     def __repr__(self):
         return f"OptionalArgument({self.fullname}, {self.metavar})"
 
@@ -208,6 +237,25 @@ class PositionalArgument(SetArgumentAction):
 
     def __repr__(self):
         return f"PositionalArgument({self.fullname}, {self.metavar})"
+
+
+class EventAction(Action):
+
+    def __init__(self, name, function, is_hidden=False, comment=None):
+        super().__init__(name, EmptyQuestion('action', comment, is_hidden))
+        self._fun = function
+
+
+    def to_commandline_str(self, *args):
+        return str(self.fullname.small)
+
+    def consume(self, args):
+        # execute action
+        self._fun()
+
+    def __eq__(self, value):
+        return self.fullname == value
+
 
 
 class SysIterator:
@@ -423,7 +471,7 @@ class HelpFormatter:
 
         if parser.parent is None:
             return f"usage: {name} {opts} {out} {subparser}"
-        return f"usage: {name} ... {opts} {out} {subparser}"
+        return f"usage: {name} ... {parser.name} {opts} {out} {subparser}"
 
     def _do_task(self, task, parser):
         if task == 'pos_args':
@@ -467,38 +515,15 @@ class HelpFormatter:
         return order
 
 
-class EventAction(Action):
-
-    def __init__(self, name, function, is_hidden=False, comment=None):
-        super().__init__(EmptyQuestion('action', comment, is_hidden))
-        self._fun = function
-        self.fullname = FullName(name)
-
-    @property
-    def name(self):
-        return str(self.fullname)
-
-    def to_commandline_str(self, *args):
-        return str(self.fullname.small)
-
-    def consume(self, args):
-        # execute action
-        self._fun()
-
-    def __eq__(self, value):
-        return self.fullname == value
-
-
 class SubParser(Action):
 
     def __init__(self, name, question, parent):
-        super().__init__(question)
+        super().__init__(name, question)
         self._options = {}
-        self.name = name
         self._parent = parent
 
     def to_commandline_str(self):
-        return f"{self.name} ..."
+        return f"{self.fullname} ..."
 
     def consume(self, args):
         value = args.get_arg()  # ignores --, -value
@@ -511,7 +536,7 @@ class SubParser(Action):
         return parser
 
     def add_parser(self, name, formatter):
-        parser = ArgumentParser(formatter, parent=self._parent)
+        parser = ArgumentParser(formatter=formatter, name=name, parent=self._parent)
         self._options[name] = parser
         return parser
 
@@ -528,12 +553,13 @@ def get_help(parser):
 
 class ArgumentParser:
 
-    def __init__(self, formatter=None, parent=None):
-        self.optional_args = [get_help(self)]
+    def __init__(self, name=None, formatter=None, parent=None):
+        self.optional_args = OptionalArgumentsStorage([get_help(self)])
         self.args = []
         self.parent = parent
         self.children = []
         self.formatter = formatter
+        self.name = name
 
     def add_subparser(self, name, question):
         child = SubParser(name, question, parent=self)
@@ -552,7 +578,7 @@ class ArgumentParser:
                 self.error_help(e)
 
     def add_argument(self, name, question, metavar=None):
-        if name.startswith('-'):
+        if isinstance(name, list) or name.startswith('-'):
             arg = OptionalArgument(name, question, metavar=metavar)
             self.optional_args.append(arg)
         else:
@@ -739,7 +765,10 @@ class CommandlineParserVisitor(QuestionVisitor):
             default = None
         else:
             # default exists -> Optional Argument
-            name = f"--{id_name}"
+            if question.alias is not None:
+                name = [f"--{id_name}", f"-{question.alias}"]
+            else:
+                name = f"--{id_name}"
         #
         return default, name
 

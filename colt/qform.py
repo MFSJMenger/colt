@@ -199,7 +199,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
     """Concrete question"""
 
     __slots__ = ("_value", "_comment", "is_subquestion_main",
-                 "question", "typ", "is_optional", "is_hidden", "is_set_to_empty")
+                 "question", "typ", "is_optional", "alias", "is_hidden", "is_set_to_empty")
 
     def __init__(self, name, question, is_subquestion=False):
         #
@@ -212,6 +212,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         else:
             self._comment = question.comment
         #
+        self.alias = question.alias
         self.question = question.question
         self.typ = question.typ
 
