@@ -10,6 +10,19 @@ from .parser import get_config_from_commandline as get_config_from_commandline_p
 __all__ = ["Colt"]
 
 
+class ClassProperty:
+
+    def __init__(self, func):
+        self._func = func
+
+    def __get__(self, obj, objtype=None):
+        if objtype is None:
+            return self
+        # class method
+        return self._func(objtype)
+    
+
+
 def add_defaults_to_dict(clsdict, defaults):
     """ add defaults to dict """
     for key, default in defaults.items():
@@ -55,6 +68,10 @@ def colt_modify_class_dict(clsdict, bases):
                      '_questions': "",
                      }
 
+    if 'questions' in clsdict:
+        raise ValueError("Method/value 'questions' reserved for Colt")
+
+    clsdict['questions'] = ClassProperty(lambda cls: cls.generate_questions_ast())
     to_classmethod(clsdict, '_extend_questions')
     to_classmethod(clsdict, 'from_config')
     # rewrite that....it is horrible
@@ -84,12 +101,7 @@ class ColtMeta(ABCMeta):
         colt_modify_class_dict(clsdict, bases)
         return ABCMeta.__new__(cls, name, bases, clsdict)
 
-    @property
-    def questions(cls):
-        """return QuestionAST object"""
-        return cls._generate_questions()
-
-    def _generate_questions(cls):
+    def generate_questions_ast(cls):
         """gentarte QuestionAST object and extend it possibly"""
         questions = QuestionASTGenerator(cls._questions)
         cls._extend_questions(questions)
@@ -195,8 +207,7 @@ class Colt(metaclass=ColtMeta):
                         "also from_questions depend on that!")
 
     @classmethod
-    def from_commandline(cls, *args, presets=None,
-                         description=None, logo=None, argparse=False, **kwargs):
+    def from_commandline(cls, *args, presets=None, description=None, **kwargs):
         """Initialize the class using input provided from the commandline
 
         Parameters
@@ -219,12 +230,8 @@ class Colt(metaclass=ColtMeta):
             anything that from_config returns. Intended to initalize the class
             so from_config should return an instance of the class.
         """
-        if argparse is False:
-            answers = get_config_from_commandline_parser(cls.questions, description=description,
-                                                         presets=presets, logo=logo)
-        else:
-            answers = get_config_from_commandline(cls.questions, description=description,
-                                                  presets=presets)
+        answers = get_config_from_commandline_parser(cls.questions, description=description,
+                                                     presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
@@ -263,36 +270,7 @@ class Colt(metaclass=ColtMeta):
         return questions.generate_input(filename, ask_all=ask_all, ask_defaults=ask_defaults)
 
 
-class CommandlineInterface(Colt):
-    """Basic Colt class to handle commandline parsing"""
-    _description = None
-
-    @classmethod
-    def from_config(cls, config, *args, **kwargs):
-        """Return the config if from_commandline/from_questions is called"""
-        return config
-
-    def __init__(self, function):
-        """Store the original function"""
-        self.function = function
-        self.__doc__ = self.function.__doc__
-
-    def __repr__(self):
-        return repr(self.function)
-
-    def __call__(self, *args, **kwargs):
-        """If the function is called with arguments: use it as is
-        Else: get the arguments from the commandline"""
-        # call with arguments
-        if any(len(value) != 0 for value in (args, kwargs)):
-            return self.function(*args, **kwargs)
-        # call from commandline
-        answers = self.from_commandline(description=self._description, logo=self.logo,
-                                        argparse=self.use_argparse)
-        return self.function(**answers)
-
-
-def from_commandline(questions, *, argparse=False, logo=None, description=None):
+def from_commandline(questions, *, description=None):
     """Decorate a function to call it using commandline arguments
 
     Parameters
@@ -317,11 +295,37 @@ def from_commandline(questions, *, argparse=False, logo=None, description=None):
     be called.
     """
     #
+
     def _wrapper(func):
         """Wrapper function to decorate the function with the CommandlineInterface class"""
-        cls = type('CommandlineInterface', (CommandlineInterface,),
-                   {'_questions': questions, '_description': description, 'use_argparse': argparse,
-                    'logo': logo, 'description': description})
-        return cls(func)
+        class CommandlineInterface(Colt):
+            """Basic Colt class to handle commandline parsing"""
+
+            _questions = questions
+
+            @classmethod
+            def from_config(cls, config, *args, **kwargs):
+                """Return the config if from_commandline/from_questions is called"""
+                return config
+
+            def __init__(self, function, description):
+                """Store the original function"""
+                self._func = function
+                self.description = description
+                self.__doc__ = self._func.__doc__
+
+            def __repr__(self):
+                return f"CommandlineInterface(func={self._func.__name__})"
+
+            def __call__(self, *args, **kwargs):
+                """If the function is called with arguments: use it as is
+                Else: get the arguments from the commandline"""
+                # call with arguments
+                if any(len(value) != 0 for value in (args, kwargs)):
+                    return self._func(*args, **kwargs)
+                # call from commandline
+                answers = self.from_commandline(description=self.description)
+                return self._func(**answers)
+        return CommandlineInterface(func, description)
     # return the new colt class
     return _wrapper

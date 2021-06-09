@@ -488,7 +488,8 @@ class ListValidator(_Validator):
                 error['ele'].append(ele)
 
         if error['error'] is not None:
-            raise ValueError(str(error['error']) + f" for elements [{', '.join(error['ele'])}] in [{', '.join(lst)}]")
+            raise ValueError(str(error['error']) +
+                             f" for elements [{', '.join(error['ele'])}] in [{', '.join(lst)}]")
 
         if self.nele > 0:
             if len(out) != self.nele:

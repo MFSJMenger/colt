@@ -217,7 +217,7 @@ class QuestionASTGenerator(Component, Generator):
         # try to parse line
         try:
             value = self._parse_string(value)
-        except ValueError as e:
+        except ValueError:
             raise ValueError(f"Cannot parse value `{original_value}`") from None
         # check for literal block
         if value.typ == 'literal':
@@ -232,7 +232,7 @@ class QuestionASTGenerator(Component, Generator):
         # get choices
         choices = self._parse_choices(value.choices)
         # return leaf node
-        return Question(question=question, typ=value.typ, default=default, 
+        return Question(question=question, typ=value.typ, default=default,
                         choices=choices, comment=comment, is_optional=value.is_optional,
                         alias=value.alias)
 

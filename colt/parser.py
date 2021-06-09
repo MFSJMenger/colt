@@ -4,7 +4,7 @@ from collections import namedtuple, UserList
 from .qform import QuestionForm, QuestionVisitor, join_case
 
 
-EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "comment", "is_hidden"))
+EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "choices", "comment", "is_hidden"))
 Element = namedtuple('Element', ('lines', 'format', 'nlines'))
 
 
@@ -143,11 +143,20 @@ class Action:
         self.fullname = name
 
     @property
+    def choices(self):
+        """No choices defined by default"""
+        if self.question.choices is None:
+            return ''
+        return self.question.choices
+
+    @property
     def name(self):
+        """Name of the action"""
         return str(self.fullname)
 
     @property
     def typ(self):
+        """Typ of the action"""
         return self.question.typ
 
     @property
@@ -242,9 +251,8 @@ class PositionalArgument(SetArgumentAction):
 class EventAction(Action):
 
     def __init__(self, name, function, is_hidden=False, comment=None):
-        super().__init__(name, EmptyQuestion('action', comment, is_hidden))
+        super().__init__(name, EmptyQuestion('action', None, comment, is_hidden))
         self._fun = function
-
 
     def to_commandline_str(self, *args):
         return str(self.fullname.small)
@@ -255,7 +263,6 @@ class EventAction(Action):
 
     def __eq__(self, value):
         return self.fullname == value
-
 
 
 class SysIterator:
@@ -310,14 +317,11 @@ DELIM = "---------------------------------------------------"
 class ArgFormatter:
 
     def __init__(self, format):
-        self._formatter = format
-        self.shift = self._formatter.pop('shift', '')
+        # get rid of empty entries
+        self._formatter = {key: value for key, value in format.items() if value is not None}
         self.space = self._formatter.pop('space', ' ')
         if isinstance(self.space, int):
             self.space = ' ' * self.space
-        if isinstance(self.shift, int):
-            self.shift = ' ' * self.shift
-        #
 
     def format(self, arg):
         return self._format_arg(arg)
@@ -340,8 +344,6 @@ class ArgFormatter:
         #
         nlen = 0
         for name, length in self._formatter.items():
-            if name == 'space':
-                continue
             res, nlines = self._get_lines(str(getattr(arg, name)), length)
             if nlines > nlen:
                 nlen = nlines
@@ -351,7 +353,6 @@ class ArgFormatter:
     def _format_string(self, data, nlen):
         out = ""
         for i in range(nlen):
-            out += f"{self.shift}"
             for value in data.values():
                 if i < value.nlines:
                     out += value.format % value.lines[i]
@@ -364,99 +365,214 @@ class ArgFormatter:
 
 class HelpStringBlock:
 
-    def __init__(self, block_space, space):
-        self._string = None
-        self.block_space = block_space
-        self.space = space
+    def __init__(self, block_space, line_start, line_end, start, end):
+        if start is not None:
+            self._lines = [None]  # placeholder for start
+        else:
+            self._lines = []
+        #
+        self._block_space = block_space.splitlines()
+        if line_end is None and line_start is None:
+            self._format_str = None
+        elif line_start is None:
+            self._format_str = f"{line_start}%s"
+            line_end = False
+        elif line_end is None:
+            self._format_str = f"%s{line_end}"
+            line_end = True
+        else:
+            self._format_str = f"{line_start}%s{line_end}"
+            line_end = True
+        self._line_end = line_end
         self._last_was_space = False
+        self._start = start
+        self._end = end
+        self._longest_length = 0
 
-    def add(self, name, block):
+    def _format(self, line):
+        if self._line_end is True:
+            line = line + ' '*(self._longest_length - len(line))
+        return self._format_str % line
+
+    @property
+    def start(self):
+        return self._start * self._longest_length
+
+    @property
+    def end(self):
+        return self._end * self._longest_length
+
+    def add(self, block, is_space=False):
         if block is None:
             return
-        if self._string is None:
-            self._string = block
-            return
-        if self._last_was_space is False and name != 'space':
-            self._string += self.block_space
-        self._string += block
-        if name == 'space':
-            self._last_was_space = True
+        for line in block.splitlines():
+            if len(line) > self._longest_length:
+                self._longest_length = len(line)
+            self._lines.append(line)
+        if self._last_was_space is False and is_space is False:
+            self._lines += self._block_space
+        self._last_was_space = is_space
 
-    def __str__(self):
-        return self._string
+    def render(self):
+        if len(self._lines) == 0:
+            return ""
+        if self._start is not None:
+            self._lines[0] = self.start
+        if self._end is not None:
+            self._lines.append(self.end)
+        if self._format_str is None:
+            return "\n".join(self._lines)
+        return "\n".join(self._format(line) for line in self._lines)
+
+
+Description = namedtuple("Description", ("logo", "description", "short_description"))
+Spacing = namedtuple("Spacing", ("seperator", "block_seperator"))
+Orders = namedtuple("Ordering", ("main", "error", "short"))
+Blocks = namedtuple("Blocks", ("opt_args", "pos_args"))
+
+
+class Block:
+
+    def __init__(self, title, indent=None, body_indent=None, delim=None):
+        self._title = title
+        if isinstance(indent, int):
+            indent = ' '*indent
+        if isinstance(body_indent, int):
+            body_indent = ' '*body_indent
+        self._indent = indent
+        self._body_indent = body_indent
+        self._delim = delim
+
+    @classmethod
+    def from_dct(cls, dct):
+        return cls(dct['title'], indent=dct.get('indent'), body_indent=dct.get('body_indent'), delim=dct.get('delim'))
+
+    @staticmethod
+    def _add_spacing(text, spacing):
+        if spacing is None:
+            return text
+        return "\n".join(spacing + line for line in text.splitlines())
+
+    def render(self, body, show_if_empty=False):
+        if show_if_empty is False and (body is None or body == ""):
+            return None
+        if self._delim is not None:
+            out = f"{self._title}\n{self._delim}\n"
+        else:
+            out = f"{self._title}\n"
+        out += self._add_spacing(body, self._body_indent)
+        return self._add_spacing(out, self._indent)
 
 
 class HelpFormatter:
 
-    blocks = ('usage', 'space', 'opt_args', 'pos_args', 'logo', 'description', 'error')
+    _simple_settings = ('description', 'logo', 'short_description',
+                        'seperator', 'block_seperator',
+                        'main_order', 'error_order', 'short_order',
+                        'start', 'end', 'line_start', 'line_end')
+    _arg_settings = ('pos_args', 'opt_args')
 
-    def __init__(self, logo=None, description=None, block_space="\n\n\n", space="\n",
-                 main_order=None, error_order=None, short_order=None, arg_formater=None):
-        if error_order is None:
-            error_order = ['usage', 'error', 'space']
-        if main_order is None:
-            main_order = ['logo', 'description', 'pos_args', 'opt_args', 'usage', 'space']
-        if short_order is None:
-            short_order = ['usage', ]
-        if arg_formater is not None:
-            if not isinstance(arg_formater, dict):
-                raise ValueError("argument format can only be dict")
-            arg_formater = ArgFormatter(arg_formater)
-        else:
-            arg_formater = ArgFormatter({
-                    'name': 12,
-                    'comment': 40,
-                    'typ': 12,     # maximale breite
-                    'space': 2,
-                    'shift': 4,
-                    })
-        # normal space
-        self.space = space
-        # block spaces
-        self.block_space = block_space
-        # how to format a line
-        self.arg_formater = arg_formater
-        #
-        self.error_order = error_order
-        #
-        self.main_order = main_order
-        #
-        self.short_order = short_order
-        #
-        self.logo = logo
-        #
-        self.description = description
-        #
-        self.error = None
+    settings = {
+        'description': None,
+        'logo': None,
+        'short_description': None,
+        'seperator': '\n',
+        'block_seperator': '\n\n\n',
+        'main_order': ['logo', 'description', 'pos_args', 'opt_args', 'usage', 'space'],
+        'error_order': ['usage', 'error', 'space'],
+        'short_order': ['usage'],
+        'line_start': None,
+        'line_end': None,
+        'start': None,
+        'end': None,
+        'arg_block': {   # settings for all argument blocks
+            'indent': 2,
+            'body_indent': 2,
+            'delim': DELIM,
+        },
+        'pos_args': {
+            'title': 'positional arguments:',
+            'indent': None,
+            'body_indent': None,
+            'delim': None,
+        },
+        'opt_args': {
+            'title': 'optional arguments:',
+            'indent': None,
+            'body_indent': None,
+            'delim': None,
+        },
+        'arg_format': {
+            'name': 12,
+            'comment': 40,
+            'choices': None,
+            'typ': 12,     # maximale breite
+            'space': 2,
+        },
+    }
 
-    def _logo(self):
-        return self.logo
+    blocks = ('usage', 'space', 'opt_args', 'pos_args', 'logo',
+              'description', 'short_description', 'error')
 
-    def _description(self):
-        return self.description
+    def __init__(self, settings=None):
+        (self._description, self._orders,
+         self._spacing, self._arg_formatter, self._blocks,
+         self._info) = self._parse_settings(settings)
+        # helper for error storage
+        self._error = None
 
-    def _error(self):
-        return f"Error: {self.error}"
+    def info(self, parser):
+        """Main information"""
+        return self._render(self._orders.main, parser)
 
-    def _opt_args(self, parser):
-        out = f"  optional arguments:\n {DELIM}\n"
-        out += "".join(self._format_arg(arg)
-                       for arg in parser.optional_args
-                       if not arg.is_hidden)
+    def short_info(self, parser):
+        """short information"""
+        return self._render(self._orders.short, parser)
 
-        return out
+    def error_info(self, parser, error):
+        """error information"""
+        self._error = str(error)
+        return self._render(self._orders.error, parser)
 
-    def _pos_args(self, parser):
+    # definitions
+
+    def space(self, parser):
+        """individual block spacing defined by the user"""
+        return self._spacing.seperator
+
+    def logo(self, parser):
+        """logo: shown everywhere"""
+        return self._description.logo
+
+    def description(self, parser):
+        """main description of the code"""
+        return self._description.description
+
+    def short_description(self, parser):
+        """short description of the program"""
+        return self._description.short_description
+
+    def error(self, parser):
+        """error message"""
+        return f"Error: {self._error}"
+
+    def opt_args(self, parser):
+        """opt_args block always shown due to help"""
+        return self._blocks.opt_args.render("".join(self._arg_formatter.format(arg)
+                                            for arg in parser.optional_args
+                                            if not arg.is_hidden))
+
+    def pos_args(self, parser):
         if len(parser.args) == 0 and len(parser.children) == 0:
             return None
-        out = f"  positional arguments:\n {DELIM}\n"
-        out += "".join(self._format_arg(arg)
-                       for arg in parser.args)
-        out += "".join(self._format_arg(arg)
-                       for arg in parser.children)
-        return out
+        return self._blocks.pos_args.render(
+                "".join(self._arg_formatter.format(arg)
+                        for arg in parser.args) +
+                "".join(self._arg_formatter.format(arg)
+                        for arg in parser.children)
+                )
 
-    def _usage(self, parser):
+    def usage(self, parser):
         name = sys.argv[0]
 
         nargs = len(parser.args)
@@ -473,45 +589,123 @@ class HelpFormatter:
             return f"usage: {name} {opts} {out} {subparser}"
         return f"usage: {name} ... {parser.name} {opts} {out} {subparser}"
 
+    def format_arg(self, arg):
+        """How to format a single line in pos_args, opt_args"""
+        return self._arg_formatter.format(arg)
+
+    # helper
+
+    @staticmethod
+    def _set_indent(value):
+        if isinstance(value, int):
+            value = ' '*value
+        return value
+
+    def _get_block_info(self, global_default, default, settings):
+        if settings is None:
+            settings = {}
+        self._check_keys(settings, default)
+        for key, value in default.items():
+            if key == 'title':
+                if key not in settings:
+                    settings[key] = value
+            elif key not in settings:
+                if value is None:
+                    settings[key] = global_default[key]
+        return settings
+
+    def _prepare_settings(self, settings):
+        if isinstance(settings, str):
+            settings = {'description': settings}
+        elif settings is None:
+            settings = {}
+        self._check_keys(settings, self.settings)
+        # set default
+        for key in self._simple_settings:
+            if key not in settings:
+                settings[key] = self.settings[key]
+        #
+        if 'arg_block' not in settings:
+            block_defaults = self.settings['arg_block']
+        else:
+            block_defaults = self._update_dct(settings['arg_block'], self.settings['arg_block'])
+
+        settings['pos_args'] = self._get_block_info(block_defaults, self.settings['pos_args'],
+                                                    settings.get('pos_args'))
+        settings['opt_args'] = self._get_block_info(block_defaults, self.settings['opt_args'],
+                                                    settings.get('opt_args'))
+
+        arg_format = settings.get('arg_format')
+        if arg_format is None:
+            settings['arg_format'] = self.settings['arg_format']
+        else:
+            self._check_keys(settings['arg_format'], self.settings['arg_format'])
+
+        return settings
+
+    @staticmethod
+    def _check_keys(current, allowed, ignore=[]):
+        """ignore is immutable, so putting it to [] is fine"""
+        if any(key not in allowed for key in current if key not in ignore):
+            unknown = [key for key in current if (key not in ignore and key not in allowed)]
+            raise ValueError(f"Key(s) '{unknown}' in Settings unknown")
+
+    def _update_dct(self, settings, default, ignore=[]):
+        if settings is None:
+            settings = {}
+        self._check_keys(settings, default, ignore=ignore)
+        self._update_settings(settings, default)
+        return settings
+
+    @staticmethod
+    def _update_settings(settings, default):
+        for key, value in default.items():
+            if key not in settings:
+                settings[key] = value
+        return settings
+
+    def _parse_settings(self, settings):
+        settings = self._prepare_settings(settings)
+        #
+        arg_formatter = ArgFormatter(settings['arg_format'])
+        orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'])
+        spacing = Spacing(settings['seperator'], settings['block_seperator'])
+        description = Description(settings['logo'], settings['description'],
+                                  settings['short_description'])
+        blocks = Blocks(Block.from_dct(settings['opt_args']),
+                        Block.from_dct(settings['pos_args']))
+        if settings['start'] is not None and len(settings['start']) != 1:
+            raise ValueError("Start can only be single character")
+        if settings['end'] is not None and len(settings['end']) != 1:
+            raise ValueError("End can only be single character")
+        info = {
+            'line_start':  self._set_indent(settings['line_start']),
+            'line_end':  self._set_indent(settings['line_end']),
+            'start': settings['start'],
+            'end': settings['end']
+        }
+
+        self._line_end = self._set_indent(settings['line_end'])
+        return description, orders, spacing, arg_formatter,  blocks, info
+
     def _do_task(self, task, parser):
-        if task == 'pos_args':
-            return self._pos_args(parser)
-        if task == 'opt_args':
-            return self._opt_args(parser)
-        if task == 'usage':
-            return self._usage(parser)
-        if task == 'logo':
-            return self._logo()
-        if task == 'description':
-            return self._description()
-        if task == 'error':
-            return self._error()
-        if task == 'space':
-            return self.space
-        raise ValueError(f"Task '{task}' unknown")
-
-    def info(self, parser):
-        return self._render(self.main_order, parser)
-
-    def short_info(self, parser):
-        return self._render(self.short_order, parser)
-
-    def error_info(self, parser, error):
-        self.error = str(error)
-        return self._render(self.error_order, parser)
+        taskfunc = getattr(self, task, None)
+        if taskfunc is None:
+            raise ValueError(f"Task '{task}' unknown")
+        return taskfunc(parser)
 
     def _render(self, blocks, parser):
-        string = HelpStringBlock(self.block_space, self.space)
+        string = HelpStringBlock(self._spacing.block_seperator,
+                                 self._info['line_start'], self._info['line_end'],
+                                 self._info['start'], self._info['end'])
         for task in blocks:
-            string.add(task, self._do_task(task, parser))
-        return str(string)
-
-    def _format_arg(self, arg):
-        return self.arg_formater.format(arg)
+            string.add(self._do_task(task, parser), task == 'space')
+        return string.render()
 
     def _check(self, order):
         if any(ele not in self.blocks for ele in order):
-            raise Exception("Could not understand block")
+            unknown = [ele for ele in order if ele not in self.blocks]
+            raise Exception(f"Could not understand block(s) {unknown}")
         return order
 
 
@@ -795,7 +989,7 @@ def get_config_from_commandline(questions, formatter=None,
     """
     # Visitor object
     if formatter is None:
-        formatter = HelpFormatter(logo=logo, description=description)
+        formatter = HelpFormatter(settings=description)
     visitor = CommandlineParserVisitor(formatter)
     #
     qform = QuestionForm(questions, presets=presets)
