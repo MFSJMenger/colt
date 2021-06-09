@@ -1,6 +1,7 @@
 import sys
 from collections import namedtuple, UserList
 
+from .validator import ValidatorErrorNotInChoices
 from .qform import QuestionForm, QuestionVisitor, join_case
 
 
@@ -388,6 +389,7 @@ class HelpStringBlock:
         self._start = start
         self._end = end
         self._longest_length = 0
+        self._is_first = True
 
     def _format(self, line):
         if self._line_end is True:
@@ -405,12 +407,16 @@ class HelpStringBlock:
     def add(self, block, is_space=False):
         if block is None:
             return
+        # set block spaces correct
+        if not (self._last_was_space is True or is_space is True) and self._is_first is False:
+            self._lines += self._block_space
+        if self._is_first is True:
+            self._is_first = False 
+        #
         for line in block.splitlines():
             if len(line) > self._longest_length:
                 self._longest_length = len(line)
             self._lines.append(line)
-        if self._last_was_space is False and is_space is False:
-            self._lines += self._block_space
         self._last_was_space = is_space
 
     def render(self):
@@ -670,7 +676,6 @@ class HelpFormatter:
             settings = self._prepare_settings(settings)
         except ValueError as e:
             raise SystemExit(f"Error setting commandline setting: {e}") from None
-
         #
         arg_formatter = ArgFormatter(settings['arg_format'])
         orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'])
@@ -728,10 +733,17 @@ class SubParser(Action):
         value = args.get_arg()  # ignores --, -value
         if value is None:
             raise ValueError("Two few arguments")
-        self.question.answer = value
+        #
+        error = ValueError(f"'{self.name}' needs to be [{', '.join(child for child in self._options)}] not '{value}'")
+        #
+        try:
+            self.question.answer = value
+        except ValidatorErrorNotInChoices as e:
+            raise error from None
+        # not necessary anymore
         parser = self._options.get(value, None)
         if parser is None:
-            raise ValueError(f"parser needs to be in {', '.join(child for child in self._options)}")
+            raise error
         return parser
 
     def add_parser(self, name, formatter):
