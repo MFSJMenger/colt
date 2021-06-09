@@ -3,8 +3,7 @@ from abc import ABCMeta
 #
 from .questions import QuestionASTGenerator
 from .ask import AskQuestions
-from .commandline import get_config_from_commandline
-from .parser import get_config_from_commandline as get_config_from_commandline_parser
+from .parser import get_config_from_commandline
 
 
 __all__ = ["Colt"]
@@ -230,8 +229,8 @@ class Colt(metaclass=ColtMeta):
             anything that from_config returns. Intended to initalize the class
             so from_config should return an instance of the class.
         """
-        answers = get_config_from_commandline_parser(cls.questions, description=description,
-                                                     presets=presets)
+        answers = get_config_from_commandline(cls.questions, description=description,
+                                              presets=presets)
         return cls.from_config(answers, *args, **kwargs)
 
     @classmethod
