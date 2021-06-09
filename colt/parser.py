@@ -445,7 +445,8 @@ class Block:
 
     @classmethod
     def from_dct(cls, dct):
-        return cls(dct['title'], indent=dct.get('indent'), body_indent=dct.get('body_indent'), delim=dct.get('delim'))
+        return cls(dct['title'], indent=dct.get('indent'),
+                   body_indent=dct.get('body_indent'), delim=dct.get('delim'))
 
     @staticmethod
     def _add_spacing(text, spacing):

@@ -19,7 +19,6 @@ class ClassProperty:
             return self
         # class method
         return self._func(objtype)
-    
 
 
 def add_defaults_to_dict(clsdict, defaults):
