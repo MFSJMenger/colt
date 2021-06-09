@@ -1,8 +1,9 @@
 import sys
 from collections import namedtuple, UserList
+from contextlib import contextmanager
 
 from .validator import ValidatorErrorNotInChoices
-from .qform import QuestionForm, QuestionVisitor, join_case
+from .qform import QuestionForm, QuestionVisitor, join_case, join_keys
 
 
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "choices", "comment", "is_hidden"))
@@ -882,16 +883,27 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_question_block(self, block):
         """visit all subquestion blocks"""
-        for question in block.concrete.values():
-            if question.is_subquestion_main is False:
-                question.accept(self)
-        #
-        for subblock in block.blocks.values():
-            subblock.accept(self)
+        block_name = self.block_name
+        with self.blockname_and_parser() as (block_name, parser):
+            self.block_name = join_keys(block_name, block.label)
+            for question in block.concrete.values():
+                if question.is_subquestion_main is False:
+                    question.accept(self)
+            #
+            for subblock in block.blocks.values():
+                subblock.accept(self)
 
     def visit_concrete_question_select(self, question):
         """create a concrete parser and add it to the current parser"""
         self.select_and_add_concrete_to_parser(question)
+
+    @contextmanager
+    def blockname_and_parser(self):
+        parser = self.parser
+        block_name = self.block_name
+        yield (block_name, parser)
+        self.parser = parser
+        self.block_name = block_name
 
     def select_and_add_concrete_to_parser(self, question, is_hidden=False):
         if question.has_only_one_choice is True:
@@ -936,37 +948,29 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_subquestion_block(self, block):
         """When visiting subquestion block create subparsers"""
-        # save ref to current parsser
-        parser = self.parser
-        block_name = self.block_name
         # create subparser
         subparser = parser.add_subparser(block.main_question.name, block.main_question)
         # add subblocks
-        for case, subblock in block.cases.items():
-            self.block_name = join_case(block.main_question.name, case)
-            self.parser = subparser.add_parser(case, self.formatter)
-            subblock.accept(self)
-        # restore old parser
-        self.parser = parser
-        # restore blockname
-        self.block_name = block_name
+        with self.blockname_and_parser():
+            for case, subblock in block.cases.items():
+                self.block_name = join_case(block.main_question.name, case)
+                self.parser = subparser.add_parser(case, self.formatter)
+                subblock.accept(self)
 
     def add_concrete_to_parser(self, question, is_hidden=False):
         """adds a concrete question to the current active parser"""
         default, name = self._get_default_and_name(question)
         # do something with hidden variables!
-        self.parser.add_argument(name, question, metavar=question.label)
+        self.parser.add_argument(name, question)
 
     def _get_default_and_name(self, question):
         """get the name and default value for the current question"""
         # get id_name
-        id_name = question.id
+        id_name = question.short_name
         #
         if self.block_name is not None:
             # remove block_name from the id
-            id_name = id_name.replace(self.block_name, '')
-            if id_name[:2] == '::':
-                id_name = id_name[2:]
+            id_name = join_keys(self.block_name, id_name)
         #
         default = question.answer
         #
