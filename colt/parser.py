@@ -319,7 +319,7 @@ class ArgFormatter:
     def __init__(self, format):
         # get rid of empty entries
         self._formatter = {key: value for key, value in format.items() if value is not None}
-        self.space = self._formatter.pop('space', ' ')
+        self.space = self._formatter.pop('seperator', ' ')
         if isinstance(self.space, int):
             self.space = ' ' * self.space
 
@@ -508,7 +508,7 @@ class HelpFormatter:
             'comment': 40,
             'choices': None,
             'typ': 12,     # maximale breite
-            'space': 2,
+            'seperator': 2,
         },
     }
 
@@ -666,7 +666,11 @@ class HelpFormatter:
         return settings
 
     def _parse_settings(self, settings):
-        settings = self._prepare_settings(settings)
+        try:
+            settings = self._prepare_settings(settings)
+        except ValueError as e:
+            raise SystemExit(f"Error setting commandline setting: {e}") from None
+
         #
         arg_formatter = ArgFormatter(settings['arg_format'])
         orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'])
