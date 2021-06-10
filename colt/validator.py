@@ -174,26 +174,26 @@ def abspath(answer):
 
 def file_exists(path):
     """check if file exists"""
-    path = abspath(path)
-    if not os.path.isfile(path):
-        raise ValueError(f"File does not exisit '{path}'")
-    return path
+    abs_path = abspath(path)
+    if not os.path.isfile(abs_path):
+        raise ValueError(f"File does not exist '{path}'")
+    return abs_path
 
 
 def folder_exists(path):
     """check if folder exists"""
-    path = abspath(path)
-    if not os.path.isdir(path):
-        raise ValueError(f"Folder does not exisit '{path}'")
-    return path
+    abs_path = abspath(path)
+    if not os.path.isdir(abs_path):
+        raise ValueError(f"Folder does not exist '{path}'")
+    return abs_path
 
 
 def non_existing_path(path):
     """check that there is nothing at the given path"""
-    path = abspath(path)
-    if os.path.exists(path):
-        raise ValueError(f"File/Folder does already exisit '{path}'")
-    return path
+    abs_path = abspath(path)
+    if os.path.exists(abs_path):
+        raise ValueError(f"File/Folder does already exist '{path}'")
+    return abs_path
 
 
 def bool_parser(answer):
@@ -334,10 +334,10 @@ class ValidatorErrorNotChoicesSubset(Exception):
     """Exception in case the new choices are not an subset of the old ones"""
 
 
-class _Validator:
+class BaseValidator:
     """Base class to validator"""
 
-    __slots__ = ('_choices', '_value', '_string', '_parse')
+    __slots__ = ('_choices', '_default', '_value', '_string', '_parse')
     # overwrite this method
 
     def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
@@ -346,6 +346,33 @@ class _Validator:
         self._string = NOT_DEFINED
         self._choices = self._set_choices(choices)
         self._value = self._set_value(default)
+
+    @property
+    def default(self):
+        """means value should not be set, is for documentation and help"""
+        return self._value
+
+    @property
+    def choices(self):
+        """Return choices"""
+        if self._choices is NO_CHOICE:
+            return None
+        return self._choices
+
+    @choices.setter
+    def choices(self, choices):
+        """  """
+        # will raise an value error if choices wrong!
+        choices = self._set_choices(choices)
+        # check that the new choices are a subset of the old ones
+        if not choices.is_subset(self._choices):
+            raise ValidatorErrorNotChoicesSubset(("cannot update choices,",
+                                                  " needs to be subset of the original ones"))
+        # overwrite existing ones
+        self._choices = choices
+        # validate choice, if existing default is not in choices, reset
+        if not self._choices.validate(self._value):
+            self._value = NOT_DEFINED
 
     def validate(self, value):
         """Parse a string and return its value,
@@ -384,27 +411,8 @@ class _Validator:
         """set the value"""
         self._value = self._get_value(value)
 
-    @property
-    def choices(self):
-        """Return choices"""
-        if self._choices is NO_CHOICE:
-            return None
-        return self._choices
-
-    @choices.setter
-    def choices(self, choices):
-        """  """
-        # will raise an value error if choices wrong!
-        choices = self._set_choices(choices)
-        # check that the new choices are a subset of the old ones
-        if not choices.is_subset(self._choices):
-            raise ValidatorErrorNotChoicesSubset(("cannot update choices,",
-                                                  " needs to be subset of the original ones"))
-        # overwrite existing ones
-        self._choices = choices
-        # validate choice, if existing default is not in choices, reset
-        if not self._choices.validate(self._value):
-            self._value = NOT_DEFINED
+    def set_default(self, value):
+        self.set(value)
 
     def _set_value(self, value):
         if value is not NOT_DEFINED:
@@ -437,7 +445,7 @@ class _Validator:
         return value
 
 
-class RangeValidator(_Validator):
+class RangeValidator(BaseValidator):
     """Validator that allowes both `Choices` and RangeExpression"""
 
     def set_choices(self, choices):
@@ -460,18 +468,20 @@ class RangeValidator(_Validator):
         return Choices(choices)
 
 
-class ListValidator(_Validator):
-
-    parser = list_parser
+class ListValidator(BaseValidator):
+    
+    """Validator for list(typ) syntax"""
 
     def __init__(self, validator, nele, default=NOT_DEFINED):
         self._validator = validator
-        self._choices = self._set_choices(None)
-        self._value = self._set_value(default)
-        self._string = NOT_DEFINED
         self.nele = nele
+        def parse(inp):
+            return self.list_parse(inp)
 
-    def _parse(self, inp):
+        super().__init__(parse, default=default, choices=None)
+
+    def list_parse(self, inp):
+        """parse function for list"""
         if isinstance(inp, str):
             lst = list_parser(inp)
         else:
@@ -497,6 +507,30 @@ class ListValidator(_Validator):
         return out
 
 
+class DelayedDefaultValidator(BaseValidator):
+    
+    """Validator to check default correctness only at the end"""
+
+    def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
+        super().__init__(parse_function, default=NOT_DEFINED, choices=choices)
+        self._default = default
+
+    @property
+    def default(self):
+        """means value should not be set, is for documentation and help"""
+        return self._default
+
+    def set_default(self, value):
+        self.set(value)
+        self._default = value
+
+    def get(self):
+        """Return self._value if its set or not!"""
+        if self._value is NOT_DEFINED:
+            self.set(self._default)
+        return self._value
+
+
 ListInfo = namedtuple('ListInfo', ('is_list', 'nele'))
 
 
@@ -507,35 +541,100 @@ def uint(value, larger=-1):
     raise ValueError(f"Value '{val}' smaller than expected '{larger}'")
 
 
+ValidatorType = namedtuple("ValidatorType", ("cls", "cases"))
+ValidatorParser = namedtuple("ValidatorParser", ("cls", "func"))
+
+
+def flatten_validator_dct(validators):
+
+    out = {}
+    for validator_type in validators:
+        #
+        for typ, parser in validator_type.cases.items():
+            if typ in out:
+                raise ValueError(f"Validator Type '{typ}' already defined")
+            out[typ] = ValidatorParser(validator_type.cls, parser)
+    return out
+
+
+class ValidatorSelector:
+
+    """Contains the logic how to select a particular validator"""
+
+    validators = flatten_validator_dct([
+         ValidatorType(DelayedDefaultValidator, {
+            'existing_file': file_exists,
+            'existing_folder': folder_exists,
+            'non_existing_file': non_existing_path,
+            'non_existing_folder': non_existing_path,
+        }), 
+        #
+        ValidatorType(BaseValidator, {
+            'str': str,
+            'bool': bool_parser,
+            'list': list_parser,
+            'ilist': ilist_parser,
+            'ilist_np': ilist_np_parser,
+            'flist': flist_parser,
+            'flist_np': flist_np_parser,
+            'file': abspath,  # return abspath
+            'folder': abspath,
+            # python objects
+            'python(list)': as_python_list,
+            'python(dict)': as_python_dict,
+            'python(tuple)': as_python_tuple,
+            'python(np.array)': as_python_numpy_array,
+        }), 
+        #
+        ValidatorType(RangeValidator, {
+            'int': int,
+            'float': float,
+        }),
+    ])
+
+    types = {'base': BaseValidator, 'range': RangeValidator,
+            'delayed_default': DelayedDefaultValidator}
+
+    def __new__(cls, typ):
+        res = cls.validators.get(typ)
+        if res is None:
+            raise ValueError(f"Typ '{typ}' is unknown, use one of [{' '.join(cls.validators )}]")
+        return res
+
+    @classmethod
+    def add_validator(cls, name, func, typ='base'):
+        """Add a new custom validator.
+
+        Parameters
+        ----------
+        name: str
+            name of the validator typ
+        func: function
+            validation function, should raise ValueError on fail
+        typ: str, optional
+            typ of validator, currently: base, range
+
+        Raises
+        ------
+        ValueError
+            In case the typ is unknown
+        """
+        basetyp = cls.types.get(typ)
+        if basetyp is None:
+            raise ValueError("ValidatorBaseType  '{typ}' unknown")
+        if name in cls.validators:
+            raise ValueError(f"Validator type '{typ}' already known")
+        cls.validators[name] = ValidatorParser(basetyp, func)
+
+    @classmethod
+    def remove_validator(cls, name):
+        """Remove validator """
+        del cls.validators[name]
+
+
 class Validator:
 
     """ Validator Factory class """
-
-    _base_validators = {
-         'str': str,
-         'bool': bool_parser,
-         'list': list_parser,
-         'ilist': ilist_parser,
-         'ilist_np': ilist_np_parser,
-         'flist': flist_parser,
-         'flist_np': flist_np_parser,
-         'file': abspath,  # return abspath
-         'folder': abspath,
-         'existing_file': file_exists,
-         'existing_folder': folder_exists,
-         'non_existing_file': non_existing_path,
-         'non_existing_folder': non_existing_path,
-         # python objects
-         'python(list)': as_python_list,
-         'python(dict)': as_python_dict,
-         'python(tuple)': as_python_tuple,
-         'python(np.array)': as_python_numpy_array,
-         }
-
-    _range_validators = {
-            'int': int,
-            'float': float,
-             }
 
     def __new__(cls, typ, default=NOT_DEFINED, choices=None):
         return cls._get_all_validators(typ, default, choices)
@@ -564,31 +663,34 @@ class Validator:
         else:
             list_info = ListInfo(False, 0)
         #
-        func, typ, choices = cls._get_func_typ(typ, choices)
+        if typ == 'bool' and choices is None:
+            choices = 'y, n'
+        #
+        clstyp, func = ValidatorSelector(typ)
         if list_info.is_list is True:
-            validator = cls._get_validator(func, typ, default=NOT_DEFINED, choices=choices)
+            validator = clstyp(func, default=NOT_DEFINED, choices=choices)
             return ListValidator(validator, list_info.nele, default=default)
-        return cls._get_validator(func, typ, default, choices)
-
-    @classmethod
-    def _get_validator(cls, func, typ, default=NOT_DEFINED, choices=None):
-        if typ == 'range':
-            return RangeValidator(func, default=default, choices=choices)
-        if typ == 'base':
-            return _Validator(func, default=default, choices=choices)
-        raise ValueError("Type unknown")
+        return clstyp(func, default=default, choices=choices)
 
     @classmethod
     def _get_func_typ(cls, typ, choices):
+        # base validators
+        if typ == 'bool' and choices is None:
+            choices = 'y, n'
+
+
         func = cls._base_validators.get(typ, None)
         if func is not None:
             if typ == 'bool' and choices is None:
                 choices = 'y, n'
             return func, 'base', choices
-
+        # range validators
         func = cls._range_validators.get(typ, None)
         if func is not None:
             return func, 'range', choices
+        func = cls._delayed_default_validators.get(typ, None)
+        if func is not None:
+            return func, 'delayed_default', choices
         raise ValueError(f"Validator '{typ}' not defined")
 
     @classmethod
@@ -609,16 +711,9 @@ class Validator:
         ValueError
             In case the typ is unknown
         """
-        if typ == 'range':
-            cls._range_validators[name] = func
-        if typ == 'base':
-            cls._base_validators[name] = func
-        raise ValueError(f"Validator type '{typ}' not known")
+        ValidatorSelector.add_validator(name, func, typ=typ)
 
     @classmethod
     def remove_validator(cls, name):
         """Remove validator """
-        if name in cls._range_validators:
-            del cls._range_validators[name]
-        if name in cls._base_validators:
-            del cls._base_validators[name]
+        ValidatorSelector.remove_validator(name)

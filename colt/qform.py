@@ -226,7 +226,14 @@ class ConcreteQuestion(_ConcreteQuestionBase):
             self.is_hidden = False
 
     @property
-    def is_list(self):
+    def default(self):
+        default = self._value.default
+        if default is NOT_DEFINED:
+            return None
+        return default
+
+    @property
+    def is_list_validator(self):
         return isinstance(self._value, ListValidator)
 
     @property
@@ -294,7 +301,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
         self._value.set(value)
         self.is_set = True
 
-    def preset(self, value, choices):
+    def preset(self, default, choices):
         """preset new value, choices:
         important: first update choices to ensure that default in choices!
         """
@@ -305,8 +312,8 @@ class ConcreteQuestion(_ConcreteQuestionBase):
             #
             if answer is NOT_DEFINED:
                 self.is_set = False
-        if value is not None:
-            self._value.set(value)
+        if default is not None:
+            self._value.set_default(default)
 
 
 class QuestionBlock(_QuestionsContainerBase, UserDict):
@@ -455,13 +462,14 @@ class QuestionVisitor(ABC):
             subblock.accept(self)
 
 
-def block_not_set(block_name, keys):
+def block_error(block_name, errors):
     if block_name == '':
         txt = '\n'
     else:
         txt = f"\n[{block_name}]\n"
-    txt += "\n".join(f"{key} = NotSet" for key in keys)
-    return txt + "\n"
+    for key, error in errors.items():
+        txt += f"{key} = {error}\n"
+    return txt
 
 
 class ColtErrorAnswerNotDefined(SystemExit):
@@ -476,10 +484,10 @@ class ColtErrorAnswerNotDefined(SystemExit):
 class AnswerVisitor(QuestionVisitor):
     """Visitor to collect answers from a given qform"""
 
-    __slots__ = ('check', 'not_set')
+    __slots__ = ('check', 'error')
 
     def __init__(self):
-        self.not_set = None
+        self.error = None
         self.check = False
 
     def visit_qform(self, qform, check=False):
@@ -490,25 +498,33 @@ class AnswerVisitor(QuestionVisitor):
         ColtErrorAnswerNotDefined
             in case an answer is not defined
         """
-        self.not_set = {}
+        self.error = {}
         self.check = check
         answer = qform.form.accept(self)
         if check is True:
-            if self.not_set != {}:
-                raise ColtErrorAnswerNotDefined(self._create_exception(self.not_set))
-        self.not_set = {}
+            if len(self.error) != 0:
+                raise ColtErrorAnswerNotDefined(self._create_exception(self.error))
+        self.error = None
         return answer
 
     def visit_question_block(self, block):
         """Visit the question block and store all results in a Mapping"""
-        out = AnswersBlock({question.label: question.accept(self)
-                            for question in block.concrete.values()})
+        error = {}
+        results = {}
+        for question in block.concrete.values():
+            try:
+                res = question.accept(self)
+                results[question.label] = res
+                if res is NOT_DEFINED:
+                    error[question.label] = NotSet
+            except ValueError as e:
+                error[question.label] = e 
+        out = AnswersBlock(results)
         #
         if self.check is True:
-            not_set = tuple(name for name, value in out.items() if value is NOT_DEFINED)
-            if len(not_set) > 0:
-                self.not_set[block.name] = not_set
-        #
+            if len(error) != 0:
+                self.error[block.name] = error
+        # update blocks
         out.update({name: block.accept(self) for name, block in block.blocks.items()})
         #
         return out
@@ -534,8 +550,8 @@ class AnswerVisitor(QuestionVisitor):
         return block.get_answer()
 
     @staticmethod
-    def _create_exception(not_set):
-        return "\n".join(block_not_set(block, values) for block, values in not_set.items())
+    def _create_exception(errors):
+        return "\n".join(block_error(block, berrors) for block, berrors in errors.items())
 
 
 class QuestionGeneratorVisitor(QuestionASTVisitor):

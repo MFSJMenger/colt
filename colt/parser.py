@@ -19,18 +19,31 @@ class OptionalArgumentsStorage(UserList):
             for ele in lst:
                 self.append(ele)
 
+    def append(self, value):
+        if not isinstance(value, Action):
+            raise ValueError("Con only add action objects")
+        self._check_options(value)
+        self.data.append(value)
+
+    def check_answers(self):
+        wrong_ones = {}
+        for action in self.data:
+            if isinstance(action, EventAction):
+                continue
+            try:
+                action.question.get_answer()
+            except ValueError as e:
+                wrong_ones[action.name] = e
+        if len(wrong_ones) == 0:
+            return None
+        return wrong_ones
+
     def _check_options(self, action):
         for opt in action.fullname:
             if opt not in self._keys:
                 self._keys.add(opt)
             else:
                 raise ValueError(f"option {opt} already used defined, no name clashes allowed")
-
-    def append(self, value):
-        if not isinstance(value, Action):
-            raise ValueError("Con only add action objects")
-        self._check_options(value)
-        self.data.append(value)
 
 
 class FullName:
@@ -180,7 +193,7 @@ class SetArgumentAction(Action):
     def __init__(self, name, question, metavar=None):
         _, fullname, self.metavar = check_names(name, metavar)
         super().__init__(fullname, question)
-        if question.is_list is True:
+        if question.is_list_validator is True:
             nargs = question.validator.nele
         else:
             nargs = 1
@@ -192,6 +205,10 @@ class SetArgumentAction(Action):
     @property
     def is_finite(self):
         return self.nargs.is_finite
+
+    @property
+    def answer(self):
+        return self.question.get_answer()
 
     def consume(self, args):
         result = []
@@ -212,7 +229,7 @@ class SetArgumentAction(Action):
                     break
                 result.append(value)
         # set value
-        if self.question.is_list is True:
+        if self.question.is_list_validator is True:
             self.question.answer = result
         else:
             self.question.answer = result[0]
@@ -798,7 +815,6 @@ class ArgumentParser:
             self.args.append(arg)
 
     def add_action(self, action):
-
         self.optional_args.append(action)
 
     def exit_help(self):
@@ -842,6 +858,8 @@ class ArgumentParser:
                     index += 1
                 else:
                     break
+        #
+        self._check_optionals()
         # clean up
         nchildren = len(self.children)
         #
@@ -851,6 +869,13 @@ class ArgumentParser:
             for i, child in enumerate(self.children, start=1):
                 parser = child.consume(args)
                 parser.parse(args=args, is_last=(i == nchildren))
+
+    def _check_optionals(self):
+        errors = self.optional_args.check_answers()
+        if errors is None:
+            return
+        error = "\n".join(f"option '{name}': {error}"for name, error in errors.items())
+        self.error_help(error)
 
     def _check_final(self, index, args):
         if index != len(self.args):
@@ -972,7 +997,7 @@ class CommandlineParserVisitor(QuestionVisitor):
             # remove block_name from the id
             id_name = join_keys(self.block_name, id_name)
         #
-        default = question.answer
+        default = question.default
         #
         if default in ('', None) and not question.is_optional:
             # default does not exist -> Positional Argument
