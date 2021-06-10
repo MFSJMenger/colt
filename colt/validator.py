@@ -11,6 +11,11 @@ import numpy as np
 __all__ = ["NOT_DEFINED", "Validator", "ValidatorErrorNotInChoices"]
 
 
+ValidatorType = namedtuple("ValidatorType", ("cls", "cases"))
+ValidatorParser = namedtuple("ValidatorParser", ("cls", "func"))
+ListInfo = namedtuple('ListInfo', ('is_list', 'nele'))
+
+
 class NoChoice:
     """Empty object that indicates that no choice are used"""
 
@@ -468,7 +473,31 @@ class RangeValidator(BaseValidator):
         return Choices(choices)
 
 
-class ListValidator(BaseValidator):
+class DelayedDefaultValidator(BaseValidator):
+    
+    """Validator to check default correctness only at the end"""
+
+    def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
+        super().__init__(parse_function, default=NOT_DEFINED, choices=choices)
+        self._default = default
+
+    @property
+    def default(self):
+        """means value should not be set, is for documentation and help"""
+        return self._default
+
+    def set_default(self, value):
+        self.set(value)
+        self._default = value
+
+    def get(self):
+        """Return self._value if its set or not!"""
+        if self._value is NOT_DEFINED:
+            self.set(self._default)
+        return self._value
+
+
+class ListValidator(DelayedDefaultValidator):
     
     """Validator for list(typ) syntax"""
 
@@ -507,31 +536,7 @@ class ListValidator(BaseValidator):
         return out
 
 
-class DelayedDefaultValidator(BaseValidator):
-    
-    """Validator to check default correctness only at the end"""
 
-    def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
-        super().__init__(parse_function, default=NOT_DEFINED, choices=choices)
-        self._default = default
-
-    @property
-    def default(self):
-        """means value should not be set, is for documentation and help"""
-        return self._default
-
-    def set_default(self, value):
-        self.set(value)
-        self._default = value
-
-    def get(self):
-        """Return self._value if its set or not!"""
-        if self._value is NOT_DEFINED:
-            self.set(self._default)
-        return self._value
-
-
-ListInfo = namedtuple('ListInfo', ('is_list', 'nele'))
 
 
 def uint(value, larger=-1):
@@ -541,8 +546,6 @@ def uint(value, larger=-1):
     raise ValueError(f"Value '{val}' smaller than expected '{larger}'")
 
 
-ValidatorType = namedtuple("ValidatorType", ("cls", "cases"))
-ValidatorParser = namedtuple("ValidatorParser", ("cls", "func"))
 
 
 def flatten_validator_dct(validators):
