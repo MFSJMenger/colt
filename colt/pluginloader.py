@@ -1,9 +1,53 @@
 """Load Plugins from a given folder, basically calls `import module` for all modules
 in the plugin folder, that are not explicitly ignored"""
 import importlib.util
+from importlib import import_module
 import os
 import re
 import sys
+
+
+def save_import(module):
+    try:
+        return import_module(module)
+    except ModuleNotFoundError as e:
+        return _FailedImport(e)
+
+
+class DelayedImport:
+    """Delayed Import of a module, only import on use"""
+
+    def __init__(self, module):
+        self._module_name = module
+        self._module = None
+
+    def get(self):
+        if self._module is None:
+            self._load()
+        return self._module
+
+    def __getattr__(self, attr):
+        if self._module is None:
+            self._load()
+        return getattr(self._module, attr)
+
+    def _load(self):
+        module = save_import(self._module_name)
+        if not isinstance(module, _FailedImport):
+            return module
+        raise module.error
+
+
+class _FailedImport:
+    """Fake object that raises a ModuleNotFoundError in casse """
+
+    __slots__ = ('error',)
+
+    def __init__(self, error):
+        self.error = error
+
+    def __getattr__(self, value):
+        raise self.error
 
 
 class PluginLoader:

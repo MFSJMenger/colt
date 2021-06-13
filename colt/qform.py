@@ -516,9 +516,9 @@ class AnswerVisitor(QuestionVisitor):
                 res = question.accept(self)
                 results[question.label] = res
                 if res is NOT_DEFINED:
-                    error[question.label] = NotSet
+                    error[question.label] = "NotSet"
             except ValueError as e:
-                error[question.label] = e 
+                error[question.label] = e
         out = AnswersBlock(results)
         #
         if self.check is True:

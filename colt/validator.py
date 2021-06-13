@@ -474,7 +474,7 @@ class RangeValidator(BaseValidator):
 
 
 class DelayedDefaultValidator(BaseValidator):
-    
+
     """Validator to check default correctness only at the end"""
 
     def __init__(self, parse_function, default=NOT_DEFINED, choices=None):
@@ -498,12 +498,13 @@ class DelayedDefaultValidator(BaseValidator):
 
 
 class ListValidator(DelayedDefaultValidator):
-    
+
     """Validator for list(typ) syntax"""
 
     def __init__(self, validator, nele, default=NOT_DEFINED):
         self._validator = validator
         self.nele = nele
+
         def parse(inp):
             return self.list_parse(inp)
 
@@ -536,16 +537,11 @@ class ListValidator(DelayedDefaultValidator):
         return out
 
 
-
-
-
 def uint(value, larger=-1):
     val = int(value)
     if val > larger:
         return val
     raise ValueError(f"Value '{val}' smaller than expected '{larger}'")
-
-
 
 
 def flatten_validator_dct(validators):
@@ -565,12 +561,12 @@ class ValidatorSelector:
     """Contains the logic how to select a particular validator"""
 
     validators = flatten_validator_dct([
-         ValidatorType(DelayedDefaultValidator, {
+        ValidatorType(DelayedDefaultValidator, {
             'existing_file': file_exists,
             'existing_folder': folder_exists,
             'non_existing_file': non_existing_path,
             'non_existing_folder': non_existing_path,
-        }), 
+        }),
         #
         ValidatorType(BaseValidator, {
             'str': str,
@@ -587,7 +583,7 @@ class ValidatorSelector:
             'python(dict)': as_python_dict,
             'python(tuple)': as_python_tuple,
             'python(np.array)': as_python_numpy_array,
-        }), 
+        }),
         #
         ValidatorType(RangeValidator, {
             'int': int,
@@ -596,7 +592,7 @@ class ValidatorSelector:
     ])
 
     types = {'base': BaseValidator, 'range': RangeValidator,
-            'delayed_default': DelayedDefaultValidator}
+             'delayed_default': DelayedDefaultValidator}
 
     def __new__(cls, typ):
         res = cls.validators.get(typ)
@@ -643,6 +639,31 @@ class Validator:
         return cls._get_all_validators(typ, default, choices)
 
     @classmethod
+    def add_validator(cls, name, func, typ='base'):
+        """Add a new custom validator.
+
+        Parameters
+        ----------
+        name: str
+            name of the validator typ
+        func: function
+            validation function, should raise ValueError on fail
+        typ: str, optional
+            typ of validator, currently: base, range
+
+        Raises
+        ------
+        ValueError
+            In case the typ is unknown
+        """
+        ValidatorSelector.add_validator(name, func, typ=typ)
+
+    @classmethod
+    def remove_validator(cls, name):
+        """Remove validator """
+        ValidatorSelector.remove_validator(name)
+
+    @classmethod
     def _get_list_info(cls, typ):
         """TODO: improve error messages"""
         if typ[-1] != ')':
@@ -674,49 +695,3 @@ class Validator:
             validator = clstyp(func, default=NOT_DEFINED, choices=choices)
             return ListValidator(validator, list_info.nele, default=default)
         return clstyp(func, default=default, choices=choices)
-
-    @classmethod
-    def _get_func_typ(cls, typ, choices):
-        # base validators
-        if typ == 'bool' and choices is None:
-            choices = 'y, n'
-
-
-        func = cls._base_validators.get(typ, None)
-        if func is not None:
-            if typ == 'bool' and choices is None:
-                choices = 'y, n'
-            return func, 'base', choices
-        # range validators
-        func = cls._range_validators.get(typ, None)
-        if func is not None:
-            return func, 'range', choices
-        func = cls._delayed_default_validators.get(typ, None)
-        if func is not None:
-            return func, 'delayed_default', choices
-        raise ValueError(f"Validator '{typ}' not defined")
-
-    @classmethod
-    def add_validator(cls, name, func, typ='base'):
-        """Add a new custom validator.
-
-        Parameters
-        ----------
-        name: str
-            name of the validator typ
-        func: function
-            validation function, should raise ValueError on fail
-        typ: str, optional
-            typ of validator, currently: base, range
-
-        Raises
-        ------
-        ValueError
-            In case the typ is unknown
-        """
-        ValidatorSelector.add_validator(name, func, typ=typ)
-
-    @classmethod
-    def remove_validator(cls, name):
-        """Remove validator """
-        ValidatorSelector.remove_validator(name)

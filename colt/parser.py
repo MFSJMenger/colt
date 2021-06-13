@@ -429,7 +429,7 @@ class HelpStringBlock:
         if not (self._last_was_space is True or is_space is True) and self._is_first is False:
             self._lines += self._block_space
         if self._is_first is True:
-            self._is_first = False 
+            self._is_first = False
         #
         for line in block.splitlines():
             if len(line) > self._longest_length:
@@ -752,11 +752,12 @@ class SubParser(Action):
         if value is None:
             raise ValueError("Two few arguments")
         #
-        error = ValueError(f"'{self.name}' needs to be [{', '.join(child for child in self._options)}] not '{value}'")
+        error = ValueError(f"'{self.name}' needs to be "
+                           f"[{', '.join(child for child in self._options)}] not '{value}'")
         #
         try:
             self.question.answer = value
-        except ValidatorErrorNotInChoices as e:
+        except ValidatorErrorNotInChoices:
             raise error from None
         # not necessary anymore
         parser = self._options.get(value, None)
@@ -974,9 +975,9 @@ class CommandlineParserVisitor(QuestionVisitor):
     def visit_subquestion_block(self, block):
         """When visiting subquestion block create subparsers"""
         # create subparser
-        subparser = parser.add_subparser(block.main_question.name, block.main_question)
         # add subblocks
-        with self.blockname_and_parser():
+        with self.blockname_and_parser() as (block_name, parser):
+            subparser = parser.add_subparser(block.main_question.name, block.main_question)
             for case, subblock in block.cases.items():
                 self.block_name = join_case(block.main_question.name, case)
                 self.parser = subparser.add_parser(case, self.formatter)
