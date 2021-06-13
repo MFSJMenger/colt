@@ -8,6 +8,10 @@ from .qform import QuestionForm, QuestionVisitor, join_case, join_keys
 
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "choices", "comment", "is_hidden"))
 Element = namedtuple('Element', ('lines', 'format', 'nlines'))
+Description = namedtuple("Description", ("logo", "description", "short_description"))
+Spacing = namedtuple("Spacing", ("seperator", "block_seperator"))
+Orders = namedtuple("Ordering", ("main", "error", "short"))
+Blocks = namedtuple("Blocks", ("opt_args", "pos_args", "subparser"))
 
 
 class OptionalArgumentsStorage(UserList):
@@ -54,9 +58,16 @@ class FullName:
         elif isinstance(value, (list, tuple)):
             if len(value) > 2:
                 raise ValueError("Can maximum have two entries")
-            self._value = tuple(val.strip() for val in value)
+            self._value = self._sort(value)
         else:
             raise ValueError("Value can only be set/list/tuple or string")
+
+    @staticmethod
+    def _sort(values):
+        values = tuple(val.strip() for val in values)
+        if len(values[0]) > len(values[1]):
+            return (values[1], values[0])
+        return values
 
     def __iter__(self):
         return iter(self._value)
@@ -67,15 +78,10 @@ class FullName:
     def __str__(self):
         if len(self._value) == 1:
             return f"{self._value[0]}"
-        else:
-            return f"{self._value[0]}/{self._value[1]}"
+        return f"{self._value[0]}/{self._value[1]}"
 
     @property
     def small(self):
-        if len(self._value) == 1:
-            return self._value[0]
-        if len(self._value[0]) > len(self._value[1]):
-            return self._value[1]
         return self._value[0]
 
 
@@ -190,7 +196,7 @@ class Action:
 
 class SetArgumentAction(Action):
 
-    def __init__(self, name, question, metavar=None):
+    def __init__(self, name, question, *, metavar=None):
         _, fullname, self.metavar = check_names(name, metavar)
         super().__init__(fullname, question)
         if question.is_list_validator is True:
@@ -269,7 +275,7 @@ class PositionalArgument(SetArgumentAction):
 
 class EventAction(Action):
 
-    def __init__(self, name, function, is_hidden=False, comment=None):
+    def __init__(self, name, function, *, is_hidden=False, comment=None):
         super().__init__(name, EmptyQuestion('action', None, comment, is_hidden))
         self._fun = function
 
@@ -345,7 +351,8 @@ class ArgFormatter:
     def format(self, arg):
         return self._format_arg(arg)
 
-    def _get_lines(self, string, length):
+    def _get_lines(self, arg, name, length):
+        string = str(getattr(arg, name))
         out = []
         for line in string.splitlines():
             if len(line) < length:
@@ -363,7 +370,7 @@ class ArgFormatter:
         #
         nlen = 0
         for name, length in self._formatter.items():
-            res, nlines = self._get_lines(str(getattr(arg, name)), length)
+            res, nlines = self._get_lines(arg, name, length)
             if nlines > nlen:
                 nlen = nlines
             out[name] = Element(res, f"%-{length}s", nlines)
@@ -449,16 +456,10 @@ class HelpStringBlock:
         return "\n".join(self._format(line) for line in self._lines)
 
 
-Description = namedtuple("Description", ("logo", "description", "short_description"))
-Spacing = namedtuple("Spacing", ("seperator", "block_seperator"))
-Orders = namedtuple("Ordering", ("main", "error", "short"))
-Blocks = namedtuple("Blocks", ("opt_args", "pos_args"))
-
-
 class Block:
 
-    def __init__(self, title, indent=None, body_indent=None, delim=None):
-        self._title = title
+    def __init__(self, title, *, indent=None, body_indent=None, delim=None):
+        self.title = title
         if isinstance(indent, int):
             indent = ' '*indent
         if isinstance(body_indent, int):
@@ -478,13 +479,16 @@ class Block:
             return text
         return "\n".join(spacing + line for line in text.splitlines())
 
-    def render(self, body, show_if_empty=False):
+    def render(self, body, *, show_if_empty=False, title=None):
+        if title is None:
+            title = self.title
+
         if show_if_empty is False and (body is None or body == ""):
             return None
         if self._delim is not None:
-            out = f"{self._title}\n{self._delim}\n"
+            out = f"{title}\n{self._delim}\n"
         else:
-            out = f"{self._title}\n"
+            out = f"{title}\n"
         out += self._add_spacing(body, self._body_indent)
         return self._add_spacing(out, self._indent)
 
@@ -495,7 +499,6 @@ class HelpFormatter:
                         'seperator', 'block_seperator',
                         'main_order', 'error_order', 'short_order',
                         'start', 'end', 'line_start', 'line_end')
-    _arg_settings = ('pos_args', 'opt_args')
 
     settings = {
         'description': None,
@@ -503,9 +506,9 @@ class HelpFormatter:
         'short_description': None,
         'seperator': '\n',
         'block_seperator': '\n\n\n',
-        'main_order': ['logo', 'description', 'pos_args', 'opt_args', 'usage', 'space'],
+        'main_order': ['logo', 'description', 'pos_args', 'opt_args', 'subparser_args', 'usage', 'space', 'comment', 'space'],
         'error_order': ['usage', 'error', 'space'],
-        'short_order': ['usage'],
+        'short_order': ['usage', 'space', 'comment', 'space'],
         'line_start': None,
         'line_end': None,
         'start': None,
@@ -527,6 +530,12 @@ class HelpFormatter:
             'body_indent': None,
             'delim': None,
         },
+        'subparser_args': {
+            'title': 'Subparser argument: %s',
+            'indent': None,
+            'body_indent': None,
+            'delim': None,
+        },
         'arg_format': {
             'name': 12,
             'comment': 40,
@@ -534,14 +543,18 @@ class HelpFormatter:
             'typ': 12,     # maximale breite
             'seperator': 2,
         },
+        'subparser_format': {
+            'name': 12,
+            'comment': 40,
+        },
     }
 
-    blocks = ('usage', 'space', 'opt_args', 'pos_args', 'logo',
-              'description', 'short_description', 'error')
+    blocks = ('usage', 'space', 'opt_args', 'pos_args', 'subparser_args', 'logo',
+              'description', 'short_description', 'comment', 'error')
 
     def __init__(self, settings=None):
         (self._description, self._orders,
-         self._spacing, self._arg_formatter, self._blocks,
+         self._spacing, self._arg_formatter, self._subparser_formatter, self._blocks,
          self._info) = self._parse_settings(settings)
         # helper for error storage
         self._error = None
@@ -577,6 +590,9 @@ class HelpFormatter:
         """short description of the program"""
         return self._description.short_description
 
+    def comment(self, parser):
+        return parser.comment
+
     def error(self, parser):
         """error message"""
         return f"Error: {self._error}"
@@ -588,14 +604,24 @@ class HelpFormatter:
                                             if not arg.is_hidden))
 
     def pos_args(self, parser):
-        if len(parser.args) == 0 and len(parser.children) == 0:
+        if len(parser.args) == 0:
             return None
         return self._blocks.pos_args.render(
                 "".join(self._arg_formatter.format(arg)
-                        for arg in parser.args) +
-                "".join(self._arg_formatter.format(arg)
-                        for arg in parser.children)
-                )
+                        for arg in parser.args)
+        )
+
+    def subparser_args(self, parser):
+        if len(parser.children) == 0:
+            return None
+
+        block = self._blocks.subparser
+
+        return "\n\n".join(
+                block.render("".join(self._subparser_formatter.format(arg)
+                             for arg in child.cases.values()),
+                             title=block.title % child.name)
+                for child in parser.children)
 
     def usage(self, parser):
         name = sys.argv[0]
@@ -655,16 +681,21 @@ class HelpFormatter:
         else:
             block_defaults = self._update_dct(settings['arg_block'], self.settings['arg_block'])
 
-        settings['pos_args'] = self._get_block_info(block_defaults, self.settings['pos_args'],
-                                                    settings.get('pos_args'))
-        settings['opt_args'] = self._get_block_info(block_defaults, self.settings['opt_args'],
-                                                    settings.get('opt_args'))
-
+        for key in ('opt_args', 'pos_args', 'subparser_args'):
+            settings[key] = self._get_block_info(block_defaults, self.settings[key],
+                                                 settings.get(key))
+        #
         arg_format = settings.get('arg_format')
         if arg_format is None:
             settings['arg_format'] = self.settings['arg_format']
         else:
             self._check_keys(settings['arg_format'], self.settings['arg_format'])
+        #
+        subparser_format = settings.get('subparser_format')
+        if subparser_format is None:
+            settings['subparser_format'] = self.settings['subparser_format']
+        else:
+            self._check_keys(settings['subparser_format'], self.settings['subparser_format'])
 
         return settings
 
@@ -696,12 +727,16 @@ class HelpFormatter:
             raise SystemExit(f"Error setting commandline setting: {e}") from None
         #
         arg_formatter = ArgFormatter(settings['arg_format'])
+        subparser_formatter = ArgFormatter(settings['subparser_format'])
+
         orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'])
         spacing = Spacing(settings['seperator'], settings['block_seperator'])
         description = Description(settings['logo'], settings['description'],
                                   settings['short_description'])
         blocks = Blocks(Block.from_dct(settings['opt_args']),
-                        Block.from_dct(settings['pos_args']))
+                        Block.from_dct(settings['pos_args']),
+                        Block.from_dct(settings['subparser_args'])
+        )
         if settings['start'] is not None and len(settings['start']) != 1:
             raise ValueError("Start can only be single character")
         if settings['end'] is not None and len(settings['end']) != 1:
@@ -714,7 +749,7 @@ class HelpFormatter:
         }
 
         self._line_end = self._set_indent(settings['line_end'])
-        return description, orders, spacing, arg_formatter,  blocks, info
+        return description, orders, spacing, arg_formatter, subparser_formatter, blocks, info
 
     def _do_task(self, task, parser):
         taskfunc = getattr(self, task, None)
@@ -744,6 +779,10 @@ class SubParser(Action):
         self._options = {}
         self._parent = parent
 
+    @property
+    def cases(self):
+        return self._options
+
     def to_commandline_str(self):
         return f"{self.fullname} ..."
 
@@ -765,8 +804,9 @@ class SubParser(Action):
             raise error
         return parser
 
-    def add_parser(self, name, formatter):
-        parser = ArgumentParser(formatter=formatter, name=name, parent=self._parent)
+    def add_parser(self, name, formatter, *, comment=None):
+        parser = ArgumentParser(formatter=formatter, name=name,
+                                comment=comment, parent=self._parent)
         self._options[name] = parser
         return parser
 
@@ -783,20 +823,21 @@ def get_help(parser):
 
 class ArgumentParser:
 
-    def __init__(self, name=None, formatter=None, parent=None):
+    def __init__(self, *, name=None, formatter=None, parent=None, comment=None):
         self.optional_args = OptionalArgumentsStorage([get_help(self)])
         self.args = []
         self.parent = parent
         self.children = []
         self.formatter = formatter
         self.name = name
+        self.comment = comment
 
     def add_subparser(self, name, question):
         child = SubParser(name, question, parent=self)
         self.children.append(child)
         return child
 
-    def parse(self, args=None, is_last=True):
+    def parse(self, *, args=None, is_last=True):
         if args is None:
             args = SysIterator()
         try:
@@ -807,7 +848,7 @@ class ArgumentParser:
             else:
                 self.error_help(e)
 
-    def add_argument(self, name, question, metavar=None):
+    def add_argument(self, name, question, *, metavar=None):
         if isinstance(name, list) or name.startswith('-'):
             arg = OptionalArgument(name, question, metavar=metavar)
             self.optional_args.append(arg)
@@ -888,16 +929,18 @@ class ArgumentParser:
 class CommandlineParserVisitor(QuestionVisitor):
     """QuestionVisitor to create Commandline arguments"""
 
-    __slots__ = ('parser', 'block_name', 'formatter')
+    __slots__ = ('parser', 'block_name', 'formatter', 'is_subblock')
 
     def __init__(self, formatter):
         """ """
         self.formatter = formatter
         self.parser = None
         self.block_name = None
+        self.is_subblock = False
 
     def visit_qform(self, qform):
         """Create basic argument parser with `description` and RawTextHelpFormatter"""
+        self.is_subblock = False
         parser = ArgumentParser(formatter=self.formatter)
         self.parser = parser
         # visit all forms
@@ -909,14 +952,15 @@ class CommandlineParserVisitor(QuestionVisitor):
 
     def visit_question_block(self, block):
         """visit all subquestion blocks"""
-        block_name = self.block_name
         with self.blockname_and_parser() as (block_name, parser):
-            self.block_name = join_keys(block_name, block.label)
+            if self.is_subblock is False:
+                self.block_name = join_keys(block_name, block.label)
             for question in block.concrete.values():
                 if question.is_subquestion_main is False:
                     question.accept(self)
             #
             for subblock in block.blocks.values():
+                self.is_subblock = False
                 subblock.accept(self)
 
     def visit_concrete_question_select(self, question):
@@ -931,7 +975,7 @@ class CommandlineParserVisitor(QuestionVisitor):
         self.parser = parser
         self.block_name = block_name
 
-    def select_and_add_concrete_to_parser(self, question, is_hidden=False):
+    def select_and_add_concrete_to_parser(self, question, *, is_hidden=False):
         if question.has_only_one_choice is True:
             self.set_answer(question, question.choices[0])
         elif question.typ == 'bool':
@@ -939,7 +983,7 @@ class CommandlineParserVisitor(QuestionVisitor):
         else:
             self.add_concrete_to_parser(question, is_hidden=is_hidden)
 
-    def add_boolset_to_parser(self, question, is_hidden=False):
+    def add_boolset_to_parser(self, question, *, is_hidden=False):
         default, name = self._get_default_and_name(question)
         # do something with hidden variables!
         original = question.get_answer()
@@ -979,11 +1023,12 @@ class CommandlineParserVisitor(QuestionVisitor):
         with self.blockname_and_parser() as (block_name, parser):
             subparser = parser.add_subparser(block.main_question.name, block.main_question)
             for case, subblock in block.cases.items():
-                self.block_name = join_case(block.main_question.name, case)
-                self.parser = subparser.add_parser(case, self.formatter)
+                self.block_name = None
+                self.parser = subparser.add_parser(case, self.formatter, comment=subblock.comment)
+                self.is_subblock = True
                 subblock.accept(self)
 
-    def add_concrete_to_parser(self, question, is_hidden=False):
+    def add_concrete_to_parser(self, question, *, is_hidden=False):
         """adds a concrete question to the current active parser"""
         default, name = self._get_default_and_name(question)
         # do something with hidden variables!
@@ -1014,7 +1059,7 @@ class CommandlineParserVisitor(QuestionVisitor):
         return default, name
 
 
-def get_config_from_commandline(questions, formatter=None,
+def get_config_from_commandline(questions, *, formatter=None,
                                 logo=None, description=None, presets=None):
     """Create the argparser from a given questions object and return the answers
 

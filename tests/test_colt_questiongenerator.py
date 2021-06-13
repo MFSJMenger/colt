@@ -98,7 +98,7 @@ def test_add_single_question_to_block_fail_block_doesnt_exist(questions):
     """
     questions_generator = QuestionASTGenerator(questions)
     with pytest.raises(KeyError):
-        questions_generator.add_element('add', "hallo", "mm")
+        questions_generator.add_element('add', "hallo", parentnode="mm")
 
 
 def test_add_single_question_to_block_fail_overwrite(questions):
@@ -212,7 +212,7 @@ def test_add_cases_keyerror(questions):
         questions_generator.generate_cases("software", {
             'qchem': "basis = sto-3g\nfunctional=b3lyp",
             'gaussian': "basis = 6-31g*\nfunctional=cam-b3lyp",
-            }, "::hallo")
+            }, block="::hallo")
 
 
 def test_add_cases(questions):
@@ -256,7 +256,7 @@ def test_add_block_to_cases(questions):
     questions_generator.generate_block("system", """
     mem= 10GB
     ncpus = 4 :: int
-    """, "software(qchem)")
+    """, block="software(qchem)")
     #
     questions = questions_generator.questions
 

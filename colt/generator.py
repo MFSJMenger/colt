@@ -2,10 +2,10 @@
 from abc import abstractmethod
 from collections.abc import Mapping, MutableMapping
 #
-import configparser
 import re
 #
 from .slottedcls import slottedcls
+from .configast import parse, IS_BLOCK, Entry
 
 
 class GeneratorNavigator:
@@ -131,7 +131,7 @@ class Generator(GeneratorNavigator, Mapping):
     #
     default = '__GENERATOR__'
 
-    def __init__(self, treeconfig):
+    def __init__(self, treeconfig, *, comment=None):
         """Main Object to generate abstract tree from configstring
 
         Args:
@@ -145,18 +145,15 @@ class Generator(GeneratorNavigator, Mapping):
         #
         if not isinstance(treeconfig, str):
             raise TypeError("Generator only accepts type string!")
-        self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig)
+        self.tree, self._keys = self._configstring_to_keys_and_tree(treeconfig, comment)
 
     @abstractmethod
-    def leaf_from_string(self, name, value, parent=None):
+    def leaf_from_string(self, entry, *, parent=None):
         """Create a leaf from an entry in the config file
 
         Args:
-            name (str):
-                name of the entry
-
-            value (str):
-                value of the entry in the config
+            entry, AstEntry
+                contains main info for value
 
         Kwargs:
             parent (str):
@@ -170,18 +167,18 @@ class Generator(GeneratorNavigator, Mapping):
                 If the value cannot be parsed
         """
 
-    def new_branching(self, name, leaf=None):
+    def new_branching(self, name, *, leaf=None):
         """Create a new empty branching"""
         raise NotImplementedError("Branching not implemented in this tree, "
                                   "please implement the 'new_branching' method")
 
     @staticmethod
-    def new_node():
+    def new_node(comment=None):
         """Create a new node of the tree"""
         return {}
 
     @staticmethod
-    def tree_container():
+    def tree_container(comment=None):
         """Create the container of the Tree"""
         return {}
 
@@ -191,15 +188,16 @@ class Generator(GeneratorNavigator, Mapping):
         """
         return self._get_node(node_name, self.tree)
 
-    def add_element(self, name, line, parentnode=None, overwrite=False):
+    def add_element(self, name, line, *, comment=None, parentnode=None, overwrite=False):
         """add a single leaf node to the tree"""
         tree = self._get_subtree(parentnode)
+        print(tree)
         if name in tree:
             if overwrite is False:
                 raise KeyError(f"Node {name} already exists in {parentnode}")
-        tree[name] = self.leaf_from_string(name, line, parentnode)
+        tree[name] = self.leaf_from_string(Entry(name, line, comment), parent=parentnode)
 
-    def add_elements(self, configtree, parentnode=None, overwrite=True):
+    def add_elements(self, configtree, *, parentnode=None, overwrite=True):
         """add elements to a particular node of the tree"""
         tree = self._get_subtree(parentnode)
         # check that treeconfig is correct type!
@@ -214,7 +212,7 @@ class Generator(GeneratorNavigator, Mapping):
             if key not in tree:
                 tree[key] = item
 
-    def add_node(self, name, config, parentnode=None):
+    def add_node(self, name, config, *, parentnode=None):
         """Add a new `node` with name `name` in given `parentnode`
 
         Args:
@@ -246,7 +244,7 @@ class Generator(GeneratorNavigator, Mapping):
         else:
             raise ValueError(f"Node '{name}' in [{parentnode}] should not exist")
 
-    def add_branching(self, leaf_name, branching_cases, parentnode=None):
+    def add_branching(self, leaf_name, branching_cases, *, parentnode=None):
         """Add a branching node inside `parentnode` with name `leaf_name`
 
         Args:
@@ -302,10 +300,10 @@ class Generator(GeneratorNavigator, Mapping):
         """Basic Preprocessor"""
         return string
 
-    def _configstring_to_keys_and_tree(self, string):
+    def _configstring_to_keys_and_tree(self, string, comment):
         """transform a configstring to a tree object"""
-        questions = self._preprocess_configstring(string)
-        return self._generate_tree(questions)
+        # questions = self._preprocess_configstring(string)
+        return self._generate_tree(string, comment)
 
     @classmethod
     def _preprocess_configstring(cls, string):
@@ -348,7 +346,7 @@ class Generator(GeneratorNavigator, Mapping):
                 return None, None
         return final_node, tree
 
-    def _select_subnode(self, tree, nodeblock):
+    def _select_subnode(self, tree, nodeblock, *, comment=None):
         """Get a node from the tree creates:
            if it does not exist inside the parent node!
 
@@ -366,7 +364,7 @@ class Generator(GeneratorNavigator, Mapping):
             if node in tree:
                 block, _, _ = nodeblock.rpartition(self.seperator)
                 raise KeyError(f"{block} already exists in {nodeblock}")
-            tree[node] = self.new_node()
+            tree[node] = self.new_node(comment=comment)
             return tree[node]
         #
         branch_name, node_name = conditions.branch, conditions.node
@@ -374,7 +372,7 @@ class Generator(GeneratorNavigator, Mapping):
         # insert new branching into tree
         branching = self._new_branching_node(branching, branch_name)
         if node_name not in branching:
-            branching[node_name] = self.new_node()
+            branching[node_name] = self.new_node(comment=comment)
         tree[branch_name] = branching
         return branching[node_name]
 
@@ -426,7 +424,7 @@ class Generator(GeneratorNavigator, Mapping):
         else:
             TypeError(f"keys can only be set or str not {type(keys)}")
 
-    def _get_keys(self, iterator, name=None, parentnode=None):
+    def _get_keys(self, iterator, *, name=None, parentnode=None):
         keys = set()
         if name is not None:
             name = self.join_keys(parentnode, name)
@@ -449,7 +447,7 @@ class Generator(GeneratorNavigator, Mapping):
             raise ValueError(f"Node {node_name} has to be of type {self.node_type}")
         return subtree
 
-    def _get_keys_and_subtree(self, configtree, name=None, parentnode=None):
+    def _get_keys_and_subtree(self, configtree, *, name=None, parentnode=None):
         """update the tree keys and get a particular node"""
         if isinstance(configtree, Generator):
             keys = self._get_keys(configtree.keys(), name=name, parentnode=parentnode)
@@ -460,7 +458,7 @@ class Generator(GeneratorNavigator, Mapping):
             raise TypeError("Generator only accepts type string or Generator!")
         return subtree, keys
 
-    def _generate_tree(self, config):
+    def _generate_tree(self, config, comment):
         """Generate a new tree from a configparser object
 
         Args:
@@ -476,37 +474,22 @@ class Generator(GeneratorNavigator, Mapping):
         # add starting value
         keys.add("")
         # create container for the tree
-        tree = self.tree_container()
+        maintree = self.tree_container(comment=comment)
+        tree = maintree
+        parent=None
         # parse defaults
-        for key, value in config[self.default].items():
-            tree[key] = self.leaf_from_string(key, value, parent="")
+        for entry in parse(config):
+            if entry.value is IS_BLOCK:
+                keys.add(entry.name)
+                parent=entry.name
+                tree = self._create_block(maintree, entry)
+                continue
+            tree[entry.name] = self.leaf_from_string(entry, parent=parent)
+        return maintree, keys
+
+    def _create_block(self, tree, entry):
         # get subsections
-        subsections = [section for section in config.sections() if self._is_subblock(section)]
-        # parse main sections
-        for section in config.sections():
-            if section == self.default:
-                continue
-            if self._is_subblock(section):
-                continue
-            # register section
-            keys.add(section)
-            subnode = self.new_node()
-            for key, value in config[section].items():
-                subnode[key] = self.leaf_from_string(key, value, parent=section)
-            tree[section] = subnode
-        # parse all subsections
-        for section in subsections:
-            # gets the subnode, if it is a branching
-            # and does not exist, creates it
-            subnode = self._select_subnode(tree, section)
-            if subnode is None:
-                continue
-            # register sectio
-            keys.add(section)
-            for key, value in config[section].items():
-                subnode[key] = self.leaf_from_string(key, value, parent=section)
-        #
-        return tree, keys
+        return self._select_subnode(tree, entry.name, comment=entry.comment)
 
 
 class BranchingNode(MutableMapping):

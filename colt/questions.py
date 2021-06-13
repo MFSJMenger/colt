@@ -52,7 +52,7 @@ class Question(Component):
     __slots__ = ('question', 'typ', 'default', 'choices', 'comment', 'alias', 'is_optional')
 
     def __init__(self, question="", typ="str", default=NOT_DEFINED,
-                 choices=None, comment=NOT_DEFINED, is_optional=False, alias=None):
+                 choices=None, comment=None, is_optional=False, alias=None):
         self.question = question
         self.typ = typ
         self.default = default
@@ -120,10 +120,11 @@ class ConditionalQuestion(Component, BranchingNode):  # pylint: disable=too-many
 class QuestionContainer(Component, UserDict):
     """QuestionContainer Node in the QuestionASTGenerator"""
 
-    def __init__(self, data=None):
+    def __init__(self, *, data=None, comment=None):
         if data is None:
             data = {}
         UserDict.__init__(self, data)
+        self.comment = comment
 
     def concrete_items(self):
         """Loop only over the concrete items, and not over containers"""
@@ -131,7 +132,7 @@ class QuestionContainer(Component, UserDict):
         for key, question in self.items():
             if not isinstance(question, types):
                 yield key, question
-            if isinstance(question, ConditionalQuestion):
+            elif isinstance(question, ConditionalQuestion):
                 yield key, question.main
 
     def accept(self, visitor):
@@ -158,7 +159,7 @@ class QuestionASTGenerator(Component, Generator):
                                            "alias": None,
                                            "is_optional": False})
 
-    def __init__(self, questions):
+    def __init__(self, questions, *, comment=None):
         """Main Object to generate questions from string
 
         Args:
@@ -171,26 +172,26 @@ class QuestionASTGenerator(Component, Generator):
                            False, `questions` is a string
 
         """
-        Generator.__init__(self, questions)
+        Generator.__init__(self, questions, comment=comment)
         #
         self.questions = self.tree
 
     @classmethod
-    def new_branching(cls, name, leaf=None):
+    def new_branching(cls, name, *, leaf=None):
         """Create a new empty branching"""
         if leaf is None:
             return ConditionalQuestion(name, Question(name), QuestionContainer())
         return ConditionalQuestion(name, leaf, QuestionContainer())
 
     @staticmethod
-    def new_node():
-        return QuestionContainer()
+    def new_node(comment=None):
+        return QuestionContainer(comment=comment)
 
     @staticmethod
-    def tree_container():
-        return QuestionContainer()
+    def tree_container(comment=None):
+        return QuestionContainer(comment=comment)
 
-    def leaf_from_string(self, name, value, parent=None):
+    def leaf_from_string(self, entry, *, parent=None):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -211,9 +212,10 @@ class QuestionASTGenerator(Component, Generator):
             ValueError:
                 If the value cannot be parsed
         """
-        original_value = value
+        name = entry.name
+        original_value = entry.value
         # handle comment
-        value, comment = self._parse_comment(value)
+        value, comment = entry.value, entry.comment
         # try to parse line
         try:
             value = self._parse_string(value)
@@ -280,7 +282,7 @@ class QuestionASTGenerator(Component, Generator):
                 raise ValueError(f"Dont understand option {opt}")
         return typ, is_optional, alias
 
-    def generate_cases(self, key, subquestions, block=None):
+    def generate_cases(self, key, subquestions, *, block=None):
         """Register `subquestions` at a given `key` in given `block`
 
         Args:
@@ -303,12 +305,12 @@ class QuestionASTGenerator(Component, Generator):
         #
         self.add_branching(key, subquestions, parentnode=block)
 
-    def add_questions_to_block(self, questions, block=None, overwrite=True):
+    def add_questions_to_block(self, questions, *, block=None, overwrite=True):
         """add questions to a particular block """
         questions = QuestionASTGenerator(questions)
         self.add_elements(questions, parentnode=block, overwrite=overwrite)
 
-    def generate_block(self, name, questions, block=None):
+    def generate_block(self, name, questions, *, comment=None, block=None):
         """Register `questions` at a given `key` in given `block`
 
         Args:
@@ -331,7 +333,7 @@ class QuestionASTGenerator(Component, Generator):
             >>> questions.generate_block("software", {name: software.questions for name, software
                                                       in cls._softwares.items()})
         """
-        questions = QuestionASTGenerator(questions)
+        questions = QuestionASTGenerator(questions, comment=comment)
         self.add_node(name, questions, parentnode=block)
 
     @classmethod

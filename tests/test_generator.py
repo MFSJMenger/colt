@@ -10,15 +10,12 @@ def dict_generator():
 
         leafnode_type = str
 
-        def leaf_from_string(self, name, value, parent):
+        def leaf_from_string(self, entry, parent=None):
             """Create a leaf from an entry in the config file
 
             Args:
-                name (str):
-                    name of the entry
-
-                value (str):
-                    value of the entry in the config
+                entry, EntryAst:
+                    value of the entry
 
             Kwargs:
                 parent (str):
@@ -31,7 +28,7 @@ def dict_generator():
                 ValueError:
                     If the value cannot be parsed
             """
-            return value.strip()
+            return entry.value.strip()
     return DictGenerator
 
 

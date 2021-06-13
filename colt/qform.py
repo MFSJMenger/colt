@@ -319,7 +319,7 @@ class ConcreteQuestion(_ConcreteQuestionBase):
 class QuestionBlock(_QuestionsContainerBase, UserDict):
     """Store a question block"""
 
-    def __init__(self, name, concrete, blocks, qform):
+    def __init__(self, name, concrete, blocks, qform, *, comment=None):
         _QuestionsContainerBase.__init__(self, name, qform)
         #
         UserDict.__init__(self)
@@ -328,6 +328,7 @@ class QuestionBlock(_QuestionsContainerBase, UserDict):
         self.blocks = blocks
         #
         self.data = concrete
+        self.comment = comment
 
     @property
     def is_set(self):
@@ -615,7 +616,7 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
                 # visit next item
                 question.accept(self)
             # create block
-            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform)
+            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform, comment=block.comment)
         # if in main form, or within subquestions block, return the block
         if self.blocks is None:
             return block

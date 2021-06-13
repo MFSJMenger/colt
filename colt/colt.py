@@ -62,9 +62,11 @@ def colt_modify_class_dict(clsdict, bases):
 
        it modifies both the clsdict and its annotations!
     """
-    colt_defaults = {'_extend_questions': classmethod(lambda cls, questions: None),
-                     '_questions': "",
-                     }
+    colt_defaults = {
+            '_extend_questions': classmethod(lambda cls, questions: None),
+            '_questions': "",
+            '_colt_description': None
+    }
 
     if 'questions' in clsdict:
         raise ValueError("Method/value 'questions' reserved for Colt")
@@ -101,7 +103,8 @@ class ColtMeta(ABCMeta):
 
     def generate_questions_ast(cls):
         """gentarte QuestionAST object and extend it possibly"""
-        questions = QuestionASTGenerator(cls._questions)
+        main_description = getattr(cls, '_colt_description')
+        questions = QuestionASTGenerator(cls._questions, comment=main_description)
         cls._extend_questions(questions)
         return questions
 
