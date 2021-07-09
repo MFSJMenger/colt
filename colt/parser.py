@@ -378,13 +378,15 @@ class ArgFormatter:
 
     def _format_string(self, data, nlen):
         out = ""
+        nvalues = len(data)
         for i in range(nlen):
-            for value in data.values():
+            for icount, value in enumerate(data.values(), start=1):
                 if i < value.nlines:
                     out += value.format % value.lines[i]
                 else:
                     out += value.format % ""
-                out += self.space
+                if icount != nvalues:
+                    out += self.space
             out += "\n"
         return out
 
@@ -496,7 +498,7 @@ class Block:
 class HelpFormatter:
 
     _simple_settings = ('description', 'logo', 'short_description',
-                        'seperator', 'block_seperator',
+                        'seperator', 'block_seperator', 'alias',
                         'main_order', 'error_order', 'short_order',
                         'start', 'end', 'line_start', 'line_end')
 
@@ -509,6 +511,7 @@ class HelpFormatter:
         'main_order': ['logo', 'description', 'pos_args', 'opt_args', 'subparser_args', 'usage', 'space', 'comment', 'space'],
         'error_order': ['usage', 'error', 'space'],
         'short_order': ['usage', 'space', 'comment', 'space'],
+        'alias': None,
         'line_start': None,
         'line_end': None,
         'start': None,
@@ -537,10 +540,10 @@ class HelpFormatter:
             'delim': None,
         },
         'arg_format': {
-            'name': 12,
-            'comment': 40,
+            'name': 20,
+            'comment': 50,
             'choices': None,
-            'typ': 12,     # maximale breite
+            'typ': 15,     # maximale breite
             'seperator': 2,
         },
         'subparser_format': {
@@ -558,6 +561,12 @@ class HelpFormatter:
          self._info) = self._parse_settings(settings)
         # helper for error storage
         self._error = None
+
+    def update(self, settings):
+        """update settings with new ones"""
+        (self._description, self._orders,
+         self._spacing, self._arg_formatter, self._subparser_formatter, self._blocks,
+         self._info) = self._parse_settings(settings)
 
     def info(self, parser):
         """Main information"""
@@ -624,7 +633,7 @@ class HelpFormatter:
                 for child in parser.children)
 
     def usage(self, parser):
-        name = sys.argv[0]
+        name = self._info.get('alias', sys.argv[0])
 
         nargs = len(parser.args)
         #
@@ -658,11 +667,10 @@ class HelpFormatter:
         self._check_keys(settings, default)
         for key, value in default.items():
             if key == 'title':
-                if key not in settings:
+                if settings.get(key) is None:
                     settings[key] = value
-            elif key not in settings:
-                if value is None:
-                    settings[key] = global_default[key]
+            elif settings.get(key) is None:
+                settings[key] = global_default[key]
         return settings
 
     def _prepare_settings(self, settings):
@@ -673,7 +681,7 @@ class HelpFormatter:
         self._check_keys(settings, self.settings)
         # set default
         for key in self._simple_settings:
-            if key not in settings:
+            if settings.get(key) is None:
                 settings[key] = self.settings[key]
         #
         if 'arg_block' not in settings:
@@ -716,7 +724,7 @@ class HelpFormatter:
     @staticmethod
     def _update_settings(settings, default):
         for key, value in default.items():
-            if key not in settings:
+            if settings.get(key, None) is None:
                 settings[key] = value
         return settings
 
@@ -741,12 +749,16 @@ class HelpFormatter:
             raise ValueError("Start can only be single character")
         if settings['end'] is not None and len(settings['end']) != 1:
             raise ValueError("End can only be single character")
+
         info = {
             'line_start':  self._set_indent(settings['line_start']),
             'line_end':  self._set_indent(settings['line_end']),
             'start': settings['start'],
-            'end': settings['end']
+            'end': settings['end'],
         }
+        if settings['alias'] is not None:
+            info['alias'] = settings['alias']
+            
 
         self._line_end = self._set_indent(settings['line_end'])
         return description, orders, spacing, arg_formatter, subparser_formatter, blocks, info
@@ -821,6 +833,7 @@ def get_help(parser):
     return EventAction(["-h", "--help"], _help, comment="show this help message and exit")
 
 
+
 class ArgumentParser:
 
     def __init__(self, *, name=None, formatter=None, parent=None, comment=None):
@@ -831,6 +844,10 @@ class ArgumentParser:
         self.formatter = formatter
         self.name = name
         self.comment = comment
+
+    @property
+    def help(self):
+        return self.formatter.info(self)
 
     def add_subparser(self, name, question):
         child = SubParser(name, question, parent=self)
@@ -868,7 +885,7 @@ class ArgumentParser:
         raise SystemExit
 
     def print_help(self):
-        print(self.formatter.info(self))
+        print(self.help)
 
     def _recover_help(self, args):
         for arg in args:
@@ -926,6 +943,17 @@ class ArgumentParser:
             self.error_help(Exception("Too many arguments"))
 
 
+class MainArgumentParser(ArgumentParser):
+
+    def __init__(self, qform, *, name=None, formatter=None, parent=None, comment=None):
+        super().__init__(name=name, formatter=formatter, parent=parent, comment=comment)
+        self._qform = qform
+
+    def get_answers(self, *, args=None, is_last=True):
+        self.parse(args=args, is_last=is_last)
+        return self._qform.get_answers()
+
+
 class CommandlineParserVisitor(QuestionVisitor):
     """QuestionVisitor to create Commandline arguments"""
 
@@ -941,7 +969,7 @@ class CommandlineParserVisitor(QuestionVisitor):
     def visit_qform(self, qform):
         """Create basic argument parser with `description` and RawTextHelpFormatter"""
         self.is_subblock = False
-        parser = ArgumentParser(formatter=self.formatter)
+        parser = MainArgumentParser(qform, formatter=self.formatter)
         self.parser = parser
         # visit all forms
         qform.form.accept(self)
@@ -1059,8 +1087,7 @@ class CommandlineParserVisitor(QuestionVisitor):
         return default, name
 
 
-def get_config_from_commandline(questions, *, formatter=None,
-                                logo=None, description=None, presets=None):
+def get_commandline_parser(questions, *, formatter=None, description=None, presets=None):
     """Create the argparser from a given questions object and return the answers
 
     Parameters
@@ -1086,8 +1113,29 @@ def get_config_from_commandline(questions, *, formatter=None,
     #
     qform = QuestionForm(questions, presets=presets)
     #
-    parser = visitor.visit(qform)
+    return visitor.visit(qform)
+
+
+def get_config_from_commandline(questions, *, formatter=None, only_print_help=False, description=None, presets=None):
+    """Create the argparser from a given questions object and return the answers
+
+    Parameters
+    ----------
+    questions: str or QuestionASTGenerator
+        questions object to generate commandline arguments from
+
+    description: str, optional
+        description used for the argument parser
+
+    presets: str, optional
+        presets used for the questions form
+
+    Returns
+    -------
+    AnswersBlock
+        User input
+    """
+    # Visitor object
+    parser = get_commandline_parser(questions, formatter=formatter, description=description, presets=presets)
     # parse commandline args
-    parser.parse()
-    #
-    return qform.get_answers()
+    return parser.get_answers()

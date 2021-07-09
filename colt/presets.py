@@ -8,16 +8,13 @@ Preset = slottedcls("Preset", {"default": None, "choices": None})
 class PresetGenerator(Generator):
     """Generate Presets automatically"""
 
-    comment_char = "###"
-    default = '__QUESTIONS__'
-
     leafnode_type = Preset
 
     def __init__(self, questions):
         Generator.__init__(self, questions)
         self.tree = self._update_tree()
 
-    def leaf_from_string(self, name, value, parent=None):
+    def leaf_from_string(self, entry, parent=None):
         """Create a leaf from an entry in the config file
 
         Args:
@@ -38,8 +35,9 @@ class PresetGenerator(Generator):
             ValueError:
                 If the value cannot be parsed
         """
-        default, _, choices = value.partition(self.seperator)
+        default, _, choices = entry.value.partition(self.seperator)
         choices = self._parse_choices(choices)
+        #
         default = default.strip()
         if default == "":
             default = None

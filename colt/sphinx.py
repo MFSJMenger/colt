@@ -1,11 +1,13 @@
 """Automated documentation using sphinx"""
 from importlib import import_module
-from docutils import nodes
+from io import StringIO
 #
-from sphinx.util.docutils import SphinxDirective
+from sphinx.util.docutils import SphinxDirective, nodes
 #
 from .questions import QuestionASTGenerator, NOT_DEFINED
 from .qform import QuestionVisitor, QuestionForm
+from .colt import CommandlineInterface
+from .parser_settings_generator import HelpFormatterGenerator
 
 
 class SphinxGeneratorVisitor(QuestionVisitor):
@@ -37,64 +39,58 @@ class SphinxGeneratorVisitor(QuestionVisitor):
         pass
 
     def _add_concrete_question(self, question):
-        body, content = self._generate_body_as_literal(question)
-        nodes = [self._generate_title_line(question.short_name, question, content)]
-        if content:
-            nodes.append(body)
-        return nodes
+        res_node = nodes.paragraph()
+        body = self._generate_body_as_literal(question)
+        res_node += self._generate_title_line(question.short_name, question, len(body) != 0)
+        if body is not None:
+            res_node.append(body)
+        return res_node
 
     @staticmethod
     def _generate_title_line(key, question, content):
         node = nodes.line(f'{key}', f"{key}, ")
         node += nodes.strong(f'{question.typ}',
                              f'{question.typ}')
-        if content:
-            node += nodes.raw(':', ':')
+        if content is True:
+            node += nodes.strong(':', ':')
         return node
 
     @staticmethod
     def _generate_body_as_literal(question):
-        content = False
-        text = ""
         validator = question.validator
+        res = nodes.description()
         #
         default = validator.get()
         if default is not NOT_DEFINED:
-            txt = f' default: {default}'
+            txt = f'default: {default}'
             if question.choices is not None:
                 txt += f', from {validator.choices}'
-            text += txt + '\n'
+            res.append(nodes.line(txt, txt))
         #
         elif question.choices is not None:
-            txt = f' Condition = {validator.choices}'
-            text += txt + '\n'
-        #
+            txt = f'{validator.choices}'
+            res.append(nodes.line(txt, txt))
+
         if question.comment is not None:
-            text += question.comment
-        #
-        if text != "":
-            content = True
-        return nodes.literal_block(text, text), content
+            for line in question.comment.splitlines():
+                res += nodes.line(line, line)
+        return res
 
 
 class ColtDirective(SphinxDirective):
     """load questions from a given python module
 
 
-    .. colt:: path_to_the_file
-        :class: name_of_the_class
+    .. colt:: path_to_the_file name_of_the_class
         :name: name_of_the_questions
-
 
     """
     #
     has_content = False
     #
-    required_arguments = 1
+    required_arguments = 2
     optional_arguments = 0
-    option_spec = {'name': str,
-                   'class': str,
-                   }
+    option_spec = {'name': str,}
 
     def run(self):
         visitor = SphinxGeneratorVisitor()
@@ -102,11 +98,12 @@ class ColtDirective(SphinxDirective):
         #
         main_node = nodes.topic('')
         #
-        for block_name, block in qform.blocks.items():
+        for block_name, block in sorted(qform.blocks.items()):
             #
             node = self._make_title(block_name)
             #
-            main_node += node
+            if node is not None:
+                main_node += node
             #
             for question in block.concrete.values():
                 main_node += question.accept(visitor)
@@ -114,7 +111,9 @@ class ColtDirective(SphinxDirective):
         name = self.options.get('name', None)
         #
         if name is not None:
-            node = [self._make_title(f'{name}'), main_node]
+            node = nodes.line('', '')
+            node += nodes.strong(f"{name}", f"{name}")
+            node = [node, main_node]
         else:
             node = [main_node]
         #
@@ -122,8 +121,10 @@ class ColtDirective(SphinxDirective):
 
     @staticmethod
     def _make_title(txt):
+        if txt == '':
+            return None
         node = nodes.line('', '')
-        node += nodes.strong(txt, txt)
+        node += nodes.strong(f"[{txt}]", f"[{txt}]")
         return node
 
     def _load_questions(self):
@@ -135,7 +136,7 @@ class ColtDirective(SphinxDirective):
             msg = f'Could not find module {module_name}'
             raise Exception(msg) from None
 
-        cls = self.options.get('class', None)
+        cls = self.arguments[1]
         if hasattr(module, cls):
             obj = getattr(module, cls, None)
             #
@@ -193,11 +194,106 @@ class ColtQFileDirective(ColtDirective):
         return QuestionASTGenerator(questions)
 
 
+class ColtCommandlineDirective(SphinxDirective):
+    """load questions from a given python module
+
+    .. colt:: path_to_the_file name_of_the_obj
+        :name: name_of_the_questions
+
+    """
+    has_content = True
+    #
+    required_arguments = 2 # module
+    optional_arguments = 0
+    option_spec = {'name': str,
+                   'subparsers': str,
+                   }
+
+    def run(self):
+        description = None
+        visitor = SphinxGeneratorVisitor()
+        if len(self.content) != 0:
+            description = HelpFormatterGenerator.from_questions(config=StringIO("\n".join(self.content)),
+                                                                check_only=True)
+        parser = self._load_parser(description=description)
+        #
+        node = nodes.topic('')
+        subparser = self.options.get('subparsers', None)
+
+        if subparser is None:
+            node += self._display_arg_parse(parser)
+        else:
+            node += self._display_parser(parser, subparser)
+        return [node]
+
+    def _display_parser(self, parser, name):
+        """name should be: parent.opt(child).child_of_child"""
+        options = name.split('.')
+        for i, option in enumerate(options, start=1):
+            subparser_name, option = self._parse_option(option)
+            for subparser in parser.children:
+                if subparser.name == subparser_name:
+                    break
+            else:                
+                raise ValueError(f"Could not find subparser '{subparser_name}'")
+            if option == '*': 
+                if i != len(options):
+                    raise ValueError("Can use '*' only for last option")
+                node = nodes.paragraph()
+                for name, parser in subparser.cases.items():
+                    line = nodes.line()
+                    line += nodes.strong(f'{name}', f"{name}") 
+                    node += line
+                    node += self._display_arg_parse(parser)
+                return node 
+
+            parser = subparser.cases.get(option)
+            if parser is None:
+                raise ValueError(f"Could not find option '{option}' in subparser '{subparser.name}'")
+        node = nodes.line(f'{name}', f"{name}")
+        node += self._display_arg_parse(parser)
+        return node
+            
+    def _parse_option(self, option):
+        '''expect opt, opt(child)'''
+        subparser, _, option = option.partition('(')
+        assert option[-1] == ')'
+
+        return subparser, option[:-1]
+
+    def _display_arg_parse(self, parser):
+        node = nodes.literal_block(rawsource=parser.help, text=parser.help+' ')
+        return node
+
+    def _load_parser(self, *, description=None):
+        module_name = self.arguments[0]
+        try:
+            module = import_module(module_name)
+        except ImportError:
+            msg = f'Could not find module {module_name}'
+            raise Exception(msg) from None
+
+        cls = self.arguments[1]
+        if hasattr(module, cls):
+            obj = getattr(module, cls, None)
+            #
+            if not isinstance(obj, CommandlineInterface):
+                raise ValueError(f"Obj '{cls}' in '{module_name}' is not a CommandlineInterface")
+            if description is not None:
+                obj.description = description
+            return obj.get_parser()
+        raise Exception(f"Module '{module_name}' contains no class '{cls}'")
+
+def nice_format_dict(dct):
+    import json
+    return json.dumps(dct, indent=4)
+
 def setup(app):
     #
     app.add_directive("colt", ColtDirective)
     app.add_directive("colt_qfile", ColtQFileDirective)
     app.add_directive("colt_questions", ColtQuestionsDirective)
+    app.add_directive("colt_commandline", ColtCommandlineDirective)
     #
     return {'version': '0.1',
             'parallel_read_safe': True,

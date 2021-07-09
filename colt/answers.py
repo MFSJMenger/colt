@@ -23,6 +23,13 @@ class AnswersBlock(Mapping):
         """update mapping"""
         self._data.update(dct)
 
+    def to_dict(self):
+        """convert to dict"""
+        return dict((name, value) 
+                    if not isinstance(value, AnswersBlock) 
+                    else (name, value.to_dict())
+                    for name, value in self.items())
+
 
 class SubquestionsAnswer(Mapping):
     """Storage elemement for the answers of a subquestion"""

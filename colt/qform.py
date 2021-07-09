@@ -3,6 +3,7 @@ from collections import UserDict, UserString
 from collections.abc import Mapping
 from contextlib import contextmanager
 from io import StringIO
+import json
 #
 from .answers import AnswersBlock, SubquestionsAnswer
 from .config import ConfigParser
@@ -697,7 +698,56 @@ class ErrorSettingAnswerFromDict(SystemExit):
         super().__init__(f"ErrorSettingAnswerFromDict:\n{msg}")
 
 
-class WriteAnswerVisitor(QuestionVisitor):
+class WriteJsonVisitor(QuestionVisitor):
+    """Visitor to write the answers to a string"""
+
+    __slots__ = ()
+
+    def visit_qform(self, qform, **kwargs):
+        data = qform.form.accept(self)
+        return json.dumps(data, indent=4)
+
+    def visit_question_block(self, block):
+        # first all normal questions
+        dct = {}
+        for name, question in block.concrete.items():
+            res = question.accept(self)
+            if res is not None:
+                dct[res] = res
+        #
+        for name, subblock in block.blocks.items():
+            dct[name] = subblock.accept(self)
+        return dct
+
+    def visit_concrete_question_select(self, question):
+        return question.get_answer_as_string()
+
+    def visit_concrete_question_hidden(self, question):
+        pass
+
+    def visit_concrete_question_input(self, question):
+        return question.get_answer_as_string()
+
+    def visit_literal_block(self, block):
+        answer = block.answer
+        if answer.is_none is True:
+            return
+        return answer
+
+    def visit_subquestion_block(self, block):
+        """visit subquestion blocks"""
+        answer = block.main_question.answer
+        dct = {'__answer__': answer}
+        if answer is None:
+            return {}
+        subblock = block.cases.get(answer)
+        if subblock is None:
+            return {}
+        dct[answer] = subblock.accept(self)
+        return dct
+
+
+class WriteConfigVisitor(QuestionVisitor):
     """Visitor to write the answers to a string"""
 
     __slots__ = ('txt',)
@@ -753,7 +803,7 @@ class QuestionForm(Mapping, Component):
     # visitor to generate answers
     answer_visitor = AnswerVisitor()
     # visitor to write answers to file
-    write_visitor = WriteAnswerVisitor()
+    write_visitor = WriteConfigVisitor()
     # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 

@@ -129,7 +129,6 @@ class Generator(GeneratorNavigator, Mapping):
     #
     node_type = dict
     #
-    default = '__GENERATOR__'
 
     def __init__(self, treeconfig, *, comment=None):
         """Main Object to generate abstract tree from configstring
@@ -302,20 +301,7 @@ class Generator(GeneratorNavigator, Mapping):
 
     def _configstring_to_keys_and_tree(self, string, comment):
         """transform a configstring to a tree object"""
-        # questions = self._preprocess_configstring(string)
         return self._generate_tree(string, comment)
-
-    @classmethod
-    def _preprocess_configstring(cls, string):
-        """Prepation setup for the parsing of strings into configs"""
-        string = cls._preprocess_string(string)
-        # add [DEFAULT] for easier parsing!
-        if not string.lstrip().startswith(f'[{cls.default}]'):
-            string = f'[{cls.default}]\n' + string
-        #
-        config = configparser.ConfigParser()
-        config.read_string(string)
-        return config
 
     @classmethod
     def _get_parent_node(cls, node, tree):
