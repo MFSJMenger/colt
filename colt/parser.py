@@ -499,7 +499,7 @@ class HelpFormatter:
 
     _simple_settings = ('description', 'logo', 'short_description',
                         'seperator', 'block_seperator', 'alias',
-                        'main_order', 'error_order', 'short_order',
+                        'main_order', 'error_order', 'short_order', 'args_order',
                         'start', 'end', 'line_start', 'line_end')
 
     settings = {
