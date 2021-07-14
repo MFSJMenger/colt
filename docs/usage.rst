@@ -104,3 +104,22 @@ an input file or from the commandline.
       -options::do_force do_force
                             bool, 
 
+
+.. colt_questions::
+  :name: Basic Question Example
+
+  # This is an integer larger equal 2
+  integer = :: int :: >2
+  # This is a general float
+  float = :: float
+  # This is a string, with default value "Hello World"
+  string = Hello World :: str
+  list = :: list
+  [hallo]
+  # This is an integer larger equal 2
+  integer = :: int :: >2
+  # This is a general float
+  float = :: float
+  # This is a string, with default value "Hello World"
+  string = Hello World :: str
+  list = :: list :: [1, 2, 3], [2], [3]

@@ -8,6 +8,7 @@ from .questions import QuestionASTGenerator, NOT_DEFINED
 from .qform import QuestionVisitor, QuestionForm
 from .colt import CommandlineInterface
 from .parser_settings_generator import HelpFormatterGenerator
+from .validator import bool_parser
 
 
 class SphinxGeneratorVisitor(QuestionVisitor):
@@ -32,7 +33,7 @@ class SphinxGeneratorVisitor(QuestionVisitor):
         node += nodes.strong('LiteralBlock',
                              'LiteralBlock')
         if block.comment is not NOT_DEFINED:
-            return [node, nodes.literal_block(block.comment, block.comment)]
+            return [node, nodes.literal_block(block.comment, block.comment+' ')]
         return [node]
 
     def visit_subquestion_block(self, block):
@@ -58,23 +59,25 @@ class SphinxGeneratorVisitor(QuestionVisitor):
     @staticmethod
     def _generate_body_as_literal(question):
         validator = question.validator
-        res = nodes.description()
+        res = []
         #
         default = validator.get()
         if default is not NOT_DEFINED:
             txt = f'default: {default}'
             if question.choices is not None:
                 txt += f', from {validator.choices}'
-            res.append(nodes.line(txt, txt))
+            res.append(txt)
         #
         elif question.choices is not None:
             txt = f'{validator.choices}'
-            res.append(nodes.line(txt, txt))
+            res.append(txt)
 
         if question.comment is not None:
-            for line in question.comment.splitlines():
-                res += nodes.line(line, line)
-        return res
+            res.append(question.comment)
+
+        res = "\n".join(res)
+
+        return nodes.literal_block(res, res+' ')
 
 
 class ColtDirective(SphinxDirective):
@@ -90,7 +93,7 @@ class ColtDirective(SphinxDirective):
     #
     required_arguments = 2
     optional_arguments = 0
-    option_spec = {'name': str,}
+    option_spec = {'name': str}
 
     def run(self):
         visitor = SphinxGeneratorVisitor()
@@ -199,34 +202,37 @@ class ColtCommandlineDirective(SphinxDirective):
 
     .. colt:: path_to_the_file name_of_the_obj
         :name: name_of_the_questions
+        :header: True
 
     """
     has_content = True
     #
-    required_arguments = 2 # module
+    required_arguments = 2  # module
     optional_arguments = 0
     option_spec = {'name': str,
                    'subparsers': str,
+                   'header': str,
                    }
 
     def run(self):
         description = None
-        visitor = SphinxGeneratorVisitor()
         if len(self.content) != 0:
-            description = HelpFormatterGenerator.from_questions(config=StringIO("\n".join(self.content)),
-                                                                check_only=True)
+            description = HelpFormatterGenerator.from_questions(
+                                    config=StringIO("\n".join(self.content)),
+                                    check_only=True)
         parser = self._load_parser(description=description)
         #
         node = nodes.topic('')
         subparser = self.options.get('subparsers', None)
+        header = bool_parser(self.options.get('header', 'yes'))
 
         if subparser is None:
             node += self._display_arg_parse(parser)
         else:
-            node += self._display_parser(parser, subparser)
+            node += self._display_parser(parser, subparser, display_header=header)
         return [node]
 
-    def _display_parser(self, parser, name):
+    def _display_parser(self, parser, name, *, display_header=False):
         """name should be: parent.opt(child).child_of_child"""
         options = name.split('.')
         for i, option in enumerate(options, start=1):
@@ -234,26 +240,30 @@ class ColtCommandlineDirective(SphinxDirective):
             for subparser in parser.children:
                 if subparser.name == subparser_name:
                     break
-            else:                
+            else:
                 raise ValueError(f"Could not find subparser '{subparser_name}'")
-            if option == '*': 
+            if option == '*':
                 if i != len(options):
                     raise ValueError("Can use '*' only for last option")
                 node = nodes.paragraph()
                 for name, parser in subparser.cases.items():
-                    line = nodes.line()
-                    line += nodes.strong(f'{name}', f"{name}") 
-                    node += line
+                    if display_header is True:
+                        line = nodes.line()
+                        line += nodes.strong(f'{name}', f"{name}")
+                        node += line
                     node += self._display_arg_parse(parser)
-                return node 
+                return node
 
             parser = subparser.cases.get(option)
             if parser is None:
-                raise ValueError(f"Could not find option '{option}' in subparser '{subparser.name}'")
-        node = nodes.line(f'{name}', f"{name}")
+                raise ValueError(f"Option '{option}' in subparser '{subparser.name}' unknown")
+        if display_header is True:
+            node = nodes.line(f'{name}', f"{name}")
+        else:
+            node = nodes.line()
         node += self._display_arg_parse(parser)
         return node
-            
+
     def _parse_option(self, option):
         '''expect opt, opt(child)'''
         subparser, _, option = option.partition('(')
@@ -284,9 +294,11 @@ class ColtCommandlineDirective(SphinxDirective):
             return obj.get_parser()
         raise Exception(f"Module '{module_name}' contains no class '{cls}'")
 
+
 def nice_format_dict(dct):
     import json
     return json.dumps(dct, indent=4)
+
 
 def setup(app):
     #

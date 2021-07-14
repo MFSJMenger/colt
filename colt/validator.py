@@ -639,7 +639,7 @@ class Validator:
         return cls._get_all_validators(typ, default, choices)
 
     @classmethod
-    def add_validator(cls, name, func, typ='base'):
+    def add_validator(cls, name, func, *, typ='base'):
         """Add a new custom validator.
 
         Parameters
@@ -662,6 +662,27 @@ class Validator:
     def remove_validator(cls, name):
         """Remove validator """
         ValidatorSelector.remove_validator(name)
+
+    @classmethod
+    def overwrite_validator(cls, name, func, *, typ='base'):
+        """Add a new custom validator.
+
+        Parameters
+        ----------
+        name: str
+            name of the validator typ
+        func: function
+            validation function, should raise ValueError on fail
+        typ: str, optional
+            typ of validator, currently: base, range
+
+        Raises
+        ------
+        ValueError
+            In case the typ is unknown
+        """
+        cls.remove_validator(name)
+        cls.add_validator(name, func, typ=typ)
 
     @classmethod
     def _get_list_info(cls, typ):

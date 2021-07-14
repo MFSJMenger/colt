@@ -3,8 +3,9 @@ from .colt import Colt
 
 
 class HelpFormatterGenerator(Colt):
+
     _questions = f"""
-    # 
+    #
     description =         :: literal
     #
     logo =                :: literal
@@ -15,11 +16,13 @@ class HelpFormatterGenerator(Colt):
     #
     block_seperator = \\n\\n\\n :: str
     #
-    main_order = logo, description, pos_args, opt_args, subparser_args, usage, space, comment, space :: list(str) :: {', '.join(HelpFormatter.blocks)}
+    main_order = {', '.join(HelpFormatter.settings['main_order'])} :: list(str) :: {', '.join(HelpFormatter.blocks)}
     #
     error_order = usage, error, space :: list(str) ::  {', '.join(HelpFormatter.blocks)}
     #
     short_order = usage, space, comment, space :: list(str) ::  {', '.join(HelpFormatter.blocks)}
+    #
+    args_order = {', '.join(HelpFormatter.settings['arg_order'])} :: list(str) ::  {', '.join(HelpFormatter.settings['arg_order'])}
     #
     alias = :: str, optional
     #
@@ -37,7 +40,7 @@ class HelpFormatterGenerator(Colt):
     delim = --------------------------------------------------- :: str
 
     [pos_args]
-    title = positional arguments: 
+    title = positional arguments:
     indent = :: int, optional
     body_indent = :: int, optional
     delim = :: str, optional
@@ -76,7 +79,7 @@ class HelpFormatterGenerator(Colt):
 def remove_none_entries(dct):
     out = {}
     for key, value in dct.items():
-        if value is None: 
+        if value is None:
             continue
         if isinstance(value, dict):
             value = remove_none_entries(value)
@@ -84,7 +87,7 @@ def remove_none_entries(dct):
                 out[key] = value
             continue
         out[key] = value
-    return out        
+    return out
 
 
 def unescape(string):

@@ -241,7 +241,7 @@ class Colt(metaclass=ColtMeta):
             answers = get_config_from_commandline(cls.questions, description=description,
                                                   presets=presets)
             return cls.from_config(answers, *args, **kwargs)
-        return CommandlineClassInterface(cls, description=description, presets=presets) 
+        return CommandlineClassInterface(cls, description=description, presets=presets)
 
     @classmethod
     def generate_input(cls, filename, *, config=None, presets=None,
@@ -340,14 +340,12 @@ class CommandlineClassInterface(CommandlineInterface):
     def questions(self):
         return self._cls.questions
 
-    def __repr__(self):
-        return f"CommandlineInterface(cls={self._cls.__name__})"
-
     def __call__(self, *args, **kwargs):
         """If the function is called with arguments: use it as is
         Else: get the arguments from the commandline"""
         # call from commandline
-        return self._cls.from_commandline(*args, description=self.description, presets=self._presets, **kwargs)
+        return self._cls.from_commandline(*args, description=self.description,
+                                          presets=self._presets, **kwargs)
 
 
 def from_commandline(questions, *, description=None):

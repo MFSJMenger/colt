@@ -25,8 +25,8 @@ class AnswersBlock(Mapping):
 
     def to_dict(self):
         """convert to dict"""
-        return dict((name, value) 
-                    if not isinstance(value, AnswersBlock) 
+        return dict((name, value)
+                    if not isinstance(value, AnswersBlock)
                     else (name, value.to_dict())
                     for name, value in self.items())
 

@@ -3,14 +3,14 @@ from collections import namedtuple, UserList
 from contextlib import contextmanager
 
 from .validator import ValidatorErrorNotInChoices
-from .qform import QuestionForm, QuestionVisitor, join_case, join_keys
+from .qform import QuestionForm, QuestionVisitor, join_keys
 
 
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "choices", "comment", "is_hidden"))
 Element = namedtuple('Element', ('lines', 'format', 'nlines'))
 Description = namedtuple("Description", ("logo", "description", "short_description"))
 Spacing = namedtuple("Spacing", ("seperator", "block_seperator"))
-Orders = namedtuple("Ordering", ("main", "error", "short"))
+Orders = namedtuple("Ordering", ("main", "error", "short", "args"))
 Blocks = namedtuple("Blocks", ("opt_args", "pos_args", "subparser"))
 
 
@@ -508,7 +508,8 @@ class HelpFormatter:
         'short_description': None,
         'seperator': '\n',
         'block_seperator': '\n\n\n',
-        'main_order': ['logo', 'description', 'pos_args', 'opt_args', 'subparser_args', 'usage', 'space', 'comment', 'space'],
+        'main_order': ['logo', 'description', 'args', 'usage', 'space', 'comment', 'space'],
+        'args_order': ['pos_args', 'opt_args', 'subparser_args'],
         'error_order': ['usage', 'error', 'space'],
         'short_order': ['usage', 'space', 'comment', 'space'],
         'alias': None,
@@ -552,7 +553,7 @@ class HelpFormatter:
         },
     }
 
-    blocks = ('usage', 'space', 'opt_args', 'pos_args', 'subparser_args', 'logo',
+    blocks = ('usage', 'space', 'args', 'opt_args', 'pos_args', 'subparser_args', 'logo',
               'description', 'short_description', 'comment', 'error')
 
     def __init__(self, settings=None):
@@ -582,6 +583,8 @@ class HelpFormatter:
         return self._render(self._orders.error, parser)
 
     # definitions
+    def args(self, parser):
+        return self._render(self._orders.args, parser)
 
     def space(self, parser):
         """individual block spacing defined by the user"""
@@ -737,14 +740,15 @@ class HelpFormatter:
         arg_formatter = ArgFormatter(settings['arg_format'])
         subparser_formatter = ArgFormatter(settings['subparser_format'])
 
-        orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'])
+        orders = Orders(settings['main_order'], settings['error_order'], settings['short_order'],
+                        settings['args_order'])
         spacing = Spacing(settings['seperator'], settings['block_seperator'])
         description = Description(settings['logo'], settings['description'],
                                   settings['short_description'])
         blocks = Blocks(Block.from_dct(settings['opt_args']),
                         Block.from_dct(settings['pos_args']),
                         Block.from_dct(settings['subparser_args'])
-        )
+                        )
         if settings['start'] is not None and len(settings['start']) != 1:
             raise ValueError("Start can only be single character")
         if settings['end'] is not None and len(settings['end']) != 1:
@@ -758,7 +762,6 @@ class HelpFormatter:
         }
         if settings['alias'] is not None:
             info['alias'] = settings['alias']
-            
 
         self._line_end = self._set_indent(settings['line_end'])
         return description, orders, spacing, arg_formatter, subparser_formatter, blocks, info
@@ -831,7 +834,6 @@ def get_help(parser):
         sys.exit()
 
     return EventAction(["-h", "--help"], _help, comment="show this help message and exit")
-
 
 
 class ArgumentParser:
@@ -1116,7 +1118,10 @@ def get_commandline_parser(questions, *, formatter=None, description=None, prese
     return visitor.visit(qform)
 
 
-def get_config_from_commandline(questions, *, formatter=None, only_print_help=False, description=None, presets=None):
+def get_config_from_commandline(questions, *, formatter=None,
+                                only_print_help=False,
+                                description=None,
+                                presets=None):
     """Create the argparser from a given questions object and return the answers
 
     Parameters
@@ -1136,6 +1141,7 @@ def get_config_from_commandline(questions, *, formatter=None, only_print_help=Fa
         User input
     """
     # Visitor object
-    parser = get_commandline_parser(questions, formatter=formatter, description=description, presets=presets)
+    parser = get_commandline_parser(questions, formatter=formatter,
+                                    description=description, presets=presets)
     # parse commandline args
     return parser.get_answers()

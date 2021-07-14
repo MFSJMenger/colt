@@ -617,7 +617,8 @@ class QuestionGeneratorVisitor(QuestionASTVisitor):
                 # visit next item
                 question.accept(self)
             # create block
-            block = QuestionBlock(qid, self.concrete, self.blocks, self.qform, comment=block.comment)
+            block = QuestionBlock(qid, self.concrete, self.blocks,
+                                  self.qform, comment=block.comment)
         # if in main form, or within subquestions block, return the block
         if self.blocks is None:
             return block

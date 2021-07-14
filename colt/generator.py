@@ -462,12 +462,12 @@ class Generator(GeneratorNavigator, Mapping):
         # create container for the tree
         maintree = self.tree_container(comment=comment)
         tree = maintree
-        parent=None
+        parent = None
         # parse defaults
         for entry in parse(config):
             if entry.value is IS_BLOCK:
                 keys.add(entry.name)
-                parent=entry.name
+                parent = entry.name
                 tree = self._create_block(maintree, entry)
                 continue
             tree[entry.name] = self.leaf_from_string(entry, parent=parent)
