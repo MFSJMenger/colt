@@ -12,7 +12,7 @@ from colt import Colt
 def base():
     """generate example for commandline parser"""
     class Base(Colt):
-        _questions = """
+        _user_input = """
         nstates = :: int
         natoms = :: int
         factor = 1.0 :: float
@@ -60,7 +60,7 @@ def test_colt_from_commandline_base(base):
 def test_colt_question_inheritance(base):
 
     class Example(base):
-        _questions = "inherited"
+        _user_input = "inherited"
 
     sys.argv = ['name', '231', '10']
     cls = Example.from_commandline('some example')
