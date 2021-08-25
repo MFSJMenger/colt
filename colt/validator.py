@@ -493,6 +493,8 @@ class DelayedDefaultValidator(BaseValidator):
     def get(self):
         """Return self._value if its set or not!"""
         if self._value is NOT_DEFINED:
+            if self._default is NOT_DEFINED:
+                return self._default
             self.set(self._default)
         return self._value
 
