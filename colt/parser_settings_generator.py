@@ -5,7 +5,7 @@ from .colt import Colt
 
 class HelpFormatterGenerator(Colt):
 
-    _questions = f"""
+    _user_input = f"""
     #
     description =         :: literal
     #
