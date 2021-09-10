@@ -12,7 +12,7 @@ To install Command Line Questions Tool, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install colt
+    $ pip install pycolt
 
 This is the preferred method to install Command Line Questions Tool, as it will always install the most recent stable release.
 
