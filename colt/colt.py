@@ -313,7 +313,7 @@ class Colt(metaclass=ColtMeta):
         if cls._lazy_imports is None:
             return
         # load the modules
-        cls._lazy_imports.load() 
+        cls._lazy_imports.load()
         # set it to None
         cls._lazy_imports = None
 

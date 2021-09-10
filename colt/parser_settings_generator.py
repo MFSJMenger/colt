@@ -1,4 +1,3 @@
-import json
 from .parser import HelpFormatter
 from .colt import Colt
 
@@ -23,7 +22,7 @@ class HelpFormatterGenerator(Colt):
     #
     short_order = usage, space, comment, space :: list(str) ::  {', '.join(HelpFormatter.blocks)}
     #
-    args_order = pos_args, opt_args, subparser_args :: list(str) :: pos_args, opt_args, subparser_args 
+    args_order = pos_args, opt_args, subparser_args :: list(str) :: pos_args, opt_args, subparser_args
     #
     alias = :: str, optional
     #
@@ -76,7 +75,6 @@ class HelpFormatterGenerator(Colt):
             settings[key] = unescape(settings[key])
         res = remove_none_entries(settings)
         return res
-        
 
 
 def remove_none_entries(dct):

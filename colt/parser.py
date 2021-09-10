@@ -3,7 +3,7 @@ from collections import namedtuple, UserList
 from contextlib import contextmanager
 
 from .validator import ValidatorErrorNotInChoices
-from .qform import QuestionForm, QuestionVisitor, join_keys
+from .qform import QuestionForm, QuestionVisitor, join_keys, split_keys
 
 
 EmptyQuestion = namedtuple("EmptyQuestion", ("typ", "choices", "comment", "is_hidden"))
@@ -352,7 +352,11 @@ class ArgFormatter:
         return self._format_arg(arg)
 
     def _get_lines(self, arg, name, length):
-        string = str(getattr(arg, name))
+        string = getattr(arg, name)
+        if string is None:
+            string = ""
+        else:
+            string = str(string)
         out = []
         for line in string.splitlines():
             if len(line) < length:
@@ -790,6 +794,7 @@ class HelpFormatter:
 class SubParser(Action):
 
     def __init__(self, name, question, parent):
+        _, name = split_keys(name)
         super().__init__(name, question)
         self._options = {}
         self._parent = parent

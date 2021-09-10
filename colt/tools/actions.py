@@ -1,8 +1,10 @@
 from ..plugins import Plugin
 
+
 __all__ = ['create_action']
 
-def _create_factory(name, user_input, options_name, general_action):
+
+def _create_factory(name, user_input, options_name, general_action, description):
     """Generates a Plugin Factory for commandline parsing """
 
     if user_input is None:
@@ -15,7 +17,7 @@ def _create_factory(name, user_input, options_name, general_action):
         @classmethod
         def general_action(cls, config):
             pass
-    
+
     if not isinstance(general_action, classmethod):
         general_action = classmethod(general_action)
 
@@ -34,14 +36,17 @@ def _create_factory(name, user_input, options_name, general_action):
         raise Exception(f"Action '{config[config.value]}' unknown")
 
     return type(name + 'Factory', (Plugin, ), {
+        'name': name,
+        '_colt_description': description,
         '_is_plugin_factory': True,
         '_plugins_storage': '_actions',
         'options_name': options_name,
+        'general_action': general_action,
         '_extend_user_input': _extend_user_input,
         '_user_input': user_input,
         'from_config': from_config,
     })
-    
+
 
 def _create_base_action(name, Factory):
 
@@ -53,7 +58,7 @@ def _create_base_action(name, Factory):
 
     def run(**options):
         raise NotImplementedError
-    
+
     return type(name + 'Action', (Factory, ), {
         '_register_plugin': False,
         'from_config': from_config,
@@ -61,10 +66,33 @@ def _create_base_action(name, Factory):
         })
 
 
-def _create_action_decorator(BaseAction):
-    def action(description, user_input,
-               name=None, lazy_imports=None):
-        def _wrapper(func):
+class ActionDecorator:
+    """Decorator to create actions (from config/commandline callable functions)"""
+
+    def __init__(self, Factory, BaseAction):
+        self._Factory = Factory
+        self.Action = BaseAction
+        self._subparser = {}
+
+    def run(self):
+        return self._Factory.from_commandline()
+
+    def add_subparser(self, name, description=None, user_input=None,
+                      options_name=None, general_action=None, overwrite=False):
+        if overwrite is False and name in self._Factory.plugins.keys():
+            raise ValueError(f"Name '{name}' already registered as plugin")
+        Factory, deco = _create_action_factory_and_deco(name, user_input, options_name, general_action, description)
+        # register the factory
+        self._Factory.add_plugin(name, Factory) 
+        return deco
+
+    def __call__(self):
+        return self.run()
+
+    # normal function call
+    def register(self, description, user_input,
+                       name=None, lazy_imports=None):
+        def _action_creator(func):
             nonlocal name
             if name is None:
                 name = func.__name__
@@ -74,15 +102,21 @@ def _create_action_decorator(BaseAction):
             if lazy_imports is not None:
                 data['_lazy_imports'] = lazy_imports
             # just create the type for registration
-            type(name, (BaseAction, ), data)
+            type(name, (self.Action, ), data)
             return func
-        return _wrapper
-    return action
+        return _action_creator
 
 
-def create_action(name, user_input=None, options_name=None, general_action=None):
-    """Create bassic action generator using colt"""
-    Factory = _create_factory(name, user_input, options_name, general_action)
+def _create_action_factory_and_deco(name, user_input=None, options_name=None, 
+                                    general_action=None, description=None):
+    """Construct Action Factory and Action Decorator"""
+    Factory = _create_factory(name, user_input, options_name, general_action, description)
     BaseAction = _create_base_action(name, Factory)
-    deco = _create_action_decorator(BaseAction)
-    return Factory.from_commandline(as_parser=True), BaseAction, deco
+    deco = ActionDecorator(Factory, BaseAction)
+    return Factory, deco
+
+
+def create_action(name, user_input=None, options_name=None, general_action=None, description=None):
+    """Create bassic action generator using colt"""
+    _, deco = _create_action_factory_and_deco(name, user_input, options_name, general_action, description)
+    return deco
