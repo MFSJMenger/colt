@@ -85,7 +85,7 @@ def colt_modify_class_dict(clsdict, bases):
         to_classmethod(clsdict, 'from_config')
 
     clsdict['colt_user_input'] = ClassProperty(lambda cls: cls.generate_user_input_ast())
-    to_classmethod(clsdict, '_extend_questions')
+    to_classmethod(clsdict, '_extend_user_input')
     # rewrite that....it is horrible
     if clsdict.get('__annotations__', None) is not None:
         if clsdict['__annotations__'].get('extend_user_input', None) == 'inherited':
