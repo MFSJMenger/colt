@@ -5,15 +5,15 @@ from colt import Colt
 class Example(Colt):
     """Basic Example of Colt class
 
-    _questions: is a class string and contains
-                the questions to be ask from commandline 
-                or read from the input file
+    _user_input: is a class string and contains
+                 the questions to be ask from commandline 
+                 or read from the input file
     
     from_config: classmethod, used to initialize the 
                  class after reading the data from user input
     """
 
-    _questions = """
+    _user_input = """
     natoms = :: int :: >1
     nstates = :: int :: >1
     [options]
