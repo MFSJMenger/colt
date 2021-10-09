@@ -106,6 +106,61 @@ class ActionDecorator:
             return func
         return _action_creator
 
+class Marker:
+
+    """Class Marker"""
+
+    __slots__ = ('description', 'function', 'user_input')
+
+    def __init__(self, description, user_input):
+        self.description = description
+        self.user_input = user_input
+        self.function = None
+
+    def __call__(self, function):
+        self.function = function
+        return self
+
+class _ColtActionMaker(ABCMeta):
+
+    def __prepare__(cls, metacls, *args, **kwargs):
+        return {'register': Marker}
+
+    def __new__(cls, name, bases, clsdict):
+        """Modify clsdict before the new method of the metaclass is called"""
+        markers = {}
+        for name, value in clsdict.items():
+            if isinstance(value, Marker):
+                markers[name] = (value.description, value.user_input)
+        for name in markers:
+            clsdict[name] = clsdict[name].function
+
+        action_name = clsdict.get('_colt_action_name', 'commandline')
+        if '__init__' in clsdict:
+            __init__ = clsdict['__init__']
+            def _init(self, *args, **kwargs):
+                action = create_action('value')
+                for name, (description, user_input) in markers.items():
+                    action.register(description, user_input)(getattr(self, name))
+                setattr(self, action_name, action)
+                __init__(self, *args, **kwargs)
+        else:
+            def _init(self, *args, **kwargs):
+                action = create_action('value')
+                for name, (description, user_input) in markers.items():
+                    action.register(description, user_input)(getattr(self, name))
+                setattr(self, action_name, action)
+                super().__init__(*args, **kwargs)
+
+        #
+        clsdict['__init__'] = _init
+        #
+        return ABCMeta.__new__(cls, name, bases, clsdict)
+
+
+class ColtAction(metaclass=ColtActionMaker):
+    pass
+
 
 def _create_action_factory_and_deco(name, user_input=None, options_name=None, 
                                     general_action=None, description=None):
