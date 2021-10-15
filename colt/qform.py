@@ -13,6 +13,8 @@ from .questions import QuestionASTGenerator
 from .questions import QuestionASTVisitor
 from .questions import Component
 #
+from .io import QuestionVisitor, ColtReader, ColtWriter
+#
 from .presets import PresetGenerator
 from .validator import Validator, NOT_DEFINED, file_exists, ListValidator
 from .validator import ValidatorErrorNotChoicesSubset, ValidatorErrorNotInChoices
@@ -399,69 +401,6 @@ class SubquestionBlock(_QuestionsContainerBase):
         return self.cases[answer].concrete
 
 
-class QuestionVisitor(ABC):
-    """Base class to define visitors for the question form
-    the entry point is always the `QuestionForm`"""
-
-    __slots__ = ()
-
-    def visit(self, qform, **kwargs):
-        """Visit a question form"""
-        return qform.accept(self, **kwargs)
-
-    @abstractmethod
-    def visit_qform(self, qform, **kwargs):
-        pass
-
-    @abstractmethod
-    def visit_question_block(self, block):
-        pass
-
-    @abstractmethod
-    def visit_concrete_question_select(self, question):
-        pass
-
-    @abstractmethod
-    def visit_concrete_question_hidden(self, question):
-        pass
-
-    @abstractmethod
-    def visit_concrete_question_input(self, question):
-        pass
-
-    @abstractmethod
-    def visit_literal_block(self, block):
-        pass
-
-    def visit_subquestion_block(self, block):
-        """visit subquestion blocks"""
-        answer = block.answer
-        if answer in ("", None):
-            return {}
-        #
-        return block.cases[answer].accept(self)
-
-    def on_empty_entry(self, answer, question):
-        pass
-
-    def on_value_error(self, answer, question):
-        pass
-
-    def on_wrong_choice(self, answer, question):
-        pass
-
-    def set_answer(self, question, answer):
-        return question.set(answer, on_empty_entry=self.on_empty_entry,
-                            on_value_error=self.on_value_error,
-                            on_wrong_choice=self.on_wrong_choice)
-
-    def _visit_block(self, block):
-        """visit a block, first only concrete questions, then the subblocks"""
-        for question in block.concrete.values():
-            question.accept(self)
-        #
-        for subblock in block.blocks.values():
-            subblock.accept(self)
 
 
 def block_error(block_name, errors):
@@ -699,116 +638,19 @@ class ErrorSettingAnswerFromDict(SystemExit):
         super().__init__(f"ErrorSettingAnswerFromDict:\n{msg}")
 
 
-class WriteJsonVisitor(QuestionVisitor):
-    """Visitor to write the answers to a string"""
-
-    __slots__ = ()
-
-    def visit_qform(self, qform, **kwargs):
-        data = qform.form.accept(self)
-        return json.dumps(data, indent=4)
-
-    def visit_question_block(self, block):
-        # first all normal questions
-        dct = {}
-        for name, question in block.concrete.items():
-            res = question.accept(self)
-            if res is not None:
-                dct[res] = res
-        #
-        for name, subblock in block.blocks.items():
-            dct[name] = subblock.accept(self)
-        return dct
-
-    def visit_concrete_question_select(self, question):
-        return question.get_answer_as_string()
-
-    def visit_concrete_question_hidden(self, question):
-        pass
-
-    def visit_concrete_question_input(self, question):
-        return question.get_answer_as_string()
-
-    def visit_literal_block(self, block):
-        answer = block.answer
-        if answer.is_none is True:
-            return
-        return answer
-
-    def visit_subquestion_block(self, block):
-        """visit subquestion blocks"""
-        answer = block.main_question.answer
-        dct = {'__answer__': answer}
-        if answer is None:
-            return {}
-        subblock = block.cases.get(answer)
-        if subblock is None:
-            return {}
-        dct[answer] = subblock.accept(self)
-        return dct
-
-
-class WriteConfigVisitor(QuestionVisitor):
-    """Visitor to write the answers to a string"""
-
-    __slots__ = ('txt',)
-
-    def __init__(self):
-        self.txt = ''
-
-    def visit_qform(self, qform, **kwargs):
-        self.txt = ''
-        for blockname in qform.get_blocks():
-            # normal blocks
-            qform[blockname].accept(self)
-        txt = self.txt
-        self.txt = ''
-        return txt
-
-    def visit_question_block(self, block):
-        if block.name != '':
-            self.txt += f'\n[{block.name}]\n'
-        # first all normal questions
-        for question in block.concrete.values():
-            if not isinstance(question, LiteralBlock):
-                question.accept(self)
-        # than literal blocks
-        for question in block.concrete.values():
-            if isinstance(question, LiteralBlock):
-                question.accept(self)
-
-    def visit_concrete_question_select(self, question):
-        self.txt += f'{question.short_name} = {question.get_answer_as_string()}\n'
-
-    def visit_concrete_question_hidden(self, question):
-        pass
-
-    def visit_concrete_question_input(self, question):
-        self.txt += f'{question.short_name} = {question.get_answer_as_string()}\n'
-
-    def visit_literal_block(self, block):
-        answer = block.answer
-        if answer.is_none is True:
-            return
-        self.txt += f'[{block.id}]\n{answer}\n'
-
-    def visit_subquestion_block(self, block):
-        """visit subquestion blocks"""
-        raise Exception("should never arrive in subquestion block!")
-
-
 class QuestionForm(Mapping, Component):
     """Main interface to the question forms"""
     #
-    __slots__ = ('blocks', 'literals', 'unset', 'form')
+    __slots__ = ('blocks', 'literals', 'unset', 'form', '_reader', '_writer')
     # visitor to generate answers
     answer_visitor = AnswerVisitor()
-    # visitor to write answers to file
-    write_visitor = WriteConfigVisitor()
     # visitor to generate question forms
     question_generator_visitor = QuestionGeneratorVisitor()
 
     def __init__(self, questions, config=None, presets=None):
+        #
+        self._reader = ColtReader(self)
+        self._writer = ColtWriter(self)
         #
         self.blocks = {}
         # literal blocks
@@ -819,6 +661,7 @@ class QuestionForm(Mapping, Component):
         self.form = self._generate_forms(questions)
         #
         self.set_answers_and_presets(config, presets)
+        #
 
     def _generate_forms(self, questions):
         questions = QuestionASTGenerator(questions)
@@ -875,12 +718,13 @@ class QuestionForm(Mapping, Component):
         """return blocks"""
         return self.form.get_blocks()
 
-    def write_config(self, filename):
-        """ get a linear config and write it to the file"""
-        if isinstance(filename, StringIO):
-            return
-        with open(filename, 'w') as fhandle:
-            fhandle.write(self.write_visitor.visit(self))
+    def write(self, filename, format=None):
+        """write it to a file"""
+        self._writer.write(filename, format=format)
+
+    def read(self, filename, format=None):
+        """read data from file"""
+        self._reader.read(filename, format=format)
 
     def set_answers_from_file(self, filename, raise_error=True):
         error = self._set_answers_from_file(filename)
@@ -901,7 +745,8 @@ class QuestionForm(Mapping, Component):
             if isinstance(config, Mapping):
                 self.set_answers_from_dct(config, raise_error=raise_error)
             elif isinstance(config, StringIO) or is_existing_file(config):
-                self.set_answers_from_file(config, raise_error=raise_error)
+                self.read(config)
+                # self.set_answers_from_file(config, raise_error=raise_error)
 
     def set_presets(self, presets):
         """reset some of the question possibilites"""
@@ -956,9 +801,6 @@ class QuestionForm(Mapping, Component):
         error = ColtInputError()
         #
         for blockname, answers in dct.items():
-            if blockname == ConfigParser.base:
-                blockname = ""
-
             if blockname not in self.blocks:
                 if blockname in self.literals:
                     self.literals[blockname].answer = answers
@@ -976,8 +818,13 @@ class QuestionForm(Mapping, Component):
         block = self.blocks[blockname]
         for key, answer in answers.items():
             if key not in block:
-                print(f"unknown key '{key}' in '[{block}]'")
+                print(f"unknown key '{key}' in '[{blockname}]'")
                 continue
+            if not isinstance(answer, str):
+                answer, linenumber = answer
+            else:
+                linenumber = None
+
             question = block[key]
             if answer == "":
                 if question.is_optional:
@@ -988,9 +835,9 @@ class QuestionForm(Mapping, Component):
             try:
                 question.answer = answer
             except ValueError as e:
-                error[key] = f"{answer}, ValueError: {e}"
+                error.add(key, f"{answer}, ValueError: {e}", linenumber)
             except ValidatorErrorNotInChoices as err_choices:
-                error[key] = f"{answer}, Wrong Choice: {err_choices}"
+                error.add(key, f"{answer}, Wrong Choice: {err_choices}", linenumber)
         return error
 
     def _split_keys(self, name):
@@ -1014,8 +861,8 @@ class ColtBlockError:
     def is_none(self):
         return self._errors == {}
 
-    def __setitem__(self, key, value):
-        self._errors[key] = value
+    def add(self, key, value, linenumber):
+        self._errors[key] = (value, linenumber)
 
     def __str__(self):
         if self.is_none():
@@ -1026,7 +873,9 @@ class ColtBlockError:
         else:
             msg = ""
         #
-        msg += "\n".join(f"{key} = {err}" for key, err in self._errors.items())
+        msg += "\n".join(f"{key} = {err}" if linenumber is not None else 
+                         f"line {linenumber:5d}: {key} = {err}"
+                         for key, err, linenumber in self._errors.items())
         #
         return msg
 

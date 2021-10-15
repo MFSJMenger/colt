@@ -10,6 +10,7 @@ class FileIterable:
         self.closed = True
         self._previous = 0
         self._status = None
+        self._idx = 0
         self._fileiter = self._open(filename, options)
 
     def _open(self, filename, options):
@@ -21,11 +22,13 @@ class FileIterable:
         return fhandle
 
     def _read(self):
+        self._idx = 1
         while True:
             line = self._fileiter.readline()
             if not line:
                 break
-            yield line
+            yield (self._idx, line)
+            self._idx += 1
 
     def __iter__(self):
         self._status = self._read()
@@ -100,7 +103,7 @@ class ConfigParser(MutableMapping):
         configs = {cls.base: entries}
         #
         fileiter = FileIterable(filename)
-        for line in fileiter:
+        for idx, line in fileiter:
             header = cls._header(line)
             # check for literalblocks
             if header is not None:

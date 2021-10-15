@@ -243,7 +243,7 @@ class AskQuestions(QuestionForm):
         self.set_answers_and_presets(config, presets)
         #
         answer = self.ask(presets=presets, ask_all=ask_all, ask_defaults=ask_defaults)
-        self.write_config(filename)
+        self.write(filename)
         return answer
 
     def _ask_impl(self, description=None, ask_all=False, ask_defaults=True):
