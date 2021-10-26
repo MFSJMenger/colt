@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from collections import UserDict, UserString
 from collections.abc import Mapping
 from contextlib import contextmanager
@@ -746,7 +746,11 @@ class QuestionForm(Mapping, Component):
                 self.set_answers_from_dct(config, raise_error=raise_error)
             elif isinstance(config, StringIO) or is_existing_file(config):
                 self.read(config)
-                # self.set_answers_from_file(config, raise_error=raise_error)
+
+    def compare_inputs(self, filenames, set_answers=True, presets=None):
+        """Compare different input files for consistency"""
+        self.set_answers_and_presets(presets=presets)
+        self._reader.compare(filenames, set_answers=set_answers)
 
     def set_presets(self, presets):
         """reset some of the question possibilites"""

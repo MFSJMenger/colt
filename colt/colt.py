@@ -151,7 +151,7 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def from_questions(cls, *args, check_only=False, ask_all=False,
-                       ask_defaults=True, config=None, presets=None, **kwargs):
+                       ask_defaults=True, config=None, compare_inputs=False, presets=None, **kwargs):
         """Initizialze the class using `Colt` question utilities
 
         Parameters
@@ -173,6 +173,9 @@ class Colt(metaclass=ColtMeta):
         ask_defaults: bool, optional
             ask the question with default values
 
+        compare_inputs: bool, optional
+            if true expect that config is a list of files!
+
         args, kwargs: optional
             arguments and keyword arguments passed to from_config aside from
             the questions config
@@ -184,16 +187,20 @@ class Colt(metaclass=ColtMeta):
             so from_config should return an instance of the class.
 
         """
-        questions = cls.generate_user_input(config=config, presets=presets)
         #
-        if check_only is True:
-            answers = questions.check_only()
+        if compare_inputs is True:
+            questions = cls.generate_user_input(presets=presets)
+            answers = questions.compare(config, set_answers=True)
         else:
-            if config is None:
-                answers = questions.ask(ask_all=ask_all, ask_defaults=ask_defaults)
+            questions = cls.generate_user_input(config=config, presets=presets)
+            if check_only is True:
+                answers = questions.check_only()
             else:
-                answers = questions.generate_input(config, ask_all=ask_all,
-                                                   ask_defaults=ask_defaults)
+                if config is None:
+                    answers = questions.ask(ask_all=ask_all, ask_defaults=ask_defaults)
+                else:
+                    answers = questions.generate_input(config, ask_all=ask_all,
+                                                        ask_defaults=ask_defaults)
         #
         return cls._from_config(answers, *args, **kwargs)
 

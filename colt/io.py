@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from copy import deepcopy
 import json
 import re
 import os
@@ -93,6 +94,7 @@ class QuestionVisitor(ABC):
         for subblock in block.blocks.values():
             subblock.accept(self)
 
+
 class ConfigFileReader:
 
     _is_header = re.compile(r"\s*\[\s*(?P<header>.*)\]\s*")
@@ -106,17 +108,17 @@ class ConfigFileReader:
 
     def read(self, filename):
         """ """
-        # Parse file and store values
-        self.error = ColtInputError()
-        #
-        active_block = ""
-        valid_block = True
         try:
             filename = file_exists(filename)
         except ValueError:
             raise SystemExit(f"No such file as '{filename}'") from None
         #
         fileiter = FileIterable(filename)
+        # Parse file and store values
+        self.error = ColtInputError()
+        #
+        valid_block = True
+        self.qform.set_active_block('')
         for filenumber, line in fileiter:
             header = self._header(line)
             # handle headers and literal blocks
@@ -126,7 +128,8 @@ class ConfigFileReader:
                 if header is None:
                     break
                 valid_block = header in self.qform.blocks
-                active_block = header
+                if valid_block is True:
+                    self.qform.set_active_block(header)
                 continue
             # Handle entries
             line = line.strip()
@@ -135,38 +138,19 @@ class ConfigFileReader:
             key, value = self._entry(line)
             if key is not None:
                 if valid_block is True:
-                    self._handle_concrete_answer(active_block, key, value)
+                    self.qform.set_answer(key, value)
                 continue
             self.error.append(f"Error understanding line {filenumber}: {line} ")
         # catch basic errors in the field
         if not self.error.is_none():
             raise ValueError(str(self.error))
 
-    def _handle_concrete_answer(self, blockname, key, answer):
-        block = self.qform.blocks[blockname]
-        if key not in block:
-            print(f"unknown key '{key}' in '{blockname}'")
-            return
-        question = block[key]
-        if answer == "":
-            if question.is_optional:
-                question.is_set = True
-                question.is_set_to_empty = True
-            return
-        #
-        try:
-            question.answer = answer
-        except ValueError as e:
-            self.error.add(key, f"{answer}, ValueError: {e}", linenumber)
-        except ValidatorErrorNotInChoices as err_choices:
-            self.error.add(key, f"{answer}, Wrong Choice: {err_choices}", linenumber)
-
     def _handle_literal_blocks(self, header, fileiter):
         # handle literal block and find next header
         while header in self.qform.literals:
             value, _header =  self._parse_literals(header, fileiter)
             if value not in ('', None):
-                self.qform.literals[header].answer = value
+                self.qform.set_literal_block(header, value, is_fullname=True)
             header = _header
         return header
 
@@ -203,10 +187,11 @@ class ConfigFileReader:
 class JsonQuestionSetter(QuestionVisitor):
     """Visitor to write the answers to a string"""
 
-    __slots__ = ('json',)
+    __slots__ = ('json', 'qform')
 
-    def __init__(self):
+    def __init__(self, qform):
         self.json = None
+        self.qform = qform
 
     def visit_qform(self, qform, **kwargs):
         if 'filename' not in kwargs:
@@ -218,6 +203,8 @@ class JsonQuestionSetter(QuestionVisitor):
 
     def visit_question_block(self, block):
         # first all normal questions
+        self.qform.set_active_block(block.name)
+        #
         old_json = self.json
         for name, question in block.concrete.items():
             self.json = old_json.get(name, None)
@@ -232,18 +219,17 @@ class JsonQuestionSetter(QuestionVisitor):
 
     def visit_concrete_question_select(self, question):
         answer = self.json.get('__answer__', None)
-        print(f"answer = '{answer}'")
         if answer is not None:
-            question.answer = answer
+            self.qform.set_answer(question.short_name, answer)
 
     def visit_concrete_question_hidden(self, question):
-        question.answer = self.json
+        self.qform.set_answer(question.short_name, self.json)
 
     def visit_concrete_question_input(self, question):
-        question.answer = self.json
+        self.qform.set_answer(question.short_name, self.json)
 
     def visit_literal_block(self, block):
-        block.answer = self.json
+        self.qform.set_literal_block(block.short_name, self.json)
 
     def visit_subquestion_block(self, block):
         """visit subquestion blocks"""
@@ -261,10 +247,133 @@ class JsonReader:
 
     def __init__(self, qform):
         self.qform = qform
-        self.reader = JsonQuestionSetter()
+        self.reader = JsonQuestionSetter(qform)
 
     def read(self, filename):
-        self.reader.visit(self.qform, filename=filename)
+        print("qform = ", self.qform.qform)
+        self.reader.visit(self.qform.qform, filename=filename)
+
+
+class QFormSetter:
+
+    def __init__(self, qform):
+        self.qform = qform
+        self._active_block_name = ''
+        self._active_block = self.qform.blocks[self._active_block_name]
+
+    def accept(self, visitor, **kwargs):
+        return visitor.visit_qform(self.qform, **kwargs)
+
+    @property
+    def blocks(self):
+        return self.qform.blocks
+
+    @property
+    def literals(self):
+        return self.qform.literals
+
+    def set_active_block(self, newvalue, exit_on_error=False):
+        if newvalue not in self.qform.blocks:
+            raise ValueError(f"Block '{newvalue}' unknown")
+        self._active_block_name = newvalue
+        self._active_block = self.qform.blocks[newvalue]
+
+    def set_active_block(self, newvalue, exit_on_error=False):
+        if newvalue not in self.qform.blocks:
+            return False
+        self._active_block_name = newvalue
+        self._active_block = self.qform.blocks[newvalue]
+        return True
+
+    def set_answer(self, key, answer, linenumber=None):
+        question = self._active_block.get(key, None)
+        if question is None:
+            return f"unknown key '{key}' in '{blockname}'"
+
+        if answer == "":
+            if question.is_optional:
+                question.is_set = True
+                question.is_set_to_empty = True
+            return None
+        #
+        try:
+            question.answer = answer
+        except ValueError as e:
+            return f"{key} = {answer}, ValueError: {e}"
+        except ValidatorErrorNotInChoices as err_choices:
+            return f"{key} = {answer}, Wrong Choice: {err_choices}"
+        return None
+
+    def set_literal_block(self, name, value, is_fullname=False):
+        if is_fullname is True:
+            literal = self.qform.literals.get(name, None)
+        else:
+            literal = self._active_block.get(name, None)
+        if literal is not None:
+            literal.answer = value
+
+
+class QFormComparer(QFormSetter):
+
+    def __init__(self, qform):
+        super().__init__(qform)
+        self._answers = None
+
+    def get_current_answers(self):
+        return { blockname: {name: question.get_answer_as_string()
+                             for name, question in block.items()}
+                for blockname, block in self.qform.blocks.items()}
+
+    def set_answer(self, key, answer, linenumber=None):
+        """Set the answer for an concrete question in the active block"""
+        question = self._active_block.get(key, None)
+        if question is None:
+            return f"unknown key '{key}' in '{blockname}'"
+
+        if answer == "":
+            if question.is_optional:
+                question.is_set = True
+                question.is_set_to_empty = True
+                self._answers[self._active_block_name][key] = answer
+            return None
+        #
+        try:
+            question.validator.validate(answer)
+        except ValueError as e:
+            return f"{key} = {answer}, ValueError: {e}"
+        except ValidatorErrorNotInChoices as err_choices:
+            return f"{key} = {answer}, Wrong Choice: {err_choices}"
+        self._answers[self._active_block_name][key] = answer
+        return None
+
+    def set_literal_block(self, name, value, is_fullname=False):
+        """Set the value for an literal block"""
+        if is_fullname is True:
+            literal = self.qform.literals.get(name, None)
+        else:
+            literal = self._active_block.get(name, None)
+        if literal is not None:
+            self._answers[literal.name] = value
+            literal.answer = value
+
+    def compare(self, filenames, *, format=None, set_answers=False):
+        defaults = self.get_current_answers()
+
+        reader = ColtReader(self)
+        total = {}
+        for filename in filenames:
+            self._answers = deepcopy(defaults)
+            reader.read(filename, format=format)
+            total[filename] = self._answers
+            self._answers = None
+
+        print(total)
+        first = total[filenames[0]]
+        for filename in filenames[1:]:
+            if (first != total[filename]):
+                raise Exception
+        if set_answers is True:
+            self.qform.set_answers_from_dct(first, raise_error=True)
 
 
 class ColtReader:
@@ -273,6 +382,7 @@ class ColtReader:
 
     def __init__(self, qform, default_format='ini'):
         self.qform = qform
+        self.is_setter = True if isinstance(qform, QFormSetter) else False
         if default_format not in self.reader:
             raise ValueError("could not find parser for format..")
         self._default_format = default_format
@@ -284,15 +394,22 @@ class ColtReader:
         else:
             if format not in self.reader:
                 raise ValueError(f"format '{format}' unknown!")
-        print(f"Selected format = '{format}'")
-        reader = self._select_reader(format)
+        reader = self._select_readercls(format)
+        if self.is_setter is True:
+            reader = reader(self.qform)
+        else:
+            reader = reader(QFormSetter(self.qform))
         reader.read(filename)
 
-    def _select_reader(self, format):
+    def compare(self, filenames, format=None, set_answers=True):
+        compare = QFormComparer(self.qform)
+        compare.compare(filenames, format=format, set_answers=set_answers)
+
+    def _select_readercls(self, format):
         reader = self.reader.get(format, None)
         if reader is None:
             raise ValueError(f"Cannot handle format '{format}'")
-        return reader(self.qform)
+        return reader
 
     def _select_format(self, filename):
         _, format = os.path.splitext(filename)
@@ -368,7 +485,7 @@ class WriteConfigVisitor(QuestionVisitor):
             qform[blockname].accept(self)
         self._ignore_literals = False
         #
-        for block in qform.literals.items():
+        for block in qform.literals.values():
             # literal blocks
             block.accept(self)
         #

@@ -218,6 +218,25 @@ class AskQuestions(QuestionForm):
         self.set_answers_and_presets(config, presets)
         return self.get_answers(check=True)
 
+    def compare(self, filenames, presets=None, check=True, set_answers=True):
+        """Check that the input files in filenames are consistent
+
+        Parameters
+        ---------
+        filenames: list/tuple
+            name of the files to compare
+
+        presets: str
+            presets to be used
+
+        Returns
+        -------
+        AnswerBlock
+            user input
+        """
+        self.compare_inputs(filenames, presets=presets)
+        return self.get_answers(check=check)
+
     def generate_input(self, filename, config=None, presets=None, ask_all=False, ask_defaults=True):
         """Generates an input file from user input
         Parameters
