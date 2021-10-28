@@ -7,7 +7,7 @@ from sphinx.util.docutils import SphinxDirective, nodes
 from .questions import QuestionASTGenerator, NOT_DEFINED
 from .qform import QuestionVisitor, QuestionForm
 from .colt import CommandlineInterface
-from .parser_settings_generator import HelpFormatterGenerator
+from .tools.parser_settings_generator import HelpFormatterGenerator
 from .validator import bool_parser
 
 

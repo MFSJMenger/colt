@@ -151,7 +151,8 @@ class Colt(metaclass=ColtMeta):
 
     @classmethod
     def from_questions(cls, *args, check_only=False, ask_all=False,
-                       ask_defaults=True, config=None, compare_inputs=False, presets=None, **kwargs):
+                       ask_defaults=True, config=None,
+                       compare_inputs=False, presets=None, **kwargs):
         """Initizialze the class using `Colt` question utilities
 
         Parameters
@@ -200,7 +201,7 @@ class Colt(metaclass=ColtMeta):
                     answers = questions.ask(ask_all=ask_all, ask_defaults=ask_defaults)
                 else:
                     answers = questions.generate_input(config, ask_all=ask_all,
-                                                        ask_defaults=ask_defaults)
+                                                       ask_defaults=ask_defaults)
         #
         return cls._from_config(answers, *args, **kwargs)
 

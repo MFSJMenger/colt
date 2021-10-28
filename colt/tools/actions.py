@@ -81,9 +81,10 @@ class ActionDecorator:
                       options_name=None, general_action=None, overwrite=False):
         if overwrite is False and name in self._Factory.plugins.keys():
             raise ValueError(f"Name '{name}' already registered as plugin")
-        Factory, deco = _create_action_factory_and_deco(name, user_input, options_name, general_action, description)
+        Factory, deco = _create_action_factory_and_deco(name, user_input, options_name,
+                                                        general_action, description)
         # register the factory
-        self._Factory.add_plugin(name, Factory) 
+        self._Factory.add_plugin(name, Factory)
         return deco
 
     def __call__(self):
@@ -91,7 +92,7 @@ class ActionDecorator:
 
     # normal function call
     def register(self, description, user_input,
-                       name=None, lazy_imports=None):
+                 name=None, lazy_imports=None):
         def _action_creator(func):
             nonlocal name
             if name is None:
@@ -105,6 +106,7 @@ class ActionDecorator:
             type(name, (self.Action, ), data)
             return func
         return _action_creator
+
 
 class Marker:
 
@@ -121,7 +123,8 @@ class Marker:
         self.function = function
         return self
 
-class _ColtActionMaker(ABCMeta):
+
+class _ColtActionMaker(type):
 
     def __prepare__(cls, metacls, *args, **kwargs):
         return {'register': Marker}
@@ -138,6 +141,7 @@ class _ColtActionMaker(ABCMeta):
         action_name = clsdict.get('_colt_action_name', 'commandline')
         if '__init__' in clsdict:
             __init__ = clsdict['__init__']
+
             def _init(self, *args, **kwargs):
                 action = create_action('value')
                 for name, (description, user_input) in markers.items():
@@ -155,14 +159,14 @@ class _ColtActionMaker(ABCMeta):
         #
         clsdict['__init__'] = _init
         #
-        return ABCMeta.__new__(cls, name, bases, clsdict)
+        return super().__new__(cls, name, bases, clsdict)
 
 
-class ColtAction(metaclass=ColtActionMaker):
+class ColtAction(metaclass=_ColtActionMaker):
     pass
 
 
-def _create_action_factory_and_deco(name, user_input=None, options_name=None, 
+def _create_action_factory_and_deco(name, user_input=None, options_name=None,
                                     general_action=None, description=None):
     """Construct Action Factory and Action Decorator"""
     Factory = _create_factory(name, user_input, options_name, general_action, description)
@@ -173,5 +177,6 @@ def _create_action_factory_and_deco(name, user_input=None, options_name=None,
 
 def create_action(name, user_input=None, options_name=None, general_action=None, description=None):
     """Create bassic action generator using colt"""
-    _, deco = _create_action_factory_and_deco(name, user_input, options_name, general_action, description)
+    _, deco = _create_action_factory_and_deco(name, user_input, options_name,
+                                              general_action, description)
     return deco

@@ -3,7 +3,6 @@ from collections import UserDict, UserString
 from collections.abc import Mapping
 from contextlib import contextmanager
 from io import StringIO
-import json
 #
 from .answers import AnswersBlock, SubquestionsAnswer
 from .config import ConfigParser
@@ -399,8 +398,6 @@ class SubquestionBlock(_QuestionsContainerBase):
         if answer in ("", None):
             return {}
         return self.cases[answer].concrete
-
-
 
 
 def block_error(block_name, errors):
@@ -877,7 +874,7 @@ class ColtBlockError:
         else:
             msg = ""
         #
-        msg += "\n".join(f"{key} = {err}" if linenumber is not None else 
+        msg += "\n".join(f"{key} = {err}" if linenumber is not None else
                          f"line {linenumber:5d}: {key} = {err}"
                          for key, err, linenumber in self._errors.items())
         #

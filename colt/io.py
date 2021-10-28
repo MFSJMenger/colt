@@ -5,7 +5,7 @@ import re
 import os
 
 from .config import FileIterable
-from .validator import file_exists
+from .validator import file_exists, ValidatorErrorNotInChoices
 
 
 class ColtInputError:
@@ -148,7 +148,7 @@ class ConfigFileReader:
     def _handle_literal_blocks(self, header, fileiter):
         # handle literal block and find next header
         while header in self.qform.literals:
-            value, _header =  self._parse_literals(header, fileiter)
+            value, _header = self._parse_literals(header, fileiter)
             if value not in ('', None):
                 self.qform.set_literal_block(header, value, is_fullname=True)
             header = _header
@@ -274,12 +274,6 @@ class QFormSetter:
 
     def set_active_block(self, newvalue, exit_on_error=False):
         if newvalue not in self.qform.blocks:
-            raise ValueError(f"Block '{newvalue}' unknown")
-        self._active_block_name = newvalue
-        self._active_block = self.qform.blocks[newvalue]
-
-    def set_active_block(self, newvalue, exit_on_error=False):
-        if newvalue not in self.qform.blocks:
             return False
         self._active_block_name = newvalue
         self._active_block = self.qform.blocks[newvalue]
@@ -288,7 +282,7 @@ class QFormSetter:
     def set_answer(self, key, answer, linenumber=None):
         question = self._active_block.get(key, None)
         if question is None:
-            return f"unknown key '{key}' in '{blockname}'"
+            return f"unknown key '{key}' in '{self._active_block_name}'"
 
         if answer == "":
             if question.is_optional:
@@ -320,15 +314,15 @@ class QFormComparer(QFormSetter):
         self._answers = None
 
     def get_current_answers(self):
-        return { blockname: {name: question.get_answer_as_string()
-                             for name, question in block.items()}
+        return {blockname: {name: question.get_answer_as_string()
+                            for name, question in block.items()}
                 for blockname, block in self.qform.blocks.items()}
 
     def set_answer(self, key, answer, linenumber=None):
         """Set the answer for an concrete question in the active block"""
         question = self._active_block.get(key, None)
         if question is None:
-            return f"unknown key '{key}' in '{blockname}'"
+            return f"unknown key '{key}' in '{self._active_block_name}'"
 
         if answer == "":
             if question.is_optional:

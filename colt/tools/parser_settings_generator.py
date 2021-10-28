@@ -1,5 +1,5 @@
-from .parser import HelpFormatter
-from .colt import Colt
+from ..parser import HelpFormatter
+from ..colt import Colt
 
 
 class HelpFormatterGenerator(Colt):
