@@ -4,7 +4,7 @@
 
 __author__ = """Maximilian Menger"""
 __email__ = 'm.f.s.j.menger@rug.nl'
-__version__ = '0.1.0'
+__version__ = '0.5.3'
 
 __all__ = ["Colt", "Plugin", "PluginLoader", "from_commandline", "Validator", "NOT_DEFINED"]
 

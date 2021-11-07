@@ -11,7 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['readline>=6' ]
+requirements = []
 
 setup_requirements = ['pytest-runner', ]
 
@@ -26,11 +26,11 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
-    description="Command Line Questions for Python",
+    description="Command Line Tool for Python",
     install_requires=requirements,
     license="Apache License v2.0",
     long_description=readme + '\n\n' + history,
@@ -42,6 +42,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/mfsjmenger/colt',
-    version='0.5.1',
+    version='0.5.3',
     zip_safe=False,
 )

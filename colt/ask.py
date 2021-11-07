@@ -1,8 +1,25 @@
 """Get User Input from commandline"""
-import readline
 from contextlib import contextmanager
 #
 from .qform import QuestionVisitor, QuestionForm
+
+
+try:
+    import readline
+    readline.parse_and_bind('tab:complete')
+
+except ModuleNotFoundError:
+
+    class readline:
+        """Fake readline that does nothing"""
+
+        @staticmethod
+        def set_completer(arg):
+            pass
+
+        @staticmethod
+        def parse_and_bind(arg):
+            pass
 
 
 readline.parse_and_bind('tab:complete')
