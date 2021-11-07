@@ -187,7 +187,7 @@ class Colt(metaclass=ColtMeta):
         questions = cls.generate_user_input(config=config, presets=presets)
         #
         if check_only is True:
-            answers = questions.check_only()
+            answers = questions.check_only(config=config)
         else:
             if config is None:
                 answers = questions.ask(ask_all=ask_all, ask_defaults=ask_defaults)

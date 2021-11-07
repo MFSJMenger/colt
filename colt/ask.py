@@ -216,6 +216,8 @@ class AskQuestions(QuestionForm):
             user input
         """
         self.set_answers_and_presets(config, presets)
+        if config is not None:
+            self.write_config(config)
         return self.get_answers(check=True)
 
     def generate_input(self, filename, config=None, presets=None, ask_all=False, ask_defaults=True):
