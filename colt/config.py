@@ -35,8 +35,9 @@ class FileIterable:
         return next(self._status)
 
     def __del__(self):
-        if not self.closed:
+        if not self.closed and not isinstance(self._fileiter, StringIO):
             self._fileiter.close()
+            self.closed = True
 
 
 class ConfigParser(MutableMapping):
