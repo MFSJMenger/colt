@@ -45,7 +45,7 @@ class ConfigParser(MutableMapping):
     comment = "#"
     base = "DEFAULTS"
     _is_header = re.compile(r"\s*\[\s*(?P<header>.*)\]\s*")
-    _is_entry = re.compile(r"(?P<key>.*)=(?P<value>.*)")
+    _is_entry = re.compile(r"(?P<key>.*?)=(?P<value>.*)")
 
     def __init__(self, config, literals):
         self._config = config
