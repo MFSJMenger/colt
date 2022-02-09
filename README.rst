@@ -9,6 +9,10 @@ For the input file the `ini` file-format is used around Python's configparser_.
 
 * Free software: Apache License 2.0
 
+|PyPI download month|
+
+.. |PyPI download month| image:: https://img.shields.io/pypi/dm/pycolt.svg
+   :target: https://pypi.python.org/pypi/pycolt/
 
 Features
 --------
