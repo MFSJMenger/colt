@@ -7,11 +7,23 @@ interfaces for Python, that are type validated.
 For the input file the `ini` file-format is used around Python's configparser_.
 
 
-* Free software: Apache License 2.0
+|PyPI version fury.io|
+|PyPI download month|  
+|PyPI license|
+|PyPI implementation|
 
-|PyPI download month|
+.. |PyPI implementation| image:: https://img.shields.io/pypi/implementation/pycolt.svg
+   :target: https://pypi.python.org/pypi/pycolt/
 
 .. |PyPI download month| image:: https://img.shields.io/pypi/dm/pycolt.svg
+   :target: https://pypi.python.org/pypi/pycolt/
+  
+
+.. |PyPI version fury.io| image:: https://badge.fury.io/py/pycolt.svg
+   :target: https://pypi.python.org/pypi/pycolt/
+
+
+.. |PyPI license| image:: https://img.shields.io/pypi/l/pycolt.svg
    :target: https://pypi.python.org/pypi/pycolt/
 
 Features
