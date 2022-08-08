@@ -290,6 +290,26 @@ class EventAction(Action):
         return self.fullname == value
 
 
+def is_number(string):
+    """check if string is an number"""
+    start = 0
+    if string.startswith('-'):
+        start = 1
+    
+    count = string.count('.')
+    if count == 0:
+        return string[start:].isdigit()
+
+    if count != 1:
+        return False
+
+    loc = string.find('.')
+    last = string[loc+1:]
+    if last == '':
+        return string[start:loc].isdigit()
+    return string[start:loc] and last.isdigit()
+
+
 class SysIterator:
 
     def __init__(self, args=None):
@@ -320,8 +340,11 @@ class SysIterator:
 
     def get_arg(self):
         arg = self.peek()
-        if arg is None or arg.startswith('-'):
+        if arg is None:
             return None
+        if arg.startswith('-'):
+            if not is_number(arg):
+                return None
         self.idx += 1
         return arg
 
