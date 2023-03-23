@@ -534,6 +534,10 @@ class AnswerVisitor(QuestionVisitor):
     def visit_subquestion_block(self, block):
         """visit subquestion blocks"""
         answer = block.main_question.get_answer()
+        # if optional accept None as valid answer
+        if block.main_question.is_optional is True and answer is None:
+            return SubquestionsAnswer(block.label, None, {})
+        # answer not given
         if answer is NOT_DEFINED:
             return SubquestionsAnswer(block.label, None, {})
         #
