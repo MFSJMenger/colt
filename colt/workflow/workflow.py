@@ -1,7 +1,7 @@
 import inspect
 from collections import UserDict
 #
-from ..validator import Validator
+from ..validator import ValidatorSelector
 from ..commandline import get_config_from_commandline
 #
 from .language import Assignment, Parser, Type, Variable
@@ -114,7 +114,7 @@ class Workflow:
         for node in self.nodes:
             node.check_types(types, input_nodes)
         for var, typ in input_nodes.items():
-            if typ.typ.typ not in Validator.parsers:
+            if typ.typ.typ not in ValidatorSelector.validators:
                 raise Exception(f"cannot get type '{typ}' of variable {var} from commandline")
         return input_nodes, types
 
